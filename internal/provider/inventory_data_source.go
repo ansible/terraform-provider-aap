@@ -35,7 +35,7 @@ func (d *inventoryDataSource) Metadata(_ context.Context, req datasource.Metadat
 func (d *inventoryDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"path": schema.StringAttribute{
+			"id": schema.Int64Attribute{
 				Required: true,
 			},
 			"groups": schema.MapNestedAttribute{
@@ -78,7 +78,7 @@ func (d *inventoryDataSource) Read(ctx context.Context, req datasource.ReadReque
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 
-	hosts, err := d.client.GetHosts(state.Path.ValueString())
+	hosts, err := d.client.GetHosts(state.Id.String())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Ansible hosts",
@@ -156,7 +156,7 @@ func (d *inventoryDataSource) Configure(_ context.Context, req datasource.Config
 
 // inventoryDataSourceModel maps the data source schema data.
 type inventoryDataSourceModel struct {
-	Path   types.String                    `tfsdk:"path"`
+	Id     types.Int64                     `tfsdk:"id"`
 	Groups map[string]groupDataSourceModel `tfsdk:"groups"`
 	Hosts  map[string]hostDataSourceModel  `tfsdk:"hosts"`
 }

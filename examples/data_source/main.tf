@@ -19,7 +19,7 @@ variable "state_id" {
 }
 
 data "aap_inventory" "sample" {
-  path = "/api/v2/state/${var.state_id}/"
+  path = var.state_id
 }
 
 output "inventory_hosts" {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 // Client -
@@ -40,9 +41,14 @@ func NewClient(host string, username *string, password *string, insecure_skip_ve
 	return &client, nil
 }
 
-func (c *AAPClient) GetHosts(stateEndPoint string) (*AnsibleHostList, error) {
+func (c *AAPClient) GetHosts(stateId string) (*AnsibleHostList, error) {
 
-	req, _ := http.NewRequest("GET", c.HostURL+stateEndPoint, nil)
+	hostURL := c.HostURL
+	if !strings.HasSuffix(hostURL, "/") {
+		hostURL = hostURL + "/"
+	}
+
+	req, _ := http.NewRequest("GET", hostURL+"api/v2/state/"+stateId+"/", nil)
 	if c.Username != nil && c.Password != nil {
 		req.SetBasicAuth(*c.Username, *c.Password)
 	}
