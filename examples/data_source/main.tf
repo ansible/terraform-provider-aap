@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     aap = {
-      source = "github.com/ansible/aap"
+      source = "ansible/aap"
     }
   }
 }
