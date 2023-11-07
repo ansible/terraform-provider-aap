@@ -31,14 +31,74 @@ type AnsibleHostList struct {
 
 // NewClient -
 func NewClient(host string, username *string, password *string, insecure_skip_verify bool) (*AAPClient, error) {
+	hostURL := host
+	if !strings.HasSuffix(hostURL, "/") {
+		hostURL = hostURL + "/"
+	}
 	client := AAPClient{
-		HostURL:            host,
+		HostURL:            hostURL,
 		Username:           username,
 		Password:           password,
 		InsecureSkipVerify: insecure_skip_verify,
 	}
 
 	return &client, nil
+}
+
+func (c *AAPClient) computeURLPath(path string) string {
+	fullPath := c.HostURL
+	if !strings.HasSuffix(fullPath, "/") {
+		fullPath = fullPath + "/"
+	}
+	if strings.HasPrefix(path, "/") {
+		fullPath = fullPath + path[1:]
+	} else {
+		fullPath = fullPath + path
+	}
+	if !strings.HasSuffix(fullPath, "/") {
+		fullPath = fullPath + "/"
+	}
+	return fullPath
+}
+
+func (c *AAPClient) doRequest(method string, path string) (int, []byte, error) {
+
+	req, _ := http.NewRequest(method, c.computeURLPath(path), nil)
+
+	if c.Username != nil && c.Password != nil {
+		req.SetBasicAuth(*c.Username, *c.Password)
+	}
+
+	// 	// add query params into request
+	// if len(query_params) > 0 {
+	// 	qry := req.URL.Query()
+	// 	for key, value := range query_params {
+	// 		qry.Add(key, value)
+	// 	}
+	// 	// assign encoded query string to http request
+	// 	req.URL.RawQuery = qry.Encode()
+	// }
+
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: c.InsecureSkipVerify},
+	}
+	client := &http.Client{Transport: tr}
+	resp, err := client.Do(req)
+
+	if err != nil {
+		return -1, []byte{}, err
+	}
+
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return -1, []byte{}, err
+	}
+	return resp.StatusCode, body, nil
 }
 
 func (c *AAPClient) GetHosts(stateId string) (*AnsibleHostList, error) {

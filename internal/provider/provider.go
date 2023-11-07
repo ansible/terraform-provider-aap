@@ -215,7 +215,9 @@ func (p *aapProvider) DataSources(_ context.Context) []func() datasource.DataSou
 
 // Resources defines the resources implemented in the provider.
 func (p *aapProvider) Resources(_ context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		NewJobResource,
+	}
 }
 
 // aapProviderModel maps provider schema data to a Go type.
