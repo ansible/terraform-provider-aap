@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,9 +9,12 @@ import (
 	"slices"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/helpers/validatordiag"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -35,6 +39,40 @@ func (r *JobResource) Metadata(ctx context.Context, req resource.MetadataRequest
 	resp.TypeName = req.ProviderTypeName + "_job"
 }
 
+var _ validator.String = ansibleVarsValidator{}
+
+// ansibleVarsValidator validates that a string Attribute's is a valid JSON.
+type ansibleVarsValidator struct{}
+
+// Description describes the validation in plain text formatting.
+func (validator ansibleVarsValidator) Description(_ context.Context) string {
+	return "string must be a valid JSON."
+}
+
+// MarkdownDescription describes the validation in Markdown formatting.
+func (validator ansibleVarsValidator) MarkdownDescription(ctx context.Context) string {
+	return validator.Description(ctx)
+}
+
+// Validate performs the validation.
+func (v ansibleVarsValidator) ValidateString(ctx context.Context, request validator.StringRequest, response *validator.StringResponse) {
+	if request.ConfigValue.IsNull() || request.ConfigValue.IsUnknown() {
+		return
+	}
+	if !json.Valid([]byte(request.ConfigValue.ValueString())) {
+		response.Diagnostics.Append(validatordiag.InvalidAttributeValueLengthDiagnostic(
+			request.Path,
+			v.Description(ctx),
+			fmt.Sprintf("Invalid JSON string => [%s]", request.ConfigValue.ValueString()),
+		))
+		return
+	}
+}
+
+func ansible_json_vars_validator() validator.String {
+	return ansibleVarsValidator{}
+}
+
 // Schema defines the schema for the resource.
 func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
@@ -42,16 +80,19 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"job_template_id": schema.Int64Attribute{
 				Required: true,
 			},
+			"inventory_id": schema.Int64Attribute{
+				Optional: true,
+			},
+			"execution_environment_id": schema.Int64Attribute{
+				Optional: true,
+			},
 			"job_type": schema.StringAttribute{
 				Computed: true,
-				Optional: true,
 			},
 			"job_url": schema.StringAttribute{
 				Computed: true,
-				Optional: true,
 			},
 			"status": schema.StringAttribute{
-				Optional: true,
 				Computed: true,
 			},
 			"wait_for_completion": schema.BoolAttribute{
@@ -60,18 +101,100 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"wait_duration": schema.Int64Attribute{
 				Optional: true,
 			},
+			"extra_vars": schema.StringAttribute{
+				Optional: true,
+				Validators: []validator.String{
+					ansible_json_vars_validator(),
+				},
+			},
+			"ignored_fields": schema.ListAttribute{
+				ElementType: types.StringType,
+				Computed:    true,
+			},
 		},
 	}
 }
 
 // jobResourceModel maps the resource schema data.
 type jobResourceModel struct {
-	Id                types.Int64  `tfsdk:"job_template_id"`
-	Type              types.String `tfsdk:"job_type"`
-	URL               types.String `tfsdk:"job_url"`
-	Status            types.String `tfsdk:"status"`
-	WaitForCompletion types.Bool   `tfsdk:"wait_for_completion"`
-	WaitDuration      types.Int64  `tfsdk:"wait_duration"`
+	Id                   types.Int64  `tfsdk:"job_template_id"`
+	Type                 types.String `tfsdk:"job_type"`
+	URL                  types.String `tfsdk:"job_url"`
+	Status               types.String `tfsdk:"status"`
+	WaitForCompletion    types.Bool   `tfsdk:"wait_for_completion"`
+	WaitDuration         types.Int64  `tfsdk:"wait_duration"`
+	InventoryId          types.Int64  `tfsdk:"inventory_id"`
+	ExecutionEnvironment types.Int64  `tfsdk:"execution_environment_id"`
+	ExtraVars            types.String `tfsdk:"extra_vars"`
+	IgnoredFields        types.List   `tfsdk:"ignored_fields"`
+}
+
+var key_mapping = map[string]string{
+	"inventory":             "inventory",
+	"execution_environment": "execution_environment_id",
+}
+
+func (d *jobResourceModel) ParseHttpResponse(body []byte) error {
+	/* Unmarshal the json string */
+	var result map[string]interface{}
+	err := json.Unmarshal(body, &result)
+	if err != nil {
+		return err
+	}
+
+	d.Type = types.StringValue(result["job_type"].(string))
+	d.URL = types.StringValue(result["url"].(string))
+	d.Status = types.StringValue(result["status"].(string))
+	d.IgnoredFields = types.ListNull(types.StringType)
+
+	if value, ok := result["ignored_fields"]; ok {
+		var keys_list []attr.Value = []attr.Value{}
+		for k := range value.(map[string]interface{}) {
+			key := k
+			if v, ok := key_mapping[k]; ok {
+				key = v
+			}
+			keys_list = append(keys_list, types.StringValue(key))
+		}
+		d.IgnoredFields, _ = types.ListValue(types.StringType, keys_list)
+	}
+
+	return nil
+}
+
+func IsValueProvided(value attr.Value) bool {
+	return !value.IsNull() && !value.IsUnknown()
+}
+
+func (d *jobResourceModel) CreateRequestBody(ctx context.Context) (*bytes.Reader, error) {
+	body := make(map[string]interface{})
+
+	// Extra vars
+	if IsValueProvided(d.ExtraVars) {
+		var extra_vars map[string]interface{}
+		_ = json.Unmarshal([]byte(d.ExtraVars.ValueString()), &extra_vars)
+		body["extra_vars"] = extra_vars
+	}
+
+	// Execution environment
+	if IsValueProvided(d.ExecutionEnvironment) {
+		body["execution_environment"] = d.ExecutionEnvironment.ValueInt64()
+	}
+
+	// Inventory
+	if IsValueProvided(d.InventoryId) {
+		body["inventory"] = d.InventoryId.ValueInt64()
+	}
+
+	if len(body) == 0 {
+		return nil, nil
+	}
+	json_raw, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	tflog.Info(ctx, fmt.Sprintf("Sending request with data %s", string(json_raw)))
+	return bytes.NewReader(json_raw), nil
 }
 
 func (r *JobResource) WaitForJob(job_url string, statuses []string, wait_duration int64) (string, error) {
@@ -132,7 +255,7 @@ func (r JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
-	if !data.URL.IsNull() {
+	if !data.URL.IsNull() && !data.URL.IsUnknown() {
 		// Read existing Job
 		http_code, body, err := r.client.doRequest("GET", data.URL.ValueString())
 		if err != nil {
@@ -151,9 +274,8 @@ func (r JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 			return
 		}
 
-		/* Unmarshal the json string */
-		var result map[string]interface{}
-		err = json.Unmarshal(body, &result)
+		tflog.Info(ctx, fmt.Sprintf("HTTP GET [%s] => %s", data.URL.ValueString(), string(body)))
+		err = data.ParseHttpResponse(body)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Unexpected Resource Read error",
@@ -161,9 +283,6 @@ func (r JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 			)
 			return
 		}
-
-		data.Type = types.StringValue(result["job_type"].(string))
-		data.Status = types.StringValue(result["status"].(string))
 	}
 
 	// Save updated data into Terraform state
@@ -181,7 +300,22 @@ func (r JobResource) Create(ctx context.Context, req resource.CreateRequest, res
 	}
 
 	// Create new Job from job template
-	http_code, body, err := r.client.doRequest("POST", "/api/v2/job_templates/"+data.Id.String()+"/launch/")
+	req_data, err := data.CreateRequestBody(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Creation error",
+			err.Error(),
+		)
+	}
+	var http_code int
+	var body []byte
+	post_url := "/api/v2/job_templates/" + data.Id.String() + "/launch/"
+	if req_data != nil {
+		http_code, body, err = r.client.doRequestWithBody("POST", post_url, req_data)
+	} else {
+		http_code, body, err = r.client.doRequest("POST", post_url)
+	}
+
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Creation error",
@@ -198,9 +332,8 @@ func (r JobResource) Create(ctx context.Context, req resource.CreateRequest, res
 		return
 	}
 
-	/* Unmarshal the json string */
-	var result map[string]interface{}
-	err = json.Unmarshal(body, &result)
+	tflog.Info(ctx, fmt.Sprintf("HTTP POST [%s] => %s", post_url, string(body)))
+	err = data.ParseHttpResponse(body)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Creation error",
@@ -209,13 +342,9 @@ func (r JobResource) Create(ctx context.Context, req resource.CreateRequest, res
 		return
 	}
 
-	data.Type = types.StringValue(result["job_type"].(string))
-	data.URL = types.StringValue(result["url"].(string))
-	data.Status = types.StringValue(result["status"].(string))
-
 	if data.WaitForCompletion.ValueBool() {
 		var wait_duration int64 = 120
-		if !data.WaitDuration.IsNull() {
+		if !(data.WaitDuration.IsNull() && data.WaitDuration.IsUnknown()) {
 			wait_duration = data.WaitDuration.ValueInt64()
 		}
 		job_status, err := r.WaitForJob(data.URL.ValueString(), []string{"successful", "failed"}, wait_duration)
@@ -239,7 +368,7 @@ func (r JobResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
-	if data.URL.IsNull() {
+	if data.URL.IsNull() || data.URL.IsUnknown() {
 		return
 	}
 
@@ -265,8 +394,9 @@ func (r JobResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 		return
 	}
 
+	tflog.Info(ctx, fmt.Sprintf("HTTP GET [%s] => %s", data.URL.ValueString(), string(body)))
 	var result map[string]interface{}
-	if err := json.Unmarshal([]byte(body), &result); err != nil {
+	if err := json.Unmarshal(body, &result); err != nil {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Deletion error",
 			"Failed to parse HTTP JSON response: "+err.Error(),
@@ -286,7 +416,8 @@ func (r JobResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 		return
 	}
 	if http_status_code == http.StatusOK {
-		if err := json.Unmarshal([]byte(body), &result); err != nil {
+		tflog.Info(ctx, fmt.Sprintf("HTTP GET [%s] => %s", cancel_url, string(body)))
+		if err := json.Unmarshal(body, &result); err != nil {
 			resp.Diagnostics.AddError(
 				"Unexpected Resource Deletion error",
 				"Unable to parse JSON HTTP response: "+err.Error(),
@@ -334,7 +465,22 @@ func (r JobResource) Update(ctx context.Context, req resource.UpdateRequest, res
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 
 	// Create new Job from job template
-	http_code, body, err := r.client.doRequest("POST", "/api/v2/job_templates/"+data.Id.String()+"/launch/")
+	req_data, err := data.CreateRequestBody(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Creation error",
+			err.Error(),
+		)
+	}
+	var http_code int
+	var body []byte
+	post_url := "/api/v2/job_templates/" + data.Id.String() + "/launch/"
+	if req_data != nil {
+		http_code, body, err = r.client.doRequestWithBody("POST", post_url, req_data)
+	} else {
+		http_code, body, err = r.client.doRequest("POST", post_url)
+	}
+
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Update error",
@@ -351,9 +497,8 @@ func (r JobResource) Update(ctx context.Context, req resource.UpdateRequest, res
 		return
 	}
 
-	/* Unmarshal the json string */
-	var result map[string]interface{}
-	err = json.Unmarshal(body, &result)
+	tflog.Info(ctx, fmt.Sprintf("HTTP POST [%s] => %s", post_url, string(body)))
+	err = data.ParseHttpResponse(body)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Update error",
@@ -361,10 +506,6 @@ func (r JobResource) Update(ctx context.Context, req resource.UpdateRequest, res
 		)
 		return
 	}
-
-	data.Type = types.StringValue(result["job_type"].(string))
-	data.URL = types.StringValue(result["url"].(string))
-	data.Status = types.StringValue(result["status"].(string))
 
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)

@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -61,14 +62,7 @@ func (c *AAPClient) computeURLPath(path string) string {
 	return fullPath
 }
 
-func (c *AAPClient) doRequest(method string, path string) (int, []byte, error) {
-
-	req, _ := http.NewRequest(method, c.computeURLPath(path), nil)
-
-	if c.Username != nil && c.Password != nil {
-		req.SetBasicAuth(*c.Username, *c.Password)
-	}
-
+func (c *AAPClient) SendRequest(req *http.Request) (int, []byte, error) {
 	// 	// add query params into request
 	// if len(query_params) > 0 {
 	// 	qry := req.URL.Query()
@@ -78,6 +72,10 @@ func (c *AAPClient) doRequest(method string, path string) (int, []byte, error) {
 	// 	// assign encoded query string to http request
 	// 	req.URL.RawQuery = qry.Encode()
 	// }
+
+	if c.Username != nil && c.Password != nil {
+		req.SetBasicAuth(*c.Username, *c.Password)
+	}
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
@@ -101,6 +99,18 @@ func (c *AAPClient) doRequest(method string, path string) (int, []byte, error) {
 	return resp.StatusCode, body, nil
 }
 
+func (c *AAPClient) doRequestWithBody(method string, path string, req_data *bytes.Reader) (int, []byte, error) {
+
+	req, _ := http.NewRequest(method, c.computeURLPath(path), req_data)
+	return c.SendRequest(req)
+}
+
+func (c *AAPClient) doRequest(method string, path string) (int, []byte, error) {
+
+	req, _ := http.NewRequest(method, c.computeURLPath(path), nil)
+	return c.SendRequest(req)
+}
+
 func (c *AAPClient) GetHosts(stateId string) (*AnsibleHostList, error) {
 
 	hostURL := c.HostURL
@@ -109,32 +119,14 @@ func (c *AAPClient) GetHosts(stateId string) (*AnsibleHostList, error) {
 	}
 
 	req, _ := http.NewRequest("GET", hostURL+"api/v2/state/"+stateId+"/", nil)
-	if c.Username != nil && c.Password != nil {
-		req.SetBasicAuth(*c.Username, *c.Password)
-	}
 
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: c.InsecureSkipVerify},
-	}
-	client := &http.Client{Transport: tr}
-	resp, err := client.Do(req)
-
+	http_status_code, body, err := c.SendRequest(req)
 	if err != nil {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status: %d, body: %s", resp.StatusCode, body)
+	if http_status_code != http.StatusOK {
+		return nil, fmt.Errorf("status: %d, body: %s", http_status_code, body)
 	}
 
 	return GetAnsibleHost(body)
