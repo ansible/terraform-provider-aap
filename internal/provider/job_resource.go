@@ -156,7 +156,9 @@ func (d *jobResourceModel) ParseHttpResponse(body []byte) error {
 			}
 			keys_list = append(keys_list, types.StringValue(key))
 		}
-		d.IgnoredFields, _ = types.ListValue(types.StringType, keys_list)
+		if len(keys_list) > 0 {
+			d.IgnoredFields, _ = types.ListValue(types.StringType, keys_list)
+		}
 	}
 
 	return nil
