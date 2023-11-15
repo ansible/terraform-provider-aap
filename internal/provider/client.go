@@ -48,9 +48,6 @@ func NewClient(host string, username *string, password *string, insecure_skip_ve
 
 func (c *AAPClient) computeURLPath(path string) string {
 	fullPath := c.HostURL
-	if !strings.HasSuffix(fullPath, "/") {
-		fullPath = fullPath + "/"
-	}
 	if strings.HasPrefix(path, "/") {
 		fullPath = fullPath + path[1:]
 	} else {
@@ -63,16 +60,6 @@ func (c *AAPClient) computeURLPath(path string) string {
 }
 
 func (c *AAPClient) SendRequest(req *http.Request) (int, []byte, error) {
-	// 	// add query params into request
-	// if len(query_params) > 0 {
-	// 	qry := req.URL.Query()
-	// 	for key, value := range query_params {
-	// 		qry.Add(key, value)
-	// 	}
-	// 	// assign encoded query string to http request
-	// 	req.URL.RawQuery = qry.Encode()
-	// }
-
 	if c.Username != nil && c.Password != nil {
 		req.SetBasicAuth(*c.Username, *c.Password)
 	}
@@ -113,12 +100,7 @@ func (c *AAPClient) doRequest(method string, path string) (int, []byte, error) {
 
 func (c *AAPClient) GetHosts(stateId string) (*AnsibleHostList, error) {
 
-	hostURL := c.HostURL
-	if !strings.HasSuffix(hostURL, "/") {
-		hostURL = hostURL + "/"
-	}
-
-	req, _ := http.NewRequest("GET", hostURL+"api/v2/state/"+stateId+"/", nil)
+	req, _ := http.NewRequest("GET", c.HostURL+"api/v2/state/"+stateId+"/", nil)
 
 	http_status_code, body, err := c.SendRequest(req)
 	if err != nil {

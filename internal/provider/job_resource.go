@@ -29,7 +29,6 @@ func NewJobResource() resource.Resource {
 	return &JobResource{}
 }
 
-// inventoryDataSource is the data source implementation.
 type JobResource struct {
 	client *AAPClient
 }
@@ -96,10 +95,12 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Computed: true,
 			},
 			"wait_for_completion": schema.BoolAttribute{
-				Optional: true,
+				Optional:    true,
+				Description: "Whether to wait for job completion.",
 			},
 			"wait_duration": schema.Int64Attribute{
-				Optional: true,
+				Optional:    true,
+				Description: "How long in seconds to wait for the job to complete.",
 			},
 			"extra_vars": schema.StringAttribute{
 				Optional: true,
@@ -110,6 +111,7 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"ignored_fields": schema.ListAttribute{
 				ElementType: types.StringType,
 				Computed:    true,
+				Description: "The list of properties set by the user but ignored on server side.",
 			},
 		},
 	}
@@ -117,7 +119,7 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 
 // jobResourceModel maps the resource schema data.
 type jobResourceModel struct {
-	Id                   types.Int64  `tfsdk:"job_template_id"`
+	TemplateId           types.Int64  `tfsdk:"job_template_id"`
 	Type                 types.String `tfsdk:"job_type"`
 	URL                  types.String `tfsdk:"job_url"`
 	Status               types.String `tfsdk:"status"`
@@ -311,7 +313,7 @@ func (r JobResource) Create(ctx context.Context, req resource.CreateRequest, res
 	}
 	var http_code int
 	var body []byte
-	post_url := "/api/v2/job_templates/" + data.Id.String() + "/launch/"
+	post_url := "/api/v2/job_templates/" + data.TemplateId.String() + "/launch/"
 	if req_data != nil {
 		http_code, body, err = r.client.doRequestWithBody("POST", post_url, req_data)
 	} else {
@@ -476,7 +478,7 @@ func (r JobResource) Update(ctx context.Context, req resource.UpdateRequest, res
 	}
 	var http_code int
 	var body []byte
-	post_url := "/api/v2/job_templates/" + data.Id.String() + "/launch/"
+	post_url := "/api/v2/job_templates/" + data.TemplateId.String() + "/launch/"
 	if req_data != nil {
 		http_code, body, err = r.client.doRequestWithBody("POST", post_url, req_data)
 	} else {
