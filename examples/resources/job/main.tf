@@ -13,23 +13,14 @@ provider "aap" {
   insecure_skip_verify = true
 }
 
-locals {
-  extra_vars = {
-    "simple": "testing",
-    "simple_bool": false,
-    "simple_object": {
-        "key1": "value1",
-        "key2": "value2"
-    }
-  }
-}
-
 resource "aap_job" "sample" {
-  job_template_id   = 10
-  inventory_id = 1
-  wait_for_completion = false
-  wait_duration = 10
-  extra_vars = jsonencode(locals.extra_vars)
+  job_template_id   = 9
+  inventory_id = 2
+  extra_vars = jsonencode(
+    {
+      "resource_state": "absent",
+    }
+  )
 }
 
 output "job_launch_url" {
