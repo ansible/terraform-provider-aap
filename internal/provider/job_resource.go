@@ -66,7 +66,7 @@ func (v ansibleVarsValidator) ValidateString(ctx context.Context, request valida
 	}
 }
 
-func ansible_json_vars_validator() validator.String {
+func AnsibleJsonVarsValidator() validator.String {
 	return ansibleVarsValidator{}
 }
 
