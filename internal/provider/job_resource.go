@@ -92,7 +92,7 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"extra_vars": schema.StringAttribute{
 				Optional: true,
 				Validators: []validator.String{
-					ansible_json_vars_validator(),
+					AnsibleJsonVarsValidator(),
 				},
 			},
 			"ignored_fields": schema.ListAttribute{
