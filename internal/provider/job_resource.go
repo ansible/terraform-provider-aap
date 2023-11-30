@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -27,8 +26,15 @@ func NewJobResource() resource.Resource {
 	return &JobResource{}
 }
 
+type JobResourceModelInterface interface {
+	ParseHttpResponse(body []byte) error
+	CreateRequestBody() (*bytes.Reader, error)
+	GetTemplateId() string
+	GetURL() string
+}
+
 type JobResource struct {
-	client *AAPClient
+	client ProviderHttpClient
 }
 
 // Metadata returns the resource type name.
@@ -57,7 +63,7 @@ func (v ansibleVarsValidator) ValidateString(ctx context.Context, request valida
 		return
 	}
 	if !json.Valid([]byte(request.ConfigValue.ValueString())) {
-		response.Diagnostics.Append(validatordiag.InvalidAttributeValueLengthDiagnostic(
+		response.Diagnostics.Append(validatordiag.InvalidAttributeValueDiagnostic(
 			request.Path,
 			v.Description(ctx),
 			fmt.Sprintf("Invalid JSON string => [%s]", request.ConfigValue.ValueString()),
@@ -120,6 +126,17 @@ var key_mapping = map[string]string{
 	"execution_environment": "execution_environment_id",
 }
 
+func (d *jobResourceModel) GetTemplateId() string {
+	return d.TemplateId.String()
+}
+
+func (d *jobResourceModel) GetURL() string {
+	if !d.URL.IsNull() && !d.URL.IsUnknown() {
+		return d.URL.ValueString()
+	}
+	return ""
+}
+
 func (d *jobResourceModel) ParseHttpResponse(body []byte) error {
 	/* Unmarshal the json string */
 	var result map[string]interface{}
@@ -154,7 +171,7 @@ func IsValueProvided(value attr.Value) bool {
 	return !value.IsNull() && !value.IsUnknown()
 }
 
-func (d *jobResourceModel) CreateRequestBody(ctx context.Context) (*bytes.Reader, error) {
+func (d *jobResourceModel) CreateRequestBody() (*bytes.Reader, error) {
 	body := make(map[string]interface{})
 
 	// Extra vars
@@ -176,7 +193,6 @@ func (d *jobResourceModel) CreateRequestBody(ctx context.Context) (*bytes.Reader
 	if err != nil {
 		return nil, err
 	}
-	tflog.Info(ctx, fmt.Sprintf("Sending request with data %s", string(json_raw)))
 	return bytes.NewReader(json_raw), nil
 }
 
@@ -200,34 +216,53 @@ func (d *JobResource) Configure(ctx context.Context, req resource.ConfigureReque
 	d.client = client
 }
 
-func (r JobResource) CreateJob(ctx context.Context, data *jobResourceModel) error {
+func (r JobResource) CreateJob(data JobResourceModelInterface) error {
 
 	// Create new Job from job template
-	req_data, err := data.CreateRequestBody(ctx)
+	req_data, err := data.CreateRequestBody()
 	if err != nil {
 		return err
 	}
 
 	var http_code int
 	var body []byte
-	post_url := "/api/v2/job_templates/" + data.TemplateId.String() + "/launch/"
+	post_url := "/api/v2/job_templates/" + data.GetTemplateId() + "/launch/"
 	if req_data != nil {
-		tflog.Info(ctx, fmt.Sprintf("HTTP POST [%s] => %s", post_url, string(body)))
-		http_code, body, err = r.client.doRequestWithBody("POST", post_url, req_data)
+		http_code, body, err = r.client.doRequest("POST", post_url, req_data)
 	} else {
-		tflog.Info(ctx, fmt.Sprintf("HTTP POST [%s] => %s", post_url, string(body)))
-		http_code, body, err = r.client.doRequest("POST", post_url)
+		http_code, body, err = r.client.doRequest("POST", post_url, nil)
 	}
 
 	if err != nil {
 		return err
 	}
 	if http_code != http.StatusCreated {
-		return fmt.Errorf("The server returned status code %d while attempting to create Job", http_code)
+		return fmt.Errorf("the server returned status code %d while attempting to create Job", http_code)
 	}
 	err = data.ParseHttpResponse(body)
 	if err != nil {
-		return fmt.Errorf("Failed to parse HTTP JSON Response: " + err.Error())
+		return fmt.Errorf("error while parsing the json response: " + err.Error())
+	}
+	return nil
+}
+
+func (r JobResource) ReadJob(data JobResourceModelInterface) error {
+	// Read existing Job
+	jobURL := data.GetURL()
+	if len(jobURL) > 0 {
+		http_code, body, err := r.client.doRequest("GET", jobURL, nil)
+		if err != nil {
+			return err
+		}
+
+		if http_code != http.StatusOK {
+			return fmt.Errorf("the server returned status code %d while attempting to Get from URL %s", http_code, jobURL)
+		}
+
+		err = data.ParseHttpResponse(body)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -238,42 +273,20 @@ func (r JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
-	if !data.URL.IsNull() && !data.URL.IsUnknown() {
-		// Read existing Job
-		http_code, body, err := r.client.doRequest("GET", data.URL.ValueString())
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Unexpected Resource Read error",
-				err.Error(),
-			)
-			return
-		}
-
-		if http_code != http.StatusOK {
-			resp.Diagnostics.AddError(
-				"Unexpected Resource Read error",
-				fmt.Sprintf("The server returned status code %d while attempting to Get from URL %s", http_code, data.URL.ValueString()),
-			)
-			return
-		}
-
-		tflog.Info(ctx, fmt.Sprintf("HTTP GET [%s] => %s", data.URL.ValueString(), string(body)))
-		err = data.ParseHttpResponse(body)
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Unexpected Resource Read error",
-				"Failed to parse HTTP JSON Response: "+err.Error(),
-			)
-			return
-		}
+	err := r.ReadJob(&data)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Read error",
+			err.Error(),
+		)
+		return
 	}
-
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r JobResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var data *jobResourceModel
+	var data jobResourceModel
 
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
@@ -282,7 +295,7 @@ func (r JobResource) Create(ctx context.Context, req resource.CreateRequest, res
 		return
 	}
 
-	if err := r.CreateJob(ctx, data); err != nil {
+	if err := r.CreateJob(&data); err != nil {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Creation error",
 			err.Error(),
@@ -304,7 +317,7 @@ func (r JobResource) Update(ctx context.Context, req resource.UpdateRequest, res
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 
 	// Create new Job from job template
-	if err := r.CreateJob(ctx, &data); err != nil {
+	if err := r.CreateJob(&data); err != nil {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Update error",
 			err.Error(),

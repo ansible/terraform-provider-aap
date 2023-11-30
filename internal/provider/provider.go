@@ -58,6 +58,10 @@ func (p *aapProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *
 			"insecure_skip_verify": schema.BoolAttribute{
 				Optional: true,
 			},
+			"timeout": schema.Int64Attribute{
+				Optional:    true,
+				Description: "Timeout specifies a time limit for requests made to the AAP server. A Timeout of zero means no timeout.",
+			},
 		},
 	}
 }
@@ -110,6 +114,15 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		)
 	}
 
+	if config.Timeout.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("timeout"),
+			"Unknown AAP provider timeout",
+			"The provider cannot create the AAP API client as there is an unknown configuration value for the AAP API timeout. "+
+				"Either target apply the source of the value first, set the value statically in the configuration, or use the AAP_TIMEOUT environment variable.",
+		)
+	}
+
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -135,6 +148,21 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		}
 	}
 
+	raw_timeout := os.Getenv("AAP_TIMEOUT")
+	var timeout int64
+	if raw_timeout != "" {
+		// convert string into int64 value
+		timeout, err = strconv.ParseInt(raw_timeout, 10, 64)
+		if err != nil {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("timeout"),
+				"Invalid value for timeout",
+				"The provider cannot create the AAP API client as the value provided for timeout is not a valid int64 value.",
+			)
+			return
+		}
+	}
+
 	if !config.Host.IsNull() {
 		host = config.Host.ValueString()
 	}
@@ -149,6 +177,10 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 
 	if !config.InsecureSkipVerify.IsNull() {
 		insecure_skip_verify = config.InsecureSkipVerify.ValueBool()
+	}
+
+	if !config.Timeout.IsNull() && !config.Timeout.IsUnknown() {
+		timeout = config.Timeout.ValueInt64()
 	}
 
 	// If any of the expected configurations are missing, return
@@ -189,7 +221,7 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	}
 
 	// Create a new http client using the configuration values
-	client, err := NewClient(host, &username, &password, insecure_skip_verify)
+	client, err := NewClient(host, &username, &password, insecure_skip_verify, timeout)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Create AAP API Client",
@@ -226,4 +258,5 @@ type aapProviderModel struct {
 	Username           types.String `tfsdk:"username"`
 	Password           types.String `tfsdk:"password"`
 	InsecureSkipVerify types.Bool   `tfsdk:"insecure_skip_verify"`
+	Timeout            types.Int64  `tfsdk:"timeout"`
 }

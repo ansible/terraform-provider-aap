@@ -2,7 +2,9 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -78,7 +80,7 @@ func (d *inventoryDataSource) Read(ctx context.Context, req datasource.ReadReque
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 
-	hosts, err := d.client.GetHosts(state.Id.String())
+	hosts, err := d.ReadAnsibleHosts(state.Id.String())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Ansible hosts",
@@ -87,45 +89,7 @@ func (d *inventoryDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	// Map response
-	state.Groups = make(map[string]groupDataSourceModel)
-	state.Hosts = make(map[string]hostDataSourceModel)
-
-	all_groups := []string{}
-
-	for _, host := range hosts.Hosts {
-		// add host to group
-		if len(host.Groups) == 0 {
-			// add host to group name "ungrouped"
-			state.addHost(ungroupedName, host.Name)
-			// update unique list of groups
-			if !slices.Contains(all_groups, ungroupedName) {
-				all_groups = append(all_groups, ungroupedName)
-			}
-		} else {
-			for _, group := range host.Groups {
-				// add host to new group
-				state.addHost(group, host.Name)
-				// update unique list of groups
-				if !slices.Contains(all_groups, group) {
-					all_groups = append(all_groups, group)
-				}
-			}
-		}
-		// add host variables
-		empty_host := hostDataSourceModel{
-			HostVars: make(map[string]string),
-		}
-		state.Hosts[host.Name] = empty_host
-		for key, value := range host.Variables {
-			state.addHostVariable(host.Name, key, value)
-		}
-	}
-
-	// add "all" group
-	state.Groups[allgroupsName] = groupDataSourceModel{
-		Children: all_groups,
-	}
+	state.mapHosts(hosts.Hosts)
 
 	// Set state
 	diags := resp.State.Set(ctx, &state)
@@ -170,13 +134,61 @@ type hostDataSourceModel struct {
 	HostVars map[string]string `tfsdk:"hostvars"`
 }
 
+func (d *inventoryDataSourceModel) mapHosts(hosts []ansibleHost) {
+
+	d.Groups = make(map[string]groupDataSourceModel)
+	d.Hosts = make(map[string]hostDataSourceModel)
+
+	all_groups := []string{}
+
+	for _, host := range hosts {
+		// add host to group
+		if len(host.Groups) == 0 {
+			// add host to group name "ungrouped"
+			d.addHost(ungroupedName, host.Name)
+			// update unique list of groups
+			if !slices.Contains(all_groups, ungroupedName) {
+				all_groups = append(all_groups, ungroupedName)
+			}
+		} else {
+			for _, group := range host.Groups {
+				// add host to new group
+				d.addHost(group, host.Name)
+				// update unique list of groups
+				if !slices.Contains(all_groups, group) {
+					all_groups = append(all_groups, group)
+				}
+			}
+		}
+		// add host variables
+		if len(host.Variables) > 0 {
+			empty_host := hostDataSourceModel{
+				HostVars: make(map[string]string),
+			}
+			d.Hosts[host.Name] = empty_host
+			for key, value := range host.Variables {
+				d.addHostVariable(host.Name, key, value)
+			}
+		}
+	}
+
+	// add "all" group
+	d.Groups[allgroupsName] = groupDataSourceModel{
+		Hosts:    []string{},
+		Children: all_groups,
+	}
+}
+
 // add host to group
 func (d *inventoryDataSourceModel) addHost(groupName string, hostName string) {
 	// add host to group
 	group_hosts, ok := d.Groups[groupName]
 	if !ok {
-		group_hosts := new(groupDataSourceModel)
-		group_hosts.Hosts = []string{hostName}
+		group_hosts := &groupDataSourceModel{
+			Hosts:    []string{},
+			Children: []string{},
+		}
+		group_hosts.Hosts = append(group_hosts.Hosts, hostName)
 		d.Groups[groupName] = *group_hosts
 	} else if !slices.Contains(group_hosts.Hosts, hostName) {
 		group_hosts.Hosts = append(group_hosts.Hosts, hostName)
@@ -193,4 +205,67 @@ func (d *inventoryDataSourceModel) addHostVariable(hostName string, varName stri
 		d.Hosts[hostName] = *hostvars
 	}
 	d.Hosts[hostName].HostVars[varName] = varValue
+}
+
+// ansible host
+type ansibleHost struct {
+	Name      string            `json:"name"`
+	Groups    []string          `json:"groups"`
+	Variables map[string]string `json:"variables"`
+}
+
+// ansible host list
+type ansibleHostList struct {
+	Hosts []ansibleHost `json:"hosts"`
+}
+
+func (d *inventoryDataSource) ReadAnsibleHosts(stateId string) (*ansibleHostList, error) {
+
+	http_status_code, body, err := d.client.doRequest("GET", "api/v2/state/"+stateId+"/", nil)
+	if err != nil {
+		return nil, err
+	}
+	if http_status_code != http.StatusOK {
+		return nil, fmt.Errorf("status: %d, body: %s", http_status_code, body)
+	}
+
+	var result map[string]interface{}
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	var hosts ansibleHostList
+	resources, ok := result["resources"].([]interface{})
+	if ok {
+		for _, resource := range resources {
+			resource_obj := resource.(map[string]interface{})
+			resource_type, ok := resource_obj["type"]
+			if ok && resource_type == "ansible_host" {
+				instances, ok := resource_obj["instances"].([]interface{})
+				if ok {
+					for _, instance := range instances {
+						attributes, ok := instance.(map[string]interface{})["attributes"].(map[string]interface{})
+						if ok {
+							name := attributes["name"].(string)
+							var groups []string
+							for _, group := range attributes["groups"].([]interface{}) {
+								groups = append(groups, group.(string))
+							}
+							variables := make(map[string]string)
+							for key, value := range attributes["variables"].(map[string]interface{}) {
+								variables[key] = value.(string)
+							}
+							hosts.Hosts = append(hosts.Hosts, ansibleHost{
+								Name:      name,
+								Groups:    groups,
+								Variables: variables,
+							})
+						}
+					}
+				}
+			}
+		}
+	}
+	return &hosts, nil
 }
