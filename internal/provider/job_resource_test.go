@@ -88,7 +88,10 @@ func toString(b *bytes.Reader) string {
 		return ""
 	}
 	buf := new(strings.Builder)
-	io.Copy(buf, b)
+	_, err := io.Copy(buf, b)
+	if err != nil {
+		return ""
+	}
 	return buf.String()
 }
 
@@ -262,9 +265,12 @@ func (c *MockHttpClient) doRequest(method string, path string, data io.Reader) (
 	if data != nil {
 		// add request info into response
 		buf := new(strings.Builder)
-		io.Copy(buf, data)
+		_, err := io.Copy(buf, data)
+		if err != nil {
+			return -1, nil, err
+		}
 		var m_data map[string]string
-		err := json.Unmarshal([]byte(buf.String()), &m_data)
+		err = json.Unmarshal([]byte(buf.String()), &m_data)
 		if err != nil {
 			return -1, nil, err
 		}
