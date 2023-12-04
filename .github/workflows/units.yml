@@ -1,9 +1,5 @@
 name: unit tests
 
-concurrency:
-  group: ${{ github.head_ref }}
-  cancel-in-progress: true
-
 on:
   pull_request:
 
@@ -28,4 +24,4 @@ jobs:
         run: go build -v ./...
 
       - name: Run unit tests
-        run: go test -v ./...
+        run: make test

@@ -1,0 +1,23 @@
+---
+- hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Set controller auth parameters
+      set_fact:
+        controller_host: "{{ lookup('env', 'AAP_HOST', default='https://localhost:8043') }}"
+        controller_username: "{{ lookup('env', 'AAP_USERNAME', default=Undefined) }}"
+        controller_password: "{{ lookup('env', 'AAP_PASSWORD', default=Undefined) }}"
+
+    - module_defaults:
+        group/awx.awx.controller:
+          controller_host: "{{ controller_host | default(omit) }}"
+          controller_username: "{{ controller_username | default(omit) }}"
+          controller_password: "{{ controller_password | default(omit) }}"
+          validate_certs: false
+      block:
+
+        - name: Include tasks to configure awx
+          ansible.builtin.include_tasks: "tasks/{{ item }}.yml"
+          with_items:
+            - job_resource

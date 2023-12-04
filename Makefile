@@ -13,3 +13,6 @@ lint:
 test:
 	@echo "==> Running unit tests..."
 	go test -v ./...
+
+testacc:
+	TF_ACC=1 go test -v ./...

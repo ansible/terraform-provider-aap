@@ -1,0 +1,67 @@
+name: Run AWX docker-compose
+description: Runs AWX with `make docker-compose`
+inputs:
+  python_version:
+    description: The python version to use for awx
+    required: false
+    default: '3.10'
+  admin:
+    description: The awx admin username
+    default: 'admin'
+  password:
+    description: The awx admin password used
+    default: 'test123'
+
+runs:
+  using: composite
+  steps:
+    - name: setup python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "${{ inputs.python_version }}"
+
+    - name: Install ansible-core
+      run: python3 -m pip install ansible-core
+      shell: bash
+
+    - name: Clone required awx version
+      uses: actions/checkout@v4
+      with:
+        repository: gravesm/awx
+        path: "./aws"
+
+    - name: Build image for current source checkout
+      shell: bash
+      run: |
+        make docker-compose-build
+      working-directory: "./aws"
+
+    - name: Install system deps
+      shell: bash
+      run: sudo apt-get install -y gettext
+
+    - name: Start AWX
+      shell: bash
+      run: COMPOSE_UP_OPTS="-d" make docker-compose
+      working-directory: "./aws"
+
+    - name: Install awx_collection
+      shell: bash
+      run: |
+        ansible-galaxy collection build --force
+        ansible-galaxy collection install --force awx-awx-*.tar.gz
+      working-directory: "./aws/awx_collection"
+
+    - name: Update default AWX password
+      shell: bash
+      run: |
+        while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' -k https://localhost:8043/api/v2/ping/)" != "200" ]]
+        do
+        echo "Waiting for AWX..."
+        sleep 5
+        done
+        echo "AWX is up, updating the password..."
+        docker exec -i tools_awx_1 sh <<-EOSH
+          awx-manage update_password --username=${{ inputs.admin }} --password=${{ inputs.password }}
+        EOSH
+      working-directory: "./aws"

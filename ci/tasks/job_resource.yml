@@ -1,0 +1,44 @@
+---
+# Get id for demo job template
+- name: List inventory job templates
+  uri:
+    validate_certs: false
+    url: "{{ controller_host }}/api/v2/job_templates/"
+    url_username: "{{ controller_username | default(omit) }}"
+    url_password: "{{ controller_password | default(omit) }}"
+    force_basic_auth: true
+  register: templates
+
+- name: Set id for demo job template
+  set_fact:
+    job_template_id: "{{ templates.json.results | selectattr('name', 'equalto', 'Demo Job Template') | map(attribute='id') | list | first }}"
+
+# create inventory along with hosts
+- name: Create inventory
+  awx.awx.inventory:
+    state: present
+    name: job_resource
+    description: "the inventory to use for job resource"
+    organization: Default
+    kind: ""
+  register: inventory
+
+- name: Add hosts to inventory
+  awx.awx.host:
+    name: "job-resource-host-{{ item }}"
+    inventory: "{{ inventory.id }}"
+    enabled: true
+    variables:
+      ansible_connection: local
+      ansible_python_interpreter: "{{ '{{' }} ansible_playbook_python {{ '}}' }}"
+    state: present
+  loop: "{{ range(2) | list }}"
+
+- name: Save testing information into output file
+  ansible.builtin.lineinfile:
+    path: "{{ config_file }}"
+    line: "{{ item }}"
+  with_items:
+    - "export AAP_TEST_JOB_TEMPLATE_ID={{ job_template_id }}"
+    - "export AAP_TEST_JOB_INVENTORY_ID={{ inventory.id }}"
+  when: config_file is defined

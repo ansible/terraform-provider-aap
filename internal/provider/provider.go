@@ -46,7 +46,7 @@ func (p *aapProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"host": schema.StringAttribute{
-				Required: true,
+				Optional: true,
 			},
 			"username": schema.StringAttribute{
 				Optional: true,

@@ -3,9 +3,12 @@ package provider
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -13,6 +16,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestJobResourceModelParseHttpResponse(t *testing.T) {
@@ -425,4 +430,170 @@ func TestJobResourceReadJob(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Acceptance tests
+
+func getJobResourceFromStateFile(s *terraform.State) (map[string]interface{}, error) {
+	for _, rs := range s.RootModule().Resources {
+		if rs.Type != "aap_job" {
+			continue
+		}
+		job_url := rs.Primary.Attributes["job_url"]
+		return testGetResource(job_url)
+	}
+	return nil, fmt.Errorf("Job resource not found from state file")
+}
+
+func testAccCheckJobExists(s *terraform.State) error {
+	_, err := getJobResourceFromStateFile(s)
+	return err
+}
+
+func testAccCheckJobUpdate(urlBefore *string, should_differ bool) func(s *terraform.State) error {
+	return func(s *terraform.State) error {
+		var jobURL string
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "aap_job" {
+				continue
+			}
+			jobURL = rs.Primary.Attributes["job_url"]
+		}
+		if len(jobURL) == 0 {
+			return fmt.Errorf("Job resource not found from state file")
+		}
+		if len(*urlBefore) == 0 {
+			*urlBefore = jobURL
+		} else if jobURL == *urlBefore && should_differ {
+			return fmt.Errorf("Job resource URLs are equal while expecting them to differ. Before [%s] After [%s]", *urlBefore, jobURL)
+		} else if jobURL != *urlBefore && !should_differ {
+			return fmt.Errorf("Job resource URLs differ while expecting them to be equals. Before [%s] After [%s]", *urlBefore, jobURL)
+		}
+		return nil
+	}
+}
+
+func testAccJobResourcePreCheck(t *testing.T) {
+	// ensure provider requirements
+	testAccPreCheck(t)
+
+	requiredAAPJobEnvVars := []string{
+		"AAP_TEST_JOB_TEMPLATE_ID",
+		"AAP_TEST_JOB_INVENTORY_ID",
+	}
+
+	for _, key := range requiredAAPJobEnvVars {
+		if v := os.Getenv(key); v == "" {
+			t.Fatalf("'%s' environment variable must be set when running acceptance tests for job resource", key)
+		}
+	}
+}
+
+func TestAccAAPJob_basic(t *testing.T) {
+
+	job_template_id := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
+	resourceName := "aap_job.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create and Read testing
+			{
+				Config: testAccBasicJob(job_template_id),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					testAccCheckJobExists,
+				),
+			},
+		},
+	})
+}
+
+func TestAccAAPJob_UpdateWithSameParameters(t *testing.T) {
+
+	var jobURLBefore string
+
+	job_template_id := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
+	resourceName := "aap_job.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create and Read testing
+			{
+				Config: testAccBasicJob(job_template_id),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					testAccCheckJobUpdate(&jobURLBefore, false),
+				),
+			},
+			{
+				Config: testAccBasicJob(job_template_id),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					testAccCheckJobUpdate(&jobURLBefore, false),
+				),
+			},
+		},
+	})
+}
+
+func TestAccAAPJob_UpdateWithNewInventoryId(t *testing.T) {
+
+	var jobURLBefore string
+
+	job_template_id := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
+	inventory_id := os.Getenv("AAP_TEST_JOB_INVENTORY_ID")
+	resourceName := "aap_job.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create and Read testing
+			{
+				Config: testAccBasicJob(job_template_id),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					testAccCheckJobUpdate(&jobURLBefore, false),
+				),
+			},
+			{
+				Config: testAccUpdateJob(job_template_id, inventory_id),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					testAccCheckJobUpdate(&jobURLBefore, true),
+				),
+			},
+		},
+	})
+}
+
+func testAccBasicJob(job_template_id string) string {
+	return fmt.Sprintf(`
+resource "aap_job" "test" {
+	job_template_id   = %s
+}
+`, job_template_id)
+}
+
+func testAccUpdateJob(job_template_id, inventory_id string) string {
+	return fmt.Sprintf(`
+resource "aap_job" "test" {
+	job_template_id   = %s
+	inventory_id = %s
+}
+`, job_template_id, inventory_id)
 }
