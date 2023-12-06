@@ -242,5 +242,8 @@ func (p *aapProviderModel) ReadValues(host, username, password *string, insecure
 
 	if !p.Timeout.IsNull() && !p.Timeout.IsUnknown() {
 		*timeout = p.Timeout.ValueInt64()
+	} else {
+		// setting default timeout value
+		*timeout = 5
 	}
 }

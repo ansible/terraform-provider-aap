@@ -38,7 +38,6 @@ func NewClient(host string, username *string, password *string, insecureSkipVeri
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify},
 	}
-	// Initialize http client using default timeout = 5sec
 	client.httpClient = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
 
 	return &client, nil
