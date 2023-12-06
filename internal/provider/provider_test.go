@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -8,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
@@ -26,7 +26,6 @@ var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServe
 }
 
 func testAccPreCheck(t *testing.T) {
-
 	requiredAAPEnvVars := map[string]string{
 		"AAP_HOST":                 "https://localhost:8043",
 		"AAP_USERNAME":             "",
@@ -43,24 +42,25 @@ func testAccPreCheck(t *testing.T) {
 				t.Setenv(k, d)
 			}
 		}
-
 	}
 }
 
 func testGetResource(urlPath string) (map[string]interface{}, error) {
-
 	host := os.Getenv("AAP_HOST")
 	username := os.Getenv("AAP_USERNAME")
 	password := os.Getenv("AAP_PASSWORD")
 
-	insecure_skip_verify, _ := strconv.ParseBool(os.Getenv("AAP_INSECURE_SKIP_VERIFY"))
-	resource_url, _ := url.JoinPath(host, urlPath)
+	resourceURL, _ := url.JoinPath(host, urlPath)
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure_skip_verify},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := http.Client{Transport: tr}
 
-	req, _ := http.NewRequest("GET", resource_url, nil)
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, resourceURL, nil)
+	if err != nil {
+		return nil, err
+	}
 	req.SetBasicAuth(username, password)
 
 	req.Header.Set("Accept", "application/json")
@@ -71,7 +71,7 @@ func testGetResource(urlPath string) (map[string]interface{}, error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("get request on URL='%s' returned http code [%d]", resource_url, resp.StatusCode)
+		return nil, fmt.Errorf("get request on URL='%s' returned http code [%d]", resourceURL, resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)

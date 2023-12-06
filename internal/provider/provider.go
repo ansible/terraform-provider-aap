@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 
@@ -59,10 +60,31 @@ func (p *aapProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *
 				Optional: true,
 			},
 			"timeout": schema.Int64Attribute{
-				Optional:    true,
-				Description: "Timeout specifies a time limit for requests made to the AAP server. A Timeout of zero means no timeout.",
+				Optional: true,
+				Description: "Timeout specifies a time limit for requests made to the AAP server." +
+					" A Timeout of zero means no timeout.",
 			},
 		},
+	}
+}
+
+func AddConfigurationAttributeError(resp *provider.ConfigureResponse, name, envName string, isUnknown bool) {
+	if isUnknown {
+		resp.Diagnostics.AddAttributeError(
+			path.Root(name),
+			"Unknown AAP API "+name,
+			fmt.Sprintf("The provider cannot create the AAP API client as there is an unknown configuration value for the AAP API %s. "+
+				"Either target apply the source of the value first, set the value statically in the configuration,"+
+				" or use the %s environment variable.", name, envName),
+		)
+	} else {
+		resp.Diagnostics.AddAttributeError(
+			path.Root(name),
+			"Missing AAP API "+name,
+			fmt.Sprintf("The provider cannot create the AAP API client as there is a missing or empty value for the AAP API %s. "+
+				"Set the value in the configuration or use the %s environment variable. "+
+				"If either is already set, ensure the value is not empty.", name, envName),
+		)
 	}
 }
 
@@ -77,52 +99,7 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 
 	// If practitioner provided a configuration value for any of the
 	// attributes, it must be a known value.
-
-	if config.Host.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("host"),
-			"Unknown AAP API Host",
-			"The provider cannot create the AAP API client as there is an unknown configuration value for the AAP API host. "+
-				"Either target apply the source of the value first, set the value statically in the configuration, or use the AAP_HOST environment variable.",
-		)
-	}
-
-	if config.Username.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("username"),
-			"Unknown AAP API Username",
-			"The provider cannot create the AAP API client as there is an unknown configuration value for the AAP API username. "+
-				"Either target apply the source of the value first, set the value statically in the configuration, or use the AAP_USERNAME environment variable.",
-		)
-	}
-
-	if config.Password.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("password"),
-			"Unknown AAP API Password",
-			"The provider cannot create the AAP API client as there is an unknown configuration value for the AAP API password. "+
-				"Either target apply the source of the value first, set the value statically in the configuration, or use the AAP_PASSWORD environment variable.",
-		)
-	}
-
-	if config.InsecureSkipVerify.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("insecure_skip_verify"),
-			"Unknown AAP API insecure_skip_verify",
-			"The provider cannot create the AAP API client as there is an unknown configuration value for the AAP API insecure_skip_verify. "+
-				"Either target apply the source of the value first, set the value statically in the configuration, or use the AAP_INSECURE_SKIP_VERIFY environment variable.",
-		)
-	}
-
-	if config.Timeout.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("timeout"),
-			"Unknown AAP provider timeout",
-			"The provider cannot create the AAP API client as there is an unknown configuration value for the AAP API timeout. "+
-				"Either target apply the source of the value first, set the value statically in the configuration, or use the AAP_TIMEOUT environment variable.",
-		)
-	}
-
+	config.checkUnknownValue(resp)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -133,11 +110,11 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	host := os.Getenv("AAP_HOST")
 	username := os.Getenv("AAP_USERNAME")
 	password := os.Getenv("AAP_PASSWORD")
-	var insecure_skip_verify bool = false
+	var insecureSkipVerify = false
 	var err error
-	raw_insecure_skip_verify := os.Getenv("AAP_INSECURE_SKIP_VERIFY")
-	if raw_insecure_skip_verify != "" {
-		insecure_skip_verify, err = strconv.ParseBool(raw_insecure_skip_verify)
+	rawInsecureSkipVerify := os.Getenv("AAP_INSECURE_SKIP_VERIFY")
+	if rawInsecureSkipVerify != "" {
+		insecureSkipVerify, err = strconv.ParseBool(rawInsecureSkipVerify)
 		if err != nil {
 			resp.Diagnostics.AddAttributeError(
 				path.Root("insecure_skip_verify"),
@@ -148,11 +125,11 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		}
 	}
 
-	raw_timeout := os.Getenv("AAP_TIMEOUT")
+	rawTimeout := os.Getenv("AAP_TIMEOUT")
 	var timeout int64
-	if raw_timeout != "" {
+	if rawTimeout != "" {
 		// convert string into int64 value
-		timeout, err = strconv.ParseInt(raw_timeout, 10, 64)
+		timeout, err = strconv.ParseInt(rawTimeout, 10, 64)
 		if err != nil {
 			resp.Diagnostics.AddAttributeError(
 				path.Root("timeout"),
@@ -162,58 +139,21 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 			return
 		}
 	}
-
-	if !config.Host.IsNull() {
-		host = config.Host.ValueString()
-	}
-
-	if !config.Username.IsNull() {
-		username = config.Username.ValueString()
-	}
-
-	if !config.Password.IsNull() {
-		password = config.Password.ValueString()
-	}
-
-	if !config.InsecureSkipVerify.IsNull() {
-		insecure_skip_verify = config.InsecureSkipVerify.ValueBool()
-	}
-
-	if !config.Timeout.IsNull() && !config.Timeout.IsUnknown() {
-		timeout = config.Timeout.ValueInt64()
-	}
+	config.ReadValues(&host, &username, &password, &insecureSkipVerify, &timeout)
 
 	// If any of the expected configurations are missing, return
 	// errors with provider-specific guidance.
 
-	if host == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("host"),
-			"Missing AAP API Host",
-			"The provider cannot create the AAP API client as there is a missing or empty value for the AAP API host. "+
-				"Set the host value in the configuration or use the AAP_HOST environment variable. "+
-				"If either is already set, ensure the value is not empty.",
-		)
+	if len(host) == 0 {
+		AddConfigurationAttributeError(resp, "host", "AAP_HOST", false)
 	}
 
-	if username == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("username"),
-			"Missing AAP API Username",
-			"The provider cannot create the AAP API client as there is a missing or empty value for the AAP API username. "+
-				"Set the username value in the configuration or use the AAP_USERNAME environment variable. "+
-				"If either is already set, ensure the value is not empty.",
-		)
+	if len(username) == 0 {
+		AddConfigurationAttributeError(resp, "username", "AAP_USERNAME", false)
 	}
 
-	if password == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("password"),
-			"Missing AAP API Password",
-			"The provider cannot create the AAP API client as there is a missing or empty value for the AAP API password. "+
-				"Set the password value in the configuration or use the AAP_PASSWORD environment variable. "+
-				"If either is already set, ensure the value is not empty.",
-		)
+	if len(password) == 0 {
+		AddConfigurationAttributeError(resp, "password", "AAP_PASSWORD", false)
 	}
 
 	if resp.Diagnostics.HasError() {
@@ -221,7 +161,7 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	}
 
 	// Create a new http client using the configuration values
-	client, err := NewClient(host, &username, &password, insecure_skip_verify, timeout)
+	client, err := NewClient(host, &username, &password, insecureSkipVerify, timeout)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Create AAP API Client",
@@ -259,4 +199,48 @@ type aapProviderModel struct {
 	Password           types.String `tfsdk:"password"`
 	InsecureSkipVerify types.Bool   `tfsdk:"insecure_skip_verify"`
 	Timeout            types.Int64  `tfsdk:"timeout"`
+}
+
+func (p *aapProviderModel) checkUnknownValue(resp *provider.ConfigureResponse) {
+	if p.Host.IsUnknown() {
+		AddConfigurationAttributeError(resp, "host", "AAP_HOST", true)
+	}
+
+	if p.Username.IsUnknown() {
+		AddConfigurationAttributeError(resp, "username", "AAP_USERNAME", true)
+	}
+
+	if p.Password.IsUnknown() {
+		AddConfigurationAttributeError(resp, "password", "AAP_PASSWORD", true)
+	}
+
+	if p.InsecureSkipVerify.IsUnknown() {
+		AddConfigurationAttributeError(resp, "insecure_skip_verify", "AAP_INSECURE_SKIP_VERIFY", true)
+	}
+
+	if p.Timeout.IsUnknown() {
+		AddConfigurationAttributeError(resp, "timeout", "AAP_TIMEOUT", true)
+	}
+}
+
+func (p *aapProviderModel) ReadValues(host, username, password *string, insecureSkipVerify *bool, timeout *int64) {
+	if !p.Host.IsNull() {
+		*host = p.Host.ValueString()
+	}
+
+	if !p.Username.IsNull() {
+		*username = p.Username.ValueString()
+	}
+
+	if !p.Password.IsNull() {
+		*password = p.Password.ValueString()
+	}
+
+	if !p.InsecureSkipVerify.IsNull() {
+		*insecureSkipVerify = p.InsecureSkipVerify.ValueBool()
+	}
+
+	if !p.Timeout.IsNull() && !p.Timeout.IsUnknown() {
+		*timeout = p.Timeout.ValueInt64()
+	}
 }

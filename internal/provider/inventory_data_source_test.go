@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
-func TestInventoryDataSourceModelAddHost(t *testing.T) {
+func TestAddHost(t *testing.T) {
 	testTable := []struct {
 		name     string
 		state    inventoryDataSourceModel
@@ -16,14 +16,14 @@ func TestInventoryDataSourceModelAddHost(t *testing.T) {
 		{
 			name: "add new host",
 			state: inventoryDataSourceModel{
-				Id:     basetypes.NewInt64Value(1),
+				ID:     basetypes.NewInt64Value(1),
 				Groups: map[string]groupDataSourceModel{},
 				Hosts:  map[string]hostDataSourceModel{},
 			},
 			expected: inventoryDataSourceModel{
-				Id: basetypes.NewInt64Value(1),
+				ID: basetypes.NewInt64Value(1),
 				Groups: map[string]groupDataSourceModel{
-					"db": groupDataSourceModel{
+					"db": {
 						Hosts:    []string{"sql"},
 						Children: []string{},
 					},
@@ -34,9 +34,9 @@ func TestInventoryDataSourceModelAddHost(t *testing.T) {
 		{
 			name: "add existing host into another group",
 			state: inventoryDataSourceModel{
-				Id: basetypes.NewInt64Value(1),
+				ID: basetypes.NewInt64Value(1),
 				Groups: map[string]groupDataSourceModel{
-					"running": groupDataSourceModel{
+					"running": {
 						Hosts:    []string{"sql"},
 						Children: []string{},
 					},
@@ -44,13 +44,13 @@ func TestInventoryDataSourceModelAddHost(t *testing.T) {
 				Hosts: map[string]hostDataSourceModel{},
 			},
 			expected: inventoryDataSourceModel{
-				Id: basetypes.NewInt64Value(1),
+				ID: basetypes.NewInt64Value(1),
 				Groups: map[string]groupDataSourceModel{
-					"running": groupDataSourceModel{
+					"running": {
 						Hosts:    []string{"sql"},
 						Children: []string{},
 					},
-					"db": groupDataSourceModel{
+					"db": {
 						Hosts:    []string{"sql"},
 						Children: []string{},
 					},
@@ -61,9 +61,9 @@ func TestInventoryDataSourceModelAddHost(t *testing.T) {
 		{
 			name: "add duplicate host name into group",
 			state: inventoryDataSourceModel{
-				Id: basetypes.NewInt64Value(1),
+				ID: basetypes.NewInt64Value(1),
 				Groups: map[string]groupDataSourceModel{
-					"db": groupDataSourceModel{
+					"db": {
 						Hosts:    []string{"sql"},
 						Children: []string{},
 					},
@@ -71,9 +71,9 @@ func TestInventoryDataSourceModelAddHost(t *testing.T) {
 				Hosts: map[string]hostDataSourceModel{},
 			},
 			expected: inventoryDataSourceModel{
-				Id: basetypes.NewInt64Value(1),
+				ID: basetypes.NewInt64Value(1),
 				Groups: map[string]groupDataSourceModel{
-					"db": groupDataSourceModel{
+					"db": {
 						Hosts:    []string{"sql"},
 						Children: []string{},
 					},
@@ -93,7 +93,7 @@ func TestInventoryDataSourceModelAddHost(t *testing.T) {
 	}
 }
 
-func TestInventoryDataSourceModelAddHostVariable(t *testing.T) {
+func TestAddHostVariable(t *testing.T) {
 	testTable := []struct {
 		name     string
 		state    inventoryDataSourceModel
@@ -102,15 +102,15 @@ func TestInventoryDataSourceModelAddHostVariable(t *testing.T) {
 		{
 			name: "add new host var",
 			state: inventoryDataSourceModel{
-				Id:     basetypes.NewInt64Value(1),
+				ID:     basetypes.NewInt64Value(1),
 				Groups: map[string]groupDataSourceModel{},
 				Hosts:  map[string]hostDataSourceModel{},
 			},
 			expected: inventoryDataSourceModel{
-				Id:     basetypes.NewInt64Value(1),
+				ID:     basetypes.NewInt64Value(1),
 				Groups: map[string]groupDataSourceModel{},
 				Hosts: map[string]hostDataSourceModel{
-					"test": hostDataSourceModel{
+					"test": {
 						HostVars: map[string]string{
 							"some_var": "some_var_value",
 						},
@@ -121,10 +121,10 @@ func TestInventoryDataSourceModelAddHostVariable(t *testing.T) {
 		{
 			name: "add new var into existing host var",
 			state: inventoryDataSourceModel{
-				Id:     basetypes.NewInt64Value(1),
+				ID:     basetypes.NewInt64Value(1),
 				Groups: map[string]groupDataSourceModel{},
 				Hosts: map[string]hostDataSourceModel{
-					"test": hostDataSourceModel{
+					"test": {
 						HostVars: map[string]string{
 							"another_var": "another_var_value",
 						},
@@ -132,10 +132,10 @@ func TestInventoryDataSourceModelAddHostVariable(t *testing.T) {
 				},
 			},
 			expected: inventoryDataSourceModel{
-				Id:     basetypes.NewInt64Value(1),
+				ID:     basetypes.NewInt64Value(1),
 				Groups: map[string]groupDataSourceModel{},
 				Hosts: map[string]hostDataSourceModel{
-					"test": hostDataSourceModel{
+					"test": {
 						HostVars: map[string]string{
 							"another_var": "another_var_value",
 							"some_var":    "some_var_value",
@@ -147,21 +147,21 @@ func TestInventoryDataSourceModelAddHostVariable(t *testing.T) {
 		{
 			name: "override host variable",
 			state: inventoryDataSourceModel{
-				Id:     basetypes.NewInt64Value(1),
+				ID:     basetypes.NewInt64Value(1),
 				Groups: map[string]groupDataSourceModel{},
 				Hosts: map[string]hostDataSourceModel{
-					"test": hostDataSourceModel{
+					"test": {
 						HostVars: map[string]string{
-							"some_var": "some_intial_var_value",
+							"some_var": "some_initial_var_value",
 						},
 					},
 				},
 			},
 			expected: inventoryDataSourceModel{
-				Id:     basetypes.NewInt64Value(1),
+				ID:     basetypes.NewInt64Value(1),
 				Groups: map[string]groupDataSourceModel{},
 				Hosts: map[string]hostDataSourceModel{
-					"test": hostDataSourceModel{
+					"test": {
 						HostVars: map[string]string{
 							"some_var": "some_var_value",
 						},
@@ -181,7 +181,7 @@ func TestInventoryDataSourceModelAddHostVariable(t *testing.T) {
 	}
 }
 
-func TestInventoryDataSourceModelMapHosts(t *testing.T) {
+func TestMapHosts(t *testing.T) {
 	testTable := []struct {
 		name     string
 		hosts    []ansibleHost
@@ -191,14 +191,14 @@ func TestInventoryDataSourceModelMapHosts(t *testing.T) {
 		{
 			name: "case 1",
 			hosts: []ansibleHost{
-				ansibleHost{
+				{
 					Name:   "web",
 					Groups: []string{"deployer", "front"},
 					Variables: map[string]string{
 						"framework": "django",
 					},
 				},
-				ansibleHost{
+				{
 					Name:   "db",
 					Groups: []string{"deployer", "database"},
 					Variables: map[string]string{
@@ -206,49 +206,49 @@ func TestInventoryDataSourceModelMapHosts(t *testing.T) {
 						"version": "14.0.0",
 					},
 				},
-				ansibleHost{
+				{
 					Name:      "ansible",
 					Groups:    []string{},
 					Variables: map[string]string{},
 				},
 			},
 			state: inventoryDataSourceModel{
-				Id:     basetypes.NewInt64Value(1),
+				ID:     basetypes.NewInt64Value(1),
 				Groups: nil,
 				Hosts:  nil,
 			},
 			expected: inventoryDataSourceModel{
-				Id: basetypes.NewInt64Value(1),
+				ID: basetypes.NewInt64Value(1),
 				Groups: map[string]groupDataSourceModel{
-					"deployer": groupDataSourceModel{
+					"deployer": {
 						Hosts:    []string{"web", "db"},
 						Children: []string{},
 					},
-					"front": groupDataSourceModel{
+					"front": {
 						Hosts:    []string{"web"},
 						Children: []string{},
 					},
-					"database": groupDataSourceModel{
+					"database": {
 						Hosts:    []string{"db"},
 						Children: []string{},
 					},
-					"ungrouped": groupDataSourceModel{
+					"ungrouped": {
 						Hosts:    []string{"ansible"},
 						Children: []string{},
 					},
-					"all": groupDataSourceModel{
+					"all": {
 						Hosts:    []string{},
 						Children: []string{"deployer", "front", "database", "ungrouped"},
 					},
 				},
 				Hosts: map[string]hostDataSourceModel{
-					"db": hostDataSourceModel{
+					"db": {
 						HostVars: map[string]string{
 							"server":  "postgresql",
 							"version": "14.0.0",
 						},
 					},
-					"web": hostDataSourceModel{
+					"web": {
 						HostVars: map[string]string{
 							"framework": "django",
 						},

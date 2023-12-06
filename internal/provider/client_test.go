@@ -19,7 +19,7 @@ func TestComputeURLPath(t *testing.T) {
 		{name: "case 3", url: "https://localhost:8043/", path: "/api/v2/state"},
 		{name: "case 4", url: "https://localhost:8043", path: "api/v2/state"},
 	}
-	var expected string = "https://localhost:8043/api/v2/state/"
+	var expected = "https://localhost:8043/api/v2/state/"
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
 			client, err := NewClient(tc.url, nil, nil, true, 0)

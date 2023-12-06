@@ -16,3 +16,7 @@ test:
 
 testacc:
 	TF_ACC=1 go test -v ./...
+
+gofmt:
+	@echo "==> Format code using gofmt..."
+	gofmt -s -w internal/provider

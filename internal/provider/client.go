@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"crypto/tls"
 	"io"
 	"net/http"
@@ -10,7 +11,7 @@ import (
 )
 
 // Provider Http Client interface (will be useful for unit tests)
-type ProviderHttpClient interface {
+type ProviderHTTPClient interface {
 	doRequest(method string, path string, data io.Reader) (int, []byte, error)
 }
 
@@ -23,10 +24,10 @@ type AAPClient struct {
 }
 
 // NewClient - create new AAPClient instance
-func NewClient(host string, username *string, password *string, insecure_skip_verify bool, timeout int64) (*AAPClient, error) {
+func NewClient(host string, username *string, password *string, insecureSkipVerify bool, timeout int64) (*AAPClient, error) {
 	hostURL := host
 	if !strings.HasSuffix(hostURL, "/") {
-		hostURL = hostURL + "/"
+		hostURL += "/"
 	}
 	client := AAPClient{
 		HostURL:  hostURL,
@@ -35,7 +36,7 @@ func NewClient(host string, username *string, password *string, insecure_skip_ve
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure_skip_verify},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify},
 	}
 	// Initialize http client using default timeout = 5sec
 	client.httpClient = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
@@ -46,13 +47,17 @@ func NewClient(host string, username *string, password *string, insecure_skip_ve
 func (c *AAPClient) computeURLPath(path string) string {
 	fullPath, _ := url.JoinPath(c.HostURL, path)
 	if !strings.HasSuffix(fullPath, "/") {
-		fullPath = fullPath + "/"
+		fullPath += "/"
 	}
 	return fullPath
 }
 
 func (c *AAPClient) doRequest(method string, path string, data io.Reader) (int, []byte, error) {
-	req, _ := http.NewRequest(method, c.computeURLPath(path), data)
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, method, c.computeURLPath(path), data)
+	if err != nil {
+		return -1, []byte{}, err
+	}
 	if c.Username != nil && c.Password != nil {
 		req.SetBasicAuth(*c.Username, *c.Password)
 	}

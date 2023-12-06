@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/helpers/validatordiag"
@@ -27,18 +28,18 @@ func NewJobResource() resource.Resource {
 }
 
 type JobResourceModelInterface interface {
-	ParseHttpResponse(body []byte) error
-	CreateRequestBody() (*bytes.Reader, error)
-	GetTemplateId() string
+	ParseHTTPResponse(body []byte) error
+	CreateRequestBody() (io.Reader, error)
+	GetTemplateID() string
 	GetURL() string
 }
 
 type JobResource struct {
-	client ProviderHttpClient
+	client ProviderHTTPClient
 }
 
 // Metadata returns the resource type name.
-func (r *JobResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+func (r *JobResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_job"
 }
 
@@ -72,7 +73,7 @@ func (v ansibleVarsValidator) ValidateString(ctx context.Context, request valida
 	}
 }
 
-func AnsibleJsonVarsValidator() validator.String {
+func AnsibleJSONVarsValidator() validator.String {
 	return ansibleVarsValidator{}
 }
 
@@ -98,7 +99,7 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"extra_vars": schema.StringAttribute{
 				Optional: true,
 				Validators: []validator.String{
-					AnsibleJsonVarsValidator(),
+					AnsibleJSONVarsValidator(),
 				},
 			},
 			"ignored_fields": schema.ListAttribute{
@@ -112,22 +113,22 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 
 // jobResourceModel maps the resource schema data.
 type jobResourceModel struct {
-	TemplateId    types.Int64  `tfsdk:"job_template_id"`
+	TemplateID    types.Int64  `tfsdk:"job_template_id"`
 	Type          types.String `tfsdk:"job_type"`
 	URL           types.String `tfsdk:"job_url"`
 	Status        types.String `tfsdk:"status"`
-	InventoryId   types.Int64  `tfsdk:"inventory_id"`
+	InventoryID   types.Int64  `tfsdk:"inventory_id"`
 	ExtraVars     types.String `tfsdk:"extra_vars"`
 	IgnoredFields types.List   `tfsdk:"ignored_fields"`
 }
 
-var key_mapping = map[string]string{
+var keyMapping = map[string]string{
 	"inventory":             "inventory",
 	"execution_environment": "execution_environment_id",
 }
 
-func (d *jobResourceModel) GetTemplateId() string {
-	return d.TemplateId.String()
+func (d *jobResourceModel) GetTemplateID() string {
+	return d.TemplateID.String()
 }
 
 func (d *jobResourceModel) GetURL() string {
@@ -137,7 +138,7 @@ func (d *jobResourceModel) GetURL() string {
 	return ""
 }
 
-func (d *jobResourceModel) ParseHttpResponse(body []byte) error {
+func (d *jobResourceModel) ParseHTTPResponse(body []byte) error {
 	/* Unmarshal the json string */
 	var result map[string]interface{}
 	err := json.Unmarshal(body, &result)
@@ -151,16 +152,16 @@ func (d *jobResourceModel) ParseHttpResponse(body []byte) error {
 	d.IgnoredFields = types.ListNull(types.StringType)
 
 	if value, ok := result["ignored_fields"]; ok {
-		var keys_list []attr.Value = []attr.Value{}
+		var keysList = []attr.Value{}
 		for k := range value.(map[string]interface{}) {
 			key := k
-			if v, ok := key_mapping[k]; ok {
+			if v, ok := keyMapping[k]; ok {
 				key = v
 			}
-			keys_list = append(keys_list, types.StringValue(key))
+			keysList = append(keysList, types.StringValue(key))
 		}
-		if len(keys_list) > 0 {
-			d.IgnoredFields, _ = types.ListValue(types.StringType, keys_list)
+		if len(keysList) > 0 {
+			d.IgnoredFields, _ = types.ListValue(types.StringType, keysList)
 		}
 	}
 
@@ -171,33 +172,33 @@ func IsValueProvided(value attr.Value) bool {
 	return !value.IsNull() && !value.IsUnknown()
 }
 
-func (d *jobResourceModel) CreateRequestBody() (*bytes.Reader, error) {
+func (d *jobResourceModel) CreateRequestBody() (io.Reader, error) {
 	body := make(map[string]interface{})
 
 	// Extra vars
 	if IsValueProvided(d.ExtraVars) {
-		var extra_vars map[string]interface{}
-		_ = json.Unmarshal([]byte(d.ExtraVars.ValueString()), &extra_vars)
-		body["extra_vars"] = extra_vars
+		var extraVars map[string]interface{}
+		_ = json.Unmarshal([]byte(d.ExtraVars.ValueString()), &extraVars)
+		body["extra_vars"] = extraVars
 	}
 
 	// Inventory
-	if IsValueProvided(d.InventoryId) {
-		body["inventory"] = d.InventoryId.ValueInt64()
+	if IsValueProvided(d.InventoryID) {
+		body["inventory"] = d.InventoryID.ValueInt64()
 	}
 
 	if len(body) == 0 {
 		return nil, nil
 	}
-	json_raw, err := json.Marshal(body)
+	jsonRaw, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
-	return bytes.NewReader(json_raw), nil
+	return bytes.NewReader(jsonRaw), nil
 }
 
 // Configure adds the provider configured client to the data source.
-func (d *JobResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (d *JobResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	// Prevent panic if the provider has not been configured.
 	if req.ProviderData == nil {
 		return
@@ -217,29 +218,24 @@ func (d *JobResource) Configure(ctx context.Context, req resource.ConfigureReque
 }
 
 func (r JobResource) CreateJob(data JobResourceModelInterface) error {
-
 	// Create new Job from job template
-	req_data, err := data.CreateRequestBody()
+	reqData, err := data.CreateRequestBody()
 	if err != nil {
 		return err
 	}
 
-	var http_code int
+	var httpCode int
 	var body []byte
-	post_url := "/api/v2/job_templates/" + data.GetTemplateId() + "/launch/"
-	if req_data != nil {
-		http_code, body, err = r.client.doRequest("POST", post_url, req_data)
-	} else {
-		http_code, body, err = r.client.doRequest("POST", post_url, nil)
-	}
+	var postURL = "/api/v2/job_templates/" + data.GetTemplateID() + "/launch/"
+	httpCode, body, err = r.client.doRequest(http.MethodPost, postURL, reqData)
 
 	if err != nil {
 		return err
 	}
-	if http_code != http.StatusCreated {
-		return fmt.Errorf("the server returned status code %d while attempting to create Job", http_code)
+	if httpCode != http.StatusCreated {
+		return fmt.Errorf("the server returned status code %d while attempting to create Job", httpCode)
 	}
-	err = data.ParseHttpResponse(body)
+	err = data.ParseHTTPResponse(body)
 	if err != nil {
 		return fmt.Errorf("error while parsing the json response: " + err.Error())
 	}
@@ -250,16 +246,16 @@ func (r JobResource) ReadJob(data JobResourceModelInterface) error {
 	// Read existing Job
 	jobURL := data.GetURL()
 	if len(jobURL) > 0 {
-		http_code, body, err := r.client.doRequest("GET", jobURL, nil)
+		httpCode, body, err := r.client.doRequest("GET", jobURL, nil)
 		if err != nil {
 			return err
 		}
 
-		if http_code != http.StatusOK {
-			return fmt.Errorf("the server returned status code %d while attempting to Get from URL %s", http_code, jobURL)
+		if httpCode != http.StatusOK {
+			return fmt.Errorf("the server returned status code %d while attempting to Get from URL %s", httpCode, jobURL)
 		}
 
-		err = data.ParseHttpResponse(body)
+		err = data.ParseHTTPResponse(body)
 		if err != nil {
 			return err
 		}
@@ -307,7 +303,7 @@ func (r JobResource) Create(ctx context.Context, req resource.CreateRequest, res
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func (r JobResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r JobResource) Delete(_ context.Context, _ resource.DeleteRequest, _ *resource.DeleteResponse) {
 }
 
 func (r JobResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
