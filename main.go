@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/ansible/terraform-provider-aap/internal/provider"
+	"terraform-provider-aap/internal/provider"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 )
