@@ -1,4 +1,4 @@
-module github.com/ansible/terraform-provider-aap
+module terraform-provider-aap
 
 go 1.21.1
 
