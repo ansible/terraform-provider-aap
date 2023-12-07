@@ -32,19 +32,8 @@ jobs:
           admin: "admin"
           password: "test123"
 
-      - name: Configure awx cluster
-        run: |
-          echo "" > "${{ env.test_config }}"
-          chmod +x ${{ env.test_config }}
-          ansible-playbook awx_configure.yml -v -e "config_file=${{ env.test_config }}"
-        working-directory: "./ci"
-        env:
-          AAP_HOST: "https://localhost:8043"
-          AAP_USERNAME: "admin"
-          AAP_PASSWORD: "test123"
-
-      - name: Run unit tests
-        run: source ${{ env.test_config }} && make testacc
+      - name: Run acceptance tests
+        run: make testacc
         env:
           AAP_HOST: "https://localhost:8043"
           AAP_USERNAME: "admin"
