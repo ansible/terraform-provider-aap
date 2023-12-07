@@ -17,7 +17,7 @@ test:
 testacc:
 	touch $(PWD)/.testacc_configure.sh
 	ansible-playbook ci/awx_configure.yml -v -e 'config_file="$(PWD)/.testacc_configure.sh"'
-	source $(PWD)/.testacc_configure.sh && TF_ACC=1 go test -v ./...
+	. $(PWD)/.testacc_configure.sh && TF_ACC=1 go test -v ./...
 	rm -f $(PWD)/.testacc_configure.sh
 
 gofmt:
