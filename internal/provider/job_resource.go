@@ -222,16 +222,17 @@ func (r JobResource) CreateJob(data JobResourceModelInterface) error {
 		return err
 	}
 
-	var httpCode int
-	var body []byte
 	var postURL = "/api/v2/job_templates/" + data.GetTemplateID() + "/launch/"
-	httpCode, body, err = r.client.doRequest(http.MethodPost, postURL, reqData)
+	resp, body, err := r.client.doRequest(http.MethodPost, postURL, reqData)
 
 	if err != nil {
 		return err
 	}
-	if httpCode != http.StatusCreated {
-		return fmt.Errorf("the server returned status code %d while attempting to create Job", httpCode)
+	if resp == nil {
+		return fmt.Errorf("no http response from server")
+	}
+	if resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("the server returned status code %d while attempting to create Job", resp.StatusCode)
 	}
 	err = data.ParseHTTPResponse(body)
 	if err != nil {
@@ -244,13 +245,15 @@ func (r JobResource) ReadJob(data JobResourceModelInterface) error {
 	// Read existing Job
 	jobURL := data.GetURL()
 	if len(jobURL) > 0 {
-		httpCode, body, err := r.client.doRequest("GET", jobURL, nil)
+		resp, body, err := r.client.doRequest("GET", jobURL, nil)
 		if err != nil {
 			return err
 		}
-
-		if httpCode != http.StatusOK {
-			return fmt.Errorf("the server returned status code %d while attempting to Get from URL %s", httpCode, jobURL)
+		if resp == nil {
+			return fmt.Errorf("the server response is null")
+		}
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("the server returned status code %d while attempting to Get from URL %s", resp.StatusCode, jobURL)
 		}
 
 		err = data.ParseHTTPResponse(body)

@@ -258,7 +258,7 @@ var mResponse3 = map[string]string{
 	"execution_environment": "3",
 }
 
-func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (int, []byte, error) {
+func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
 	config := map[string]map[string]string{
 		"/api/v2/job_templates/1/launch/": mResponse1,
 		"/api/v2/job_templates/2/launch/": mResponse2,
@@ -267,31 +267,31 @@ func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (
 	}
 
 	if !slices.Contains(c.acceptMethods, method) {
-		return http.StatusBadRequest, nil, nil
+		return nil, nil, nil
 	}
 	response, ok := config[path]
 	if !ok {
-		return http.StatusNotFound, nil, nil
+		return &http.Response{StatusCode: http.StatusNotFound}, nil, nil
 	}
 	if data != nil {
 		// add request info into response
 		buf := new(strings.Builder)
 		_, err := io.Copy(buf, data)
 		if err != nil {
-			return -1, nil, err
+			return nil, nil, err
 		}
 		var mData map[string]string
 		err = json.Unmarshal([]byte(buf.String()), &mData)
 		if err != nil {
-			return -1, nil, err
+			return nil, nil, err
 		}
 		response = mergeStringMaps(response, mData)
 	}
 	result, err := json.Marshal(response)
 	if err != nil {
-		return -1, nil, err
+		return nil, nil, err
 	}
-	return c.httpCode, result, nil
+	return &http.Response{StatusCode: c.httpCode}, result, nil
 }
 
 func TestCreateJob(t *testing.T) {

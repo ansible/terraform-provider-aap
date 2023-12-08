@@ -6,13 +6,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 )
 
 // Provider Http Client interface (will be useful for unit tests)
 type ProviderHTTPClient interface {
-	doRequest(method string, path string, data io.Reader) (int, []byte, error)
+	doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error)
 }
 
 // Client -
@@ -25,10 +24,7 @@ type AAPClient struct {
 
 // NewClient - create new AAPClient instance
 func NewClient(host string, username *string, password *string, insecureSkipVerify bool, timeout int64) (*AAPClient, error) {
-	hostURL := host
-	if !strings.HasSuffix(hostURL, "/") {
-		hostURL += "/"
-	}
+	hostURL, _ := url.JoinPath(host, "/")
 	client := AAPClient{
 		HostURL:  hostURL,
 		Username: username,
@@ -44,18 +40,15 @@ func NewClient(host string, username *string, password *string, insecureSkipVeri
 }
 
 func (c *AAPClient) computeURLPath(path string) string {
-	fullPath, _ := url.JoinPath(c.HostURL, path)
-	if !strings.HasSuffix(fullPath, "/") {
-		fullPath += "/"
-	}
+	fullPath, _ := url.JoinPath(c.HostURL, path, "/")
 	return fullPath
 }
 
-func (c *AAPClient) doRequest(method string, path string, data io.Reader) (int, []byte, error) {
+func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
 	ctx := context.Background()
 	req, err := http.NewRequestWithContext(ctx, method, c.computeURLPath(path), data)
 	if err != nil {
-		return -1, []byte{}, err
+		return nil, []byte{}, err
 	}
 	if c.Username != nil && c.Password != nil {
 		req.SetBasicAuth(*c.Username, *c.Password)
@@ -66,13 +59,13 @@ func (c *AAPClient) doRequest(method string, path string, data io.Reader) (int, 
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return -1, []byte{}, err
+		return nil, []byte{}, err
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return -1, []byte{}, err
+		return nil, []byte{}, err
 	}
-	resp.Body.Close()
-	return resp.StatusCode, body, nil
+	return resp, body, nil
 }

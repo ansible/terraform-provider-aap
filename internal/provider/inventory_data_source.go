@@ -219,12 +219,15 @@ type ansibleHostList struct {
 }
 
 func (d *inventoryDataSource) ReadAnsibleHosts(stateID string) (*ansibleHostList, error) {
-	httpStatusCode, body, err := d.client.doRequest("GET", "api/v2/state/"+stateID+"/", nil)
+	resp, body, err := d.client.doRequest("GET", "api/v2/state/"+stateID+"/", nil)
 	if err != nil {
 		return nil, err
 	}
-	if httpStatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status: %d, body: %s", httpStatusCode, body)
+	if resp == nil {
+		return nil, fmt.Errorf("the server response is null")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status: %d, body: %s", resp.StatusCode, body)
 	}
 
 	var result map[string]interface{}
