@@ -194,7 +194,13 @@ func TestReadValues(t *testing.T) {
 			Errors:             0,
 		},
 	}
-
+	var providerEnvVars = []string{
+		"AAP_HOST",
+		"AAP_USERNAME",
+		"AAP_PASSWORD",
+		"AAP_INSECURE_SKIP_VERIFY",
+		"AAP_TIMEOUT",
+	}
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
 			var host, username, password string
@@ -202,8 +208,12 @@ func TestReadValues(t *testing.T) {
 			var timeout int64
 			var resp provider.ConfigureResponse
 			// Set env variables
-			for k, d := range tc.envVars {
-				t.Setenv(k, d)
+			for _, name := range providerEnvVars {
+				if value, ok := tc.envVars[name]; ok {
+					t.Setenv(name, value)
+				} else {
+					t.Setenv(name, "")
+				}
 			}
 			// ReadValues()
 			tc.config.ReadValues(&host, &username, &password, &insecureSkipVerify, &timeout, &resp)

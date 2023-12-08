@@ -8,8 +8,10 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework-validators/helpers/validatordiag"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -27,7 +29,7 @@ func NewJobResource() resource.Resource {
 
 type JobResourceModelInterface interface {
 	ParseHTTPResponse(body []byte) error
-	CreateRequestBody() (io.Reader, error)
+	CreateRequestBody() (io.Reader, diag.Diagnostics)
 	GetTemplateID() string
 	GetURL() string
 }
@@ -95,10 +97,8 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Computed: true,
 			},
 			"extra_vars": schema.StringAttribute{
-				Optional: true,
-				Validators: []validator.String{
-					AnsibleJSONVarsValidator(),
-				},
+				Optional:   true,
+				CustomType: jsontypes.NormalizedType{},
 			},
 			"ignored_fields": schema.ListAttribute{
 				ElementType: types.StringType,
@@ -111,13 +111,13 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 
 // jobResourceModel maps the resource schema data.
 type jobResourceModel struct {
-	TemplateID    types.Int64  `tfsdk:"job_template_id"`
-	Type          types.String `tfsdk:"job_type"`
-	URL           types.String `tfsdk:"job_url"`
-	Status        types.String `tfsdk:"status"`
-	InventoryID   types.Int64  `tfsdk:"inventory_id"`
-	ExtraVars     types.String `tfsdk:"extra_vars"`
-	IgnoredFields types.List   `tfsdk:"ignored_fields"`
+	TemplateID    types.Int64          `tfsdk:"job_template_id"`
+	Type          types.String         `tfsdk:"job_type"`
+	URL           types.String         `tfsdk:"job_url"`
+	Status        types.String         `tfsdk:"status"`
+	InventoryID   types.Int64          `tfsdk:"inventory_id"`
+	ExtraVars     jsontypes.Normalized `tfsdk:"extra_vars"`
+	IgnoredFields types.List           `tfsdk:"ignored_fields"`
 }
 
 var keyMapping = map[string]string{
@@ -170,13 +170,17 @@ func IsValueProvided(value attr.Value) bool {
 	return !value.IsNull() && !value.IsUnknown()
 }
 
-func (d *jobResourceModel) CreateRequestBody() (io.Reader, error) {
+func (d *jobResourceModel) CreateRequestBody() (io.Reader, diag.Diagnostics) {
 	body := make(map[string]interface{})
 
 	// Extra vars
+	var diags diag.Diagnostics
 	if IsValueProvided(d.ExtraVars) {
 		var extraVars map[string]interface{}
-		_ = json.Unmarshal([]byte(d.ExtraVars.ValueString()), &extraVars)
+		diags.Append(d.ExtraVars.Unmarshal(&extraVars)...)
+		if diags.HasError() {
+			return nil, diags
+		}
 		body["extra_vars"] = extraVars
 	}
 
@@ -186,13 +190,14 @@ func (d *jobResourceModel) CreateRequestBody() (io.Reader, error) {
 	}
 
 	if len(body) == 0 {
-		return nil, nil
+		return nil, diags
 	}
 	jsonRaw, err := json.Marshal(body)
 	if err != nil {
-		return nil, err
+		diags.Append(diag.NewErrorDiagnostic("Body JSON Marshal Error", err.Error()))
+		return nil, diags
 	}
-	return bytes.NewReader(jsonRaw), nil
+	return bytes.NewReader(jsonRaw), diags
 }
 
 // Configure adds the provider configured client to the data source.
@@ -215,30 +220,37 @@ func (d *JobResource) Configure(_ context.Context, req resource.ConfigureRequest
 	d.client = client
 }
 
-func (r JobResource) CreateJob(data JobResourceModelInterface) error {
+func (r JobResource) CreateJob(data JobResourceModelInterface) diag.Diagnostics {
 	// Create new Job from job template
-	reqData, err := data.CreateRequestBody()
-	if err != nil {
-		return err
+	var diags diag.Diagnostics
+	reqData, diagCreateReq := data.CreateRequestBody()
+	diags.Append(diagCreateReq...)
+	if diags.HasError() {
+		return diags
 	}
 
 	var postURL = "/api/v2/job_templates/" + data.GetTemplateID() + "/launch/"
 	resp, body, err := r.client.doRequest(http.MethodPost, postURL, reqData)
 
 	if err != nil {
-		return err
+		diags.AddError("Body JSON Marshal Error", err.Error())
+		return diags
 	}
 	if resp == nil {
-		return fmt.Errorf("no http response from server")
+		diags.AddError("Http response Error", "no http response from server")
+		return diags
 	}
 	if resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("the server returned status code %d while attempting to create Job", resp.StatusCode)
+		diags.AddError("Unexpecte Http Status code",
+			fmt.Sprintf("expected (%d) got (%d)", http.StatusCreated, resp.StatusCode))
+		return diags
 	}
 	err = data.ParseHTTPResponse(body)
 	if err != nil {
-		return fmt.Errorf("error while parsing the json response: " + err.Error())
+		diags.AddError("error while parsing the json response: ", err.Error())
+		return diags
 	}
-	return nil
+	return diags
 }
 
 func (r JobResource) ReadJob(data JobResourceModelInterface) error {
@@ -292,11 +304,8 @@ func (r JobResource) Create(ctx context.Context, req resource.CreateRequest, res
 		return
 	}
 
-	if err := r.CreateJob(&data); err != nil {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Creation error",
-			err.Error(),
-		)
+	resp.Diagnostics.Append(r.CreateJob(&data)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
@@ -314,11 +323,8 @@ func (r JobResource) Update(ctx context.Context, req resource.UpdateRequest, res
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 
 	// Create new Job from job template
-	if err := r.CreateJob(&data); err != nil {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Update error",
-			err.Error(),
-		)
+	resp.Diagnostics.Append(r.CreateJob(&data)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 

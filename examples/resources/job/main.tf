@@ -16,11 +16,7 @@ provider "aap" {
 resource "aap_job" "sample" {
   job_template_id   = 9
   inventory_id = 2
-  extra_vars = jsonencode(
-    {
-      "resource_state": "absent",
-    }
-  )
+  extra_vars = "{\"resource_state\": \"absent\"}"
 }
 
 output "job_launch_url" {

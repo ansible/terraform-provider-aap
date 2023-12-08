@@ -13,7 +13,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -23,7 +25,7 @@ import (
 func TestParseHttpResponse(t *testing.T) {
 	templateID := basetypes.NewInt64Value(1)
 	inventoryID := basetypes.NewInt64Value(2)
-	extraVars := basetypes.NewStringNull()
+	extraVars := jsontypes.NewNormalizedNull()
 	testTable := []struct {
 		name     string
 		body     []byte
@@ -119,7 +121,7 @@ func TestCreateRequestBody(t *testing.T) {
 		{
 			name: "unknown fields",
 			input: jobResourceModel{
-				ExtraVars:   basetypes.NewStringUnknown(),
+				ExtraVars:   jsontypes.NewNormalizedNull(),
 				InventoryID: basetypes.NewInt64Unknown(),
 			},
 			expected: nil,
@@ -127,7 +129,7 @@ func TestCreateRequestBody(t *testing.T) {
 		{
 			name: "null fields",
 			input: jobResourceModel{
-				ExtraVars:   basetypes.NewStringNull(),
+				ExtraVars:   jsontypes.NewNormalizedNull(),
 				InventoryID: basetypes.NewInt64Null(),
 			},
 			expected: nil,
@@ -135,7 +137,7 @@ func TestCreateRequestBody(t *testing.T) {
 		{
 			name: "extra vars only",
 			input: jobResourceModel{
-				ExtraVars:   types.StringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
+				ExtraVars:   jsontypes.NewNormalizedValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Null(),
 			},
 			expected: bytes.NewReader([]byte(`{"extra_vars":{"test_name":"extra_vars","provider":"aap"}}`)),
@@ -143,7 +145,7 @@ func TestCreateRequestBody(t *testing.T) {
 		{
 			name: "inventory vars only",
 			input: jobResourceModel{
-				ExtraVars:   basetypes.NewStringNull(),
+				ExtraVars:   jsontypes.NewNormalizedNull(),
 				InventoryID: basetypes.NewInt64Value(201),
 			},
 			expected: bytes.NewReader([]byte(`{"inventory": 201}`)),
@@ -151,7 +153,7 @@ func TestCreateRequestBody(t *testing.T) {
 		{
 			name: "combined",
 			input: jobResourceModel{
-				ExtraVars:   types.StringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
+				ExtraVars:   jsontypes.NewNormalizedValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Value(3),
 			},
 			expected: bytes.NewReader([]byte(
@@ -208,16 +210,18 @@ func (d *MockJobResource) ParseHTTPResponse(body []byte) error {
 	return nil
 }
 
-func (d *MockJobResource) CreateRequestBody() (io.Reader, error) {
+func (d *MockJobResource) CreateRequestBody() (io.Reader, diag.Diagnostics) {
+	var diags diag.Diagnostics
 	if len(d.Inventory) == 0 {
-		return nil, nil
+		return nil, diags
 	}
 	m := map[string]string{"Inventory": d.Inventory}
 	jsonRaw, err := json.Marshal(m)
 	if err != nil {
-		return nil, err
+		diags.AddError("Json Marshall Error", err.Error())
+		return nil, diags
 	}
-	return bytes.NewReader(jsonRaw), nil
+	return bytes.NewReader(jsonRaw), diags
 }
 
 type MockHTTPClient struct {
@@ -358,10 +362,13 @@ func TestCreateJob(t *testing.T) {
 			job := JobResource{
 				client: NewMockHTTPClient(tc.acceptMethods, tc.httpCode),
 			}
-			err := job.CreateJob(resource)
-			if (tc.failed && err == nil) || (!tc.failed && err != nil) {
-				if err != nil {
-					t.Errorf("process has failed with (%s) while it should not", err.Error())
+			diags := job.CreateJob(resource)
+			if (tc.failed && !diags.HasError()) || (!tc.failed && diags.HasError()) {
+				if diags.HasError() {
+					t.Errorf("process has failed while it should not")
+					for _, d := range diags {
+						t.Errorf("Summary = '%s' - details = '%s'", d.Summary(), d.Detail())
+					}
 				} else {
 					t.Errorf("failure expected but the process did not failed!!")
 				}
