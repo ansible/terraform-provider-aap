@@ -104,42 +104,13 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		return
 	}
 
-	// Default values to environment variables, but override
-	// with Terraform configuration value if set.
-
-	host := os.Getenv("AAP_HOST")
-	username := os.Getenv("AAP_USERNAME")
-	password := os.Getenv("AAP_PASSWORD")
-	var insecureSkipVerify = false
-	var err error
-	rawInsecureSkipVerify := os.Getenv("AAP_INSECURE_SKIP_VERIFY")
-	if rawInsecureSkipVerify != "" {
-		insecureSkipVerify, err = strconv.ParseBool(rawInsecureSkipVerify)
-		if err != nil {
-			resp.Diagnostics.AddAttributeError(
-				path.Root("insecure_skip_verify"),
-				"Invalid value for insecure_skip_verify",
-				"The provider cannot create the AAP API client as the value provided for insecure_skip_verify is not a valid boolean.",
-			)
-			return
-		}
-	}
-
-	rawTimeout := os.Getenv("AAP_TIMEOUT")
+	var host, username, password string
+	var insecureSkipVerify bool
 	var timeout int64
-	if rawTimeout != "" {
-		// convert string into int64 value
-		timeout, err = strconv.ParseInt(rawTimeout, 10, 64)
-		if err != nil {
-			resp.Diagnostics.AddAttributeError(
-				path.Root("timeout"),
-				"Invalid value for timeout",
-				"The provider cannot create the AAP API client as the value provided for timeout is not a valid int64 value.",
-			)
-			return
-		}
+	config.ReadValues(&host, &username, &password, &insecureSkipVerify, &timeout, resp)
+	if resp.Diagnostics.HasError() {
+		return
 	}
-	config.ReadValues(&host, &username, &password, &insecureSkipVerify, &timeout)
 
 	// If any of the expected configurations are missing, return
 	// errors with provider-specific guidance.
@@ -223,27 +194,60 @@ func (p *aapProviderModel) checkUnknownValue(resp *provider.ConfigureResponse) {
 	}
 }
 
-func (p *aapProviderModel) ReadValues(host, username, password *string, insecureSkipVerify *bool, timeout *int64) {
+const (
+	DefaultTimeOut            = 5     // Default http session timeout
+	DefaultInsecureSkipVerify = false // Default value for insecure skip verify
+)
+
+func (p *aapProviderModel) ReadValues(host, username, password *string, insecureSkipVerify *bool,
+	timeout *int64, resp *provider.ConfigureResponse) {
+	// Set default values from env variables
+	*host = os.Getenv("AAP_HOST")
+	*username = os.Getenv("AAP_USERNAME")
+	*password = os.Getenv("AAP_PASSWORD")
+
+	*insecureSkipVerify = DefaultInsecureSkipVerify
+	var err error
+
+	// Read host from user configuration
 	if !p.Host.IsNull() {
 		*host = p.Host.ValueString()
 	}
-
+	// Read username from user configuration
 	if !p.Username.IsNull() {
 		*username = p.Username.ValueString()
 	}
-
+	// Read password from user configuration
 	if !p.Password.IsNull() {
 		*password = p.Password.ValueString()
 	}
 
 	if !p.InsecureSkipVerify.IsNull() {
 		*insecureSkipVerify = p.InsecureSkipVerify.ValueBool()
+	} else if boolValue := os.Getenv("AAP_INSECURE_SKIP_VERIFY"); boolValue != "" {
+		*insecureSkipVerify, err = strconv.ParseBool(boolValue)
+		if err != nil {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("insecure_skip_verify"),
+				"Invalid value for insecure_skip_verify",
+				"The provider cannot create the AAP API client as the value provided for insecure_skip_verify is not a valid boolean.",
+			)
+		}
 	}
 
-	if !p.Timeout.IsNull() && !p.Timeout.IsUnknown() {
+	// setting default timeout value
+	*timeout = DefaultTimeOut
+	if !p.Timeout.IsNull() {
 		*timeout = p.Timeout.ValueInt64()
-	} else {
-		// setting default timeout value
-		*timeout = 5
+	} else if intValue := os.Getenv("AAP_TIMEOUT"); intValue != "" {
+		// convert string into int64 value
+		*timeout, err = strconv.ParseInt(intValue, 10, 64)
+		if err != nil {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("timeout"),
+				"Invalid value for timeout",
+				"The provider cannot create the AAP API client as the value provided for timeout is not a valid int64 value.",
+			)
+		}
 	}
 }
