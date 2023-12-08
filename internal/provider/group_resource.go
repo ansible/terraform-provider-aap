@@ -49,7 +49,6 @@ func (r *groupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			},
 			"name": schema.StringAttribute{
 				Required: true,
-			        Computed:    true,
 			},
                         "description": schema.StringAttribute{
                                 Optional: true,
@@ -83,7 +82,7 @@ func (d *groupResourceModel) CreateRequestBody() (*bytes.Reader, error) {
         body["inventory"] = d.InventoryId.ValueInt64()
 
 	// Name
-	body["name"] = d.Name
+	body["name"] = d.Name.ValueString()
 
         // Variables
         if IsValueProvided(d.Variables) {
@@ -117,7 +116,6 @@ func (d *groupResourceModel) ParseHttpResponse(body []byte) error {
 
 	d.Name = types.StringValue(result["name"].(string))
 	d.Description = types.StringValue(result["description"].(string))
-	d.InventoryId = types.Int64Value(result["inventory_id"].(int64))
 
 	return nil
 }
@@ -161,7 +159,7 @@ func (r groupResource) CreateGroup(data GroupResourceModelInterface) error {
 		return err
 	}
 	if http_code != http.StatusCreated {
-		return fmt.Errorf("the server returned status code %d while attempting to create  a group", http_code)
+		return fmt.Errorf("the server returned status code %d while attempting to create  a group with body %s req data %s data %s", http_code, body, req_data, data)
 	}
 	err = data.ParseHttpResponse(body)
 	if err != nil {
