@@ -17,6 +17,7 @@ resource "aap_group" "sample" {
   id   = 1
   inventory_id = 1
   name = "tf_group" 
+  variables = "{\"ansible_network_os\": \"iosxr\"}"
 }
 
 output "group" {

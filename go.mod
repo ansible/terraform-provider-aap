@@ -2,7 +2,10 @@ module terraform-provider-aap
 
 go 1.21.1
 
-require github.com/hashicorp/terraform-plugin-framework v1.4.1
+require (
+	github.com/hashicorp/terraform-plugin-framework v1.4.1
+	github.com/hashicorp/terraform-plugin-framework-jsontypes v0.1.0
+)
 
 require (
 	github.com/fatih/color v1.13.0 // indirect

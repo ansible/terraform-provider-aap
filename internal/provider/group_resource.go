@@ -1,15 +1,17 @@
 package provider
 
 import (
-        "bytes"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-        "net/http"
+	"net/http"
+
 	"github.com/hashicorp/terraform-plugin-framework/attr"
-        "github.com/hashicorp/terraform-plugin-framework/resource"
-        "github.com/hashicorp/terraform-plugin-framework/resource/schema"
-        "github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -24,7 +26,7 @@ func NewGroupResource() resource.Resource {
 
 type GroupResourceModelInterface interface {
 	ParseHttpResponse(body []byte) error
-	CreateRequestBody() (*bytes.Reader, error)
+	CreateRequestBody() (*bytes.Reader, diag.Diagnostics)
 }
 
 // groupResource is the resource implementation.
@@ -55,9 +57,8 @@ func (r *groupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
                                 Computed:    true,
                         },
                         "variables": schema.StringAttribute{
-			        Computed:    true,
-                                Optional: true,
-                       },
+				Optional:   true,
+			},
 		},
 	}
 }
@@ -75,8 +76,9 @@ func IsValueProvided(value attr.Value) bool {
 	return !value.IsNull() && !value.IsUnknown()
 }
 
-func (d *groupResourceModel) CreateRequestBody() (*bytes.Reader, error) {
+func (d *groupResourceModel) CreateRequestBody() (*bytes.Reader, diag.Diagnostics) {
 	body := make(map[string]interface{})
+        var diags diag.Diagnostics
 
 	// Inventory id
         body["inventory"] = d.InventoryId.ValueInt64()
@@ -85,10 +87,8 @@ func (d *groupResourceModel) CreateRequestBody() (*bytes.Reader, error) {
 	body["name"] = d.Name.ValueString()
 
         // Variables
-        if IsValueProvided(d.Variables) {
-		var variables map[string]interface{}
-		_ = json.Unmarshal([]byte(d.Variables.ValueString()), &variables)
-		body["variables"] = variables
+	if IsValueProvided(d.Variables) {
+		body["variables"] = d.Variables.ValueString()
 	}
 
         // Description
@@ -97,13 +97,14 @@ func (d *groupResourceModel) CreateRequestBody() (*bytes.Reader, error) {
 	}
 
 	if len(body) == 0 {
-		return nil, nil
+		return nil, diags
 	}
 	json_raw, err := json.Marshal(body)
 	if err != nil {
-		return nil, err
+                diags.Append(diag.NewErrorDiagnostic("Body JSON Marshal Error", err.Error()))
+		return nil, diags
 	}
-	return bytes.NewReader(json_raw), nil
+	return bytes.NewReader(json_raw), diags
 }
 
 func (d *groupResourceModel) ParseHttpResponse(body []byte) error {
@@ -139,33 +140,37 @@ func (d *groupResource) Configure(ctx context.Context, req resource.ConfigureReq
 	d.client = client
 }
 
-func (r groupResource) CreateGroup(data GroupResourceModelInterface) error {
+func (r groupResource) CreateGroup(data GroupResourceModelInterface) diag.Diagnostics {
 
-	req_data, err := data.CreateRequestBody()
-	if err != nil {
-		return err
+        var diags diag.Diagnostics
+	req_data, diagCreateReq := data.CreateRequestBody()
+	diags.Append(diagCreateReq...)
+	if diags.HasError() {
+		return diags
 	}
 
-	var http_code int
-	var body []byte
 	post_url := "/api/v2/groups/"
-	if req_data != nil {
-		http_code, body, err = r.client.doRequest("POST", post_url, req_data)
-	} else {
-		http_code, body, err = r.client.doRequest("POST", post_url, nil)
-	}
+        resp, body, err := r.client.doRequest(http.MethodPost, post_url, req_data)
 
-	if err != nil {
-		return err
+        if err != nil {
+		diags.AddError("Body JSON Marshal Error", err.Error())
+		return diags
 	}
-	if http_code != http.StatusCreated {
-		return fmt.Errorf("the server returned status code %d while attempting to create  a group with body %s req data %s data %s", http_code, body, req_data, data)
+        if resp == nil {
+		diags.AddError("Http response Error", "no http response from server")
+		return diags
+	}
+	if resp.StatusCode != http.StatusCreated {
+		diags.AddError("Unexpecte Http Status code",
+			fmt.Sprintf("expected (%d) got (%d) body %s", http.StatusCreated, resp.StatusCode, body))
+		return diags
 	}
 	err = data.ParseHttpResponse(body)
 	if err != nil {
-		return fmt.Errorf("error while parsing the json response: " + err.Error())
+		diags.AddError("error while parsing the json response: ", err.Error())
+		return diags
 	}
-	return nil
+	return diags
 }
 
 func (r groupResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -178,11 +183,8 @@ func (r groupResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	if err := r.CreateGroup(&data); err != nil {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Creation error",
-			err.Error(),
-		)
+        resp.Diagnostics.Append(r.CreateGroup(&data)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
@@ -199,12 +201,8 @@ func (r groupResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 
-
-	if err := r.CreateGroup(&data); err != nil {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Update error",
-			err.Error(),
-		)
+        resp.Diagnostics.Append(r.CreateGroup(&data)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
@@ -214,13 +212,15 @@ func (r groupResource) Update(ctx context.Context, req resource.UpdateRequest, r
 
 func (r groupResource) ReadGroup(data GroupResourceModelInterface) error {
 	// Read existing Group
-        httpCode, body, err := r.client.doRequest("GET", "/api/v2/groups/" , nil)
+        resp, body, err := r.client.doRequest("GET", "/api/v2/groups/", nil)
 	if err != nil {
 		return err
 	}
-
-	if httpCode != http.StatusOK {
-		return fmt.Errorf("the server returned status code %d while attempting to Get groups", httpCode)
+	if resp == nil {
+		return fmt.Errorf("the server response is null")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("the server returned status code %d while attempting to Get Group", resp.StatusCode)
 	}
 
 	err = data.ParseHttpResponse(body)
