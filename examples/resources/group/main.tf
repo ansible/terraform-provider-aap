@@ -7,9 +7,9 @@ terraform {
 }
 
 provider "aap" {
-  host     = "https://controller.ansiblecloud.xyz/"
-  username = "gomathiselvis"
-  password = "Test123!"
+  host     = "https://controller.xxx.xyz/"
+  username = "xxxx"
+  password = "xxxx"
   insecure_skip_verify = true
 }
 
