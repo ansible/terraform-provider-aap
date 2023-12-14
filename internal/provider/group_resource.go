@@ -7,6 +7,7 @@ import (
 	"fmt"
         "strings"
 	"net/http"
+        "runtime"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -89,6 +90,18 @@ func (d *groupResourceModel) GetURL() string {
 		return d.URL.ValueString()
 	}
 	return ""
+}
+
+func GetFunctionName(caller int) string {
+        pc, _, _, result := runtime.Caller(caller + 1)
+        if !result {
+                return ""
+        }
+        f := runtime.FuncForPC(pc)
+        if f == nil {
+                return ""
+        }
+        return f.Name()
 }
 
 func (d *groupResourceModel) CreateRequestBody() (*bytes.Reader, diag.Diagnostics) {
@@ -179,21 +192,21 @@ func (r groupResource) CreateGroup(data GroupResourceModelInterface) diag.Diagno
         resp, body, err := r.client.doRequest(http.MethodPost, post_url, req_data)
 
         if err != nil {
-		diags.AddError("Body JSON Marshal Error", err.Error())
+		diags.AddError(GetFunctionName(0) + " Body JSON Marshal Error", err.Error())
 		return diags
 	}
         if resp == nil {
-		diags.AddError("Http response Error", "no http response from server")
+		diags.AddError(GetFunctionName(0) + " Http response Error", "no http response from server")
 		return diags
 	}
 	if resp.StatusCode != http.StatusCreated {
-		diags.AddError("Unexpected Http Status code",
-			fmt.Sprintf("expected (%d) got (%d) body %s req_data %s", http.StatusCreated, resp.StatusCode, body, req_data))
+		diags.AddError(GetFunctionName(0) + " Unexpected Http Status code",
+			fmt.Sprintf("expected (%d) got (%s)", http.StatusCreated, resp.Status))
 		return diags
 	}
         err = data.ParseHttpResponse(body)
 	if err != nil {
-		diags.AddError("error while parsing the json response: ", err.Error())
+		diags.AddError(GetFunctionName(0) + " error while parsing the json response: ", err.Error())
 		return diags
 	}
 	return diags
@@ -218,7 +231,43 @@ func (r groupResource) Create(ctx context.Context, req resource.CreateRequest, r
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
+func (r groupResource) DeleteGroup(data GroupResourceModelInterface) diag.Diagnostics {
+
+        var diags diag.Diagnostics
+        group_url := data.GetURL()
+
+        resp, _, err := r.client.doRequest(http.MethodDelete, group_url, nil)
+
+        if err != nil {
+		diags.AddError(GetFunctionName(0) + " Body JSON Marshal Error", err.Error())
+		return diags
+	}
+        if resp == nil {
+		diags.AddError(GetFunctionName(0) + " Http response Error", "no http response from server")
+		return diags
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		diags.AddError(GetFunctionName(0) + " Unexpected Http Status code",
+			fmt.Sprintf("expected (%d) got (%s)", http.StatusNoContent, resp.Status))
+		return diags
+	}
+	return diags
+}
+
 func (r groupResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+
+        var data groupResourceModel
+
+        // Read Terraform plan data into the model
+        resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
+
+        resp.Diagnostics.Append(r.DeleteGroup(&data)...)
+        if resp.Diagnostics.HasError() {
+                return
+        }
+
+        // Save updated data into Terraform state
+        resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r groupResource) UpdateGroup(data GroupResourceModelInterface) diag.Diagnostics {
@@ -230,25 +279,24 @@ func (r groupResource) UpdateGroup(data GroupResourceModelInterface) diag.Diagno
 		return diags
 	}
 
-        put_url := data.GetURL()
-        resp, body, err := r.client.doRequest(http.MethodPut, put_url, req_data)
+        resp, body, err := r.client.doRequest(http.MethodPut, data.GetURL(), req_data)
 
         if err != nil {
-		diags.AddError("Body JSON Marshal Error", err.Error())
+		diags.AddError(GetFunctionName(0) + " Body JSON Marshal Error", err.Error())
 		return diags
 	}
         if resp == nil {
-		diags.AddError("Http response Error", "no http response from server")
+		diags.AddError(GetFunctionName(0) + " Http response Error", "no http response from server")
 		return diags
 	}
-	if resp.StatusCode != http.StatusCreated {
-		diags.AddError("Unexpected Http Status code",
-			fmt.Sprintf("expected (%d) got (%d) body %s req_data %s", http.StatusCreated, resp.StatusCode, body, req_data))
+	if resp.StatusCode != http.StatusOK {
+		diags.AddError(GetFunctionName(0) + " Unexpected Http Status code",
+			fmt.Sprintf("expected (%d) got (%s)", http.StatusOK, resp.Status))
 		return diags
 	}
         err = data.ParseHttpResponse(body)
 	if err != nil {
-		diags.AddError("error while parsing the json response: ", err.Error())
+		diags.AddError(GetFunctionName(0) + " error while parsing the json response: ", err.Error())
 		return diags
 	}
 	return diags
@@ -256,9 +304,12 @@ func (r groupResource) UpdateGroup(data GroupResourceModelInterface) diag.Diagno
 
 func (r groupResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var data groupResourceModel
+        var data_with_URL groupResourceModel
 
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &data_with_URL)...)
+        data.URL = data_with_URL.URL
 
         resp.Diagnostics.Append(r.UpdateGroup(&data)...)
 	if resp.Diagnostics.HasError() {
@@ -276,21 +327,21 @@ func (r groupResource) ReadGroup(data GroupResourceModelInterface) diag.Diagnost
         group_url := data.GetURL()
         resp, body, err := r.client.doRequest(http.MethodGet, group_url, nil)
 	if err != nil {
-                diags.AddError("Get Error", err.Error())
+                diags.AddError(GetFunctionName(0) + " Get Error", err.Error())
 		return diags
 	}
 	if resp == nil {
-                diags.AddError("Http response Error", "no http response from server")
+                diags.AddError(GetFunctionName(0) + " Http response Error", "no http response from server")
                 return diags
 	}
 	if resp.StatusCode != http.StatusOK {
-                diags.AddError("Unexpecte Http Status code",
-			fmt.Sprintf("expected (%d) got (%d)", http.StatusOK, resp.StatusCode))
+                diags.AddError(GetFunctionName(0) + " Unexpected Http Status code",
+			fmt.Sprintf("expected (%d) got (%s)", http.StatusOK, resp.Status))
 	}
 
 	err = data.ParseHttpResponse(body)
 	if err != nil {
-                diags.AddError("error while parsing the json response: ", err.Error())
+                diags.AddError(GetFunctionName(0) + " error while parsing the json response: ", err.Error())
 		return diags
 	}
 	return diags
