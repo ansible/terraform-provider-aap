@@ -16,7 +16,14 @@ provider "aap" {
 resource "aap_job" "sample" {
   job_template_id   = 9
   inventory_id = 2
-  extra_vars = "{\"resource_state\": \"absent\"}"
+  extra_vars = <<-EOT
+    {
+      "resource_state" : "absent"
+    }
+  EOT
+  triggers = {
+    "execution_environment_id": "3"
+  }
 }
 
 output "job_launch_url" {

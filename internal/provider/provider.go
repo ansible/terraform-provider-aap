@@ -62,7 +62,7 @@ func (p *aapProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *
 			"timeout": schema.Int64Attribute{
 				Optional: true,
 				Description: "Timeout specifies a time limit for requests made to the AAP server." +
-					" A Timeout of zero means no timeout.",
+					"Defaults to 5 if not provided. A Timeout of zero means no timeout.",
 			},
 		},
 	}

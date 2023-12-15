@@ -27,8 +27,6 @@ The `/path/to/project/root` should point to the location where you have cloned t
 
 ### Testing
 
-You will `ansible-core` ([official installation guide](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html)) to configure your AAP instance for testing.
-
 ```shell
 curl -L https://github.com/golangci/golangci-lint/releases/download/v1.50.1/golangci-lint-1.50.1-linux-amd64.tar.gz \
     | tar --wildcards -xzf - --strip-components 1 "**/golangci-lint"
@@ -39,15 +37,8 @@ make lint
 # unit tests
 make test
 
-# acceptance tests
-export AAP_HOST=xxx # AAP instance URL
-export AAP_USERNAME=xxx # AAP admin username
-export AAP_PASSWORD=xxx # AAP admin user password
-make testsacc
-```
-
 ### Examples
-The [examples](./examples/) subdirectory contains a usage example for this provider.
+The [examples](./examples/) subdirectory contains usage examples for this provider.
 
 ## Releasing
 

@@ -14,12 +14,6 @@ test:
 	@echo "==> Running unit tests..."
 	go test -v ./...
 
-testacc:
-	touch $(PWD)/.testacc_configure.sh
-	ansible-playbook ci/awx_configure.yml -v -e 'config_file="$(PWD)/.testacc_configure.sh"'
-	. $(PWD)/.testacc_configure.sh && TF_ACC=1 go test -v ./...
-	rm -f $(PWD)/.testacc_configure.sh
-
 gofmt:
 	@echo "==> Format code using gofmt..."
 	gofmt -s -w internal/provider

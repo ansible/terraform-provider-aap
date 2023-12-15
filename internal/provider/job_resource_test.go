@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -91,32 +90,23 @@ func TestParseHttpResponse(t *testing.T) {
 	}
 }
 
-func toString(b io.Reader) string {
-	if b == nil {
-		return ""
+// DeepEqualJSONByte compares the JSON in two byte slices.
+func DeepEqualJSONByte(a, b []byte) (bool, error) {
+	var j1, j2 interface{}
+	if err := json.Unmarshal(a, &j1); err != nil {
+		return false, err
 	}
-	buf := new(strings.Builder)
-	_, err := io.Copy(buf, b)
-	if err != nil {
-		return ""
+	if err := json.Unmarshal(b, &j2); err != nil {
+		return false, err
 	}
-	return buf.String()
-}
-
-func toJSON(b io.Reader) map[string]interface{} {
-	var result map[string]interface{}
-	err := json.Unmarshal([]byte(toString(b)), &result)
-	if err != nil {
-		return make(map[string]interface{})
-	}
-	return result
+	return reflect.DeepEqual(j2, j1), nil
 }
 
 func TestCreateRequestBody(t *testing.T) {
 	testTable := []struct {
 		name     string
 		input    jobResourceModel
-		expected *bytes.Reader
+		expected []byte
 	}{
 		{
 			name: "unknown fields",
@@ -140,7 +130,7 @@ func TestCreateRequestBody(t *testing.T) {
 				ExtraVars:   jsontypes.NewNormalizedValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Null(),
 			},
-			expected: bytes.NewReader([]byte(`{"extra_vars":{"test_name":"extra_vars","provider":"aap"}}`)),
+			expected: []byte(`{"extra_vars":{"test_name":"extra_vars","provider":"aap"}}`),
 		},
 		{
 			name: "inventory vars only",
@@ -148,7 +138,7 @@ func TestCreateRequestBody(t *testing.T) {
 				ExtraVars:   jsontypes.NewNormalizedNull(),
 				InventoryID: basetypes.NewInt64Value(201),
 			},
-			expected: bytes.NewReader([]byte(`{"inventory": 201}`)),
+			expected: []byte(`{"inventory": 201}`),
 		},
 		{
 			name: "combined",
@@ -156,23 +146,45 @@ func TestCreateRequestBody(t *testing.T) {
 				ExtraVars:   jsontypes.NewNormalizedValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Value(3),
 			},
-			expected: bytes.NewReader([]byte(
-				`{"inventory": 3, "extra_vars":{"test_name":"extra_vars","provider":"aap"}}`)),
+			expected: []byte(`{"inventory": 3, "extra_vars":{"test_name":"extra_vars","provider":"aap"}}`),
+		},
+		{
+			name: "manual_triggers",
+			input: jobResourceModel{
+				Triggers: basetypes.NewMapValueMust(types.StringType, map[string]attr.Value{
+					"execution_environment_id": types.StringValue("3"),
+					"JobTags":                  types.StringValue("validate"),
+				}),
+				InventoryID: basetypes.NewInt64Value(3),
+			},
+			expected: []byte(`{"inventory": 3, "execution_environment_id": "3", "JobTags": "validate"}`),
 		},
 	}
 
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
-			data, _ := tc.input.CreateRequestBody()
-			if tc.expected == nil && data != nil {
-				t.Errorf("expected nil but result is not nil")
+			computed, diags := tc.input.CreateRequestBody()
+			if diags.HasError() {
+				t.Fatal(diags.Errors())
 			}
-			if tc.expected == nil && data != nil {
-				t.Errorf("expected result not nil but result is nil")
-			}
-			if tc.expected != nil && !reflect.DeepEqual(toJSON(tc.expected), toJSON(data)) {
-				t.Errorf("expected (%s)", toString(tc.expected))
-				t.Errorf("computed (%s)", toString(data))
+			if tc.expected == nil || computed == nil {
+				if tc.expected == nil && computed != nil {
+					t.Fatal("expected nil but result is not nil")
+				}
+				if tc.expected != nil && computed == nil {
+					t.Fatal("expected result not nil but result is nil")
+				}
+			} else {
+				test, err := DeepEqualJSONByte(tc.expected, computed)
+				if err != nil {
+					t.Errorf("expected (%s)", string(tc.expected))
+					t.Errorf("computed (%s)", string(computed))
+					t.Fatal("Error while comparing results " + err.Error())
+				}
+				if !test {
+					t.Errorf("expected (%s)", string(tc.expected))
+					t.Errorf("computed (%s)", string(computed))
+				}
 			}
 		})
 	}
@@ -210,7 +222,7 @@ func (d *MockJobResource) ParseHTTPResponse(body []byte) error {
 	return nil
 }
 
-func (d *MockJobResource) CreateRequestBody() (io.Reader, diag.Diagnostics) {
+func (d *MockJobResource) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	if len(d.Inventory) == 0 {
 		return nil, diags
@@ -221,7 +233,7 @@ func (d *MockJobResource) CreateRequestBody() (io.Reader, diag.Diagnostics) {
 		diags.AddError("Json Marshall Error", err.Error())
 		return nil, diags
 	}
-	return bytes.NewReader(jsonRaw), diags
+	return jsonRaw, diags
 }
 
 type MockHTTPClient struct {

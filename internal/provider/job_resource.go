@@ -9,12 +9,10 @@ import (
 	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
-	"github.com/hashicorp/terraform-plugin-framework-validators/helpers/validatordiag"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -29,7 +27,7 @@ func NewJobResource() resource.Resource {
 
 type JobResourceModelInterface interface {
 	ParseHTTPResponse(body []byte) error
-	CreateRequestBody() (io.Reader, diag.Diagnostics)
+	CreateRequestBody() ([]byte, diag.Diagnostics)
 	GetTemplateID() string
 	GetURL() string
 }
@@ -41,40 +39,6 @@ type JobResource struct {
 // Metadata returns the resource type name.
 func (r *JobResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_job"
-}
-
-var _ validator.String = ansibleVarsValidator{}
-
-// ansibleVarsValidator validates that a string Attribute's is a valid JSON.
-type ansibleVarsValidator struct{}
-
-// Description describes the validation in plain text formatting.
-func (validator ansibleVarsValidator) Description(_ context.Context) string {
-	return "string must be a valid JSON."
-}
-
-// MarkdownDescription describes the validation in Markdown formatting.
-func (validator ansibleVarsValidator) MarkdownDescription(ctx context.Context) string {
-	return validator.Description(ctx)
-}
-
-// Validate performs the validation.
-func (v ansibleVarsValidator) ValidateString(ctx context.Context, request validator.StringRequest, response *validator.StringResponse) {
-	if request.ConfigValue.IsNull() || request.ConfigValue.IsUnknown() {
-		return
-	}
-	if !json.Valid([]byte(request.ConfigValue.ValueString())) {
-		response.Diagnostics.Append(validatordiag.InvalidAttributeValueDiagnostic(
-			request.Path,
-			v.Description(ctx),
-			fmt.Sprintf("Invalid JSON string => [%s]", request.ConfigValue.ValueString()),
-		))
-		return
-	}
-}
-
-func AnsibleJSONVarsValidator() validator.String {
-	return ansibleVarsValidator{}
 }
 
 // Schema defines the schema for the resource.
@@ -100,6 +64,11 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Optional:   true,
 				CustomType: jsontypes.NormalizedType{},
 			},
+			"triggers": schema.MapAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "A map of arbitrary key/values to be set into the HTTP data request when creating/updating the Job resource.",
+			},
 			"ignored_fields": schema.ListAttribute{
 				ElementType: types.StringType,
 				Computed:    true,
@@ -118,11 +87,11 @@ type jobResourceModel struct {
 	InventoryID   types.Int64          `tfsdk:"inventory_id"`
 	ExtraVars     jsontypes.Normalized `tfsdk:"extra_vars"`
 	IgnoredFields types.List           `tfsdk:"ignored_fields"`
+	Triggers      types.Map            `tfsdk:"triggers"`
 }
 
 var keyMapping = map[string]string{
-	"inventory":             "inventory",
-	"execution_environment": "execution_environment_id",
+	"inventory": "inventory",
 }
 
 func (d *jobResourceModel) GetTemplateID() string {
@@ -170,11 +139,19 @@ func IsValueProvided(value attr.Value) bool {
 	return !value.IsNull() && !value.IsUnknown()
 }
 
-func (d *jobResourceModel) CreateRequestBody() (io.Reader, diag.Diagnostics) {
+func (d *jobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	body := make(map[string]interface{})
+	var diags diag.Diagnostics
+
+	// Triggers
+	if IsValueProvided(d.Triggers) {
+		// Set manual triggers
+		for key, value := range d.Triggers.Elements() {
+			body[key] = value.(types.String).ValueString()
+		}
+	}
 
 	// Extra vars
-	var diags diag.Diagnostics
 	if IsValueProvided(d.ExtraVars) {
 		var extraVars map[string]interface{}
 		diags.Append(d.ExtraVars.Unmarshal(&extraVars)...)
@@ -197,7 +174,7 @@ func (d *jobResourceModel) CreateRequestBody() (io.Reader, diag.Diagnostics) {
 		diags.Append(diag.NewErrorDiagnostic("Body JSON Marshal Error", err.Error()))
 		return nil, diags
 	}
-	return bytes.NewReader(jsonRaw), diags
+	return jsonRaw, diags
 }
 
 // Configure adds the provider configured client to the data source.
@@ -223,17 +200,22 @@ func (d *JobResource) Configure(_ context.Context, req resource.ConfigureRequest
 func (r JobResource) CreateJob(data JobResourceModelInterface) diag.Diagnostics {
 	// Create new Job from job template
 	var diags diag.Diagnostics
-	reqData, diagCreateReq := data.CreateRequestBody()
+	var reqData io.Reader = nil
+	reqBody, diagCreateReq := data.CreateRequestBody()
 	diags.Append(diagCreateReq...)
 	if diags.HasError() {
 		return diags
+	}
+
+	if reqBody != nil {
+		reqData = bytes.NewReader(reqBody)
 	}
 
 	var postURL = "/api/v2/job_templates/" + data.GetTemplateID() + "/launch/"
 	resp, body, err := r.client.doRequest(http.MethodPost, postURL, reqData)
 
 	if err != nil {
-		diags.AddError("Body JSON Marshal Error", err.Error())
+		diags.AddError("client request error", err.Error())
 		return diags
 	}
 	if resp == nil {
