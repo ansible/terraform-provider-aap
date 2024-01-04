@@ -18,7 +18,6 @@ import (
 func TestParseHttpResponse(t *testing.T) {
 	t.Run("Basic Test", func(t *testing.T) {
 		g := groupResourceModel{
-			Id:   basetypes.NewInt64Value(1),
 			Name: types.StringValue("group1"),
 			URL:  types.StringValue("/api/v2/groups/24/"),
 		}
@@ -28,7 +27,6 @@ func TestParseHttpResponse(t *testing.T) {
 	})
 	t.Run("Test with variables", func(t *testing.T) {
 		g := groupResourceModel{
-			Id:   basetypes.NewInt64Value(1),
 			Name: types.StringValue("group1"),
 			URL:  types.StringValue("/api/v2/groups/24/"),
 		}
@@ -41,7 +39,6 @@ func TestParseHttpResponse(t *testing.T) {
 func TestCreateRequestBody(t *testing.T) {
 	t.Run("Basic Test", func(t *testing.T) {
 		g := groupResourceModel{
-			Id:          basetypes.NewInt64Value(1),
 			InventoryId: basetypes.NewInt64Value(1),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
@@ -64,7 +61,6 @@ func TestCreateRequestBody(t *testing.T) {
 	})
 	t.Run("Unknown Values", func(t *testing.T) {
 		g := groupResourceModel{
-			Id:          basetypes.NewInt64Unknown(),
 			InventoryId: basetypes.NewInt64Unknown(),
 		}
 		body := []byte(nil)
@@ -81,7 +77,6 @@ func TestCreateRequestBody(t *testing.T) {
 	})
 	t.Run("All Values", func(t *testing.T) {
 		g := groupResourceModel{
-			Id:          basetypes.NewInt64Value(1),
 			InventoryId: basetypes.NewInt64Value(5),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
@@ -107,7 +102,6 @@ func TestCreateRequestBody(t *testing.T) {
 	})
 	t.Run("Multiple values for Variables", func(t *testing.T) {
 		g := groupResourceModel{
-			Id:          basetypes.NewInt64Value(1),
 			InventoryId: basetypes.NewInt64Value(5),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
@@ -142,9 +136,8 @@ type MockGroupResource struct {
 	Response    map[string]string
 }
 
-func NewMockGroupResource(id types.Int64, inventory types.Int64, name, description, url string) *MockGroupResource {
+func NewMockGroupResource(inventory types.Int64, name, description, url string) *MockGroupResource {
 	return &MockGroupResource{
-		ID:          id,
 		InventoryId: inventory,
 		URL:         url,
 		Name:        name,

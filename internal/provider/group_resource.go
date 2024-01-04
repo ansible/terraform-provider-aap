@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"runtime"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -48,10 +47,7 @@ func (r *groupResource) Metadata(_ context.Context, req resource.MetadataRequest
 func (r *groupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"id": schema.Int64Attribute{
-				Required: true,
-				Computed: true,
-			},
+
 			"inventory_id": schema.Int64Attribute{
 				Required: true,
 			},
@@ -75,7 +71,6 @@ func (r *groupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 
 // groupResourceModel maps the resource schema data.
 type groupResourceModel struct {
-	Id          types.Int64          `tfsdk:"id"`
 	InventoryId types.Int64          `tfsdk:"inventory_id"`
 	Name        types.String         `tfsdk:"name"`
 	Description types.String         `tfsdk:"description"`
@@ -118,6 +113,8 @@ func (d *groupResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 
 	// Variables
 	if IsValueProvided(d.Variables) {
+		// var vars map[string]interface{}
+		// diags.Append(d.Variables.Unmarshal(&vars)...)
 		body["variables"] = d.Variables.ValueString()
 	}
 
@@ -145,9 +142,9 @@ func (d *groupResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 func (d *groupResourceModel) ParseHttpResponse(body []byte) error {
 	/* Unmarshal the json string */
 	result := make(map[string]interface{})
-	replacer := strings.NewReplacer("\r", "", "\n", "")
-	data := replacer.Replace(string(body))
-	err := json.Unmarshal([]byte(data), &result)
+	// replacer := strings.NewReplacer("\r", "", "\n", "")
+	// data := replacer.Replace(string(body))
+	err := json.Unmarshal([]byte(body), &result)
 	if err != nil {
 		return err
 	}
