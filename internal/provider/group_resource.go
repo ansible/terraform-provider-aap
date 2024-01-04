@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"runtime"
 	"strings"
@@ -29,7 +30,7 @@ func NewGroupResource() resource.Resource {
 
 type GroupResourceModelInterface interface {
 	ParseHttpResponse(body []byte) error
-	CreateRequestBody() (*bytes.Reader, diag.Diagnostics)
+	CreateRequestBody() ([]byte, diag.Diagnostics)
 	GetURL() string
 }
 
@@ -105,7 +106,7 @@ func GetFunctionName(caller int) string {
 	return f.Name()
 }
 
-func (d *groupResourceModel) CreateRequestBody() (*bytes.Reader, diag.Diagnostics) {
+func (d *groupResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	body := make(map[string]interface{})
 	var diags diag.Diagnostics
 
@@ -117,20 +118,17 @@ func (d *groupResourceModel) CreateRequestBody() (*bytes.Reader, diag.Diagnostic
 
 	// Variables
 	if IsValueProvided(d.Variables) {
-		// vars := make(map[string]interface{})
-		// vars_data := []byte(d.Variables)
-		// var replacer = strings.NewReplacer("\r", "", "\n", "")
-		// vars_data := replacer.Replace(d.Variables)
-		// diags.Append(d.Variables.Unmarshal(&vars)...)
-		// if diags.HasError() {
-		//	return nil, diags
-		// }
 		body["variables"] = d.Variables.ValueString()
+	}
+
+	// URL
+	if IsValueProvided(d.URL) {
+		body["url"] = d.URL.ValueString()
 	}
 
 	// Description
 	if IsValueProvided(d.Description) {
-		body["description"] = d.Description
+		body["description"] = d.Description.ValueString()
 	}
 
 	if len(body) == 0 {
@@ -141,7 +139,7 @@ func (d *groupResourceModel) CreateRequestBody() (*bytes.Reader, diag.Diagnostic
 		diags.Append(diag.NewErrorDiagnostic("Body JSON Marshal Error", err.Error()))
 		return nil, diags
 	}
-	return bytes.NewReader(json_raw), diags
+	return json_raw, diags
 }
 
 func (d *groupResourceModel) ParseHttpResponse(body []byte) error {
@@ -182,10 +180,14 @@ func (d *groupResource) Configure(ctx context.Context, req resource.ConfigureReq
 
 func (r groupResource) CreateGroup(data GroupResourceModelInterface) diag.Diagnostics {
 	var diags diag.Diagnostics
-	req_data, diagCreateReq := data.CreateRequestBody()
+	var req_data io.Reader = nil
+	req_body, diagCreateReq := data.CreateRequestBody()
 	diags.Append(diagCreateReq...)
 	if diags.HasError() {
 		return diags
+	}
+	if req_body != nil {
+		req_data = bytes.NewReader(req_body)
 	}
 
 	post_url := "/api/v2/groups/"
@@ -268,12 +270,15 @@ func (r groupResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 
 func (r groupResource) UpdateGroup(data GroupResourceModelInterface) diag.Diagnostics {
 	var diags diag.Diagnostics
-	req_data, diagCreateReq := data.CreateRequestBody()
+	var req_data io.Reader = nil
+	req_body, diagCreateReq := data.CreateRequestBody()
 	diags.Append(diagCreateReq...)
 	if diags.HasError() {
 		return diags
 	}
-
+	if req_body != nil {
+		req_data = bytes.NewReader(req_body)
+	}
 	resp, body, err := r.client.doRequest(http.MethodPut, data.GetURL(), req_data)
 	if err != nil {
 		diags.AddError(GetFunctionName(0)+" Body JSON Marshal Error", err.Error())

@@ -96,8 +96,6 @@ func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-        req.Header.Set("Referer", "")
-
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
