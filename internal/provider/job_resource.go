@@ -223,7 +223,7 @@ func (r JobResource) CreateJob(data JobResourceModelInterface) diag.Diagnostics 
 		return diags
 	}
 	if resp.StatusCode != http.StatusCreated {
-		diags.AddError("Unexpecte Http Status code",
+		diags.AddError("Unexpected Http Status code",
 			fmt.Sprintf("expected (%d) got (%d)", http.StatusCreated, resp.StatusCode))
 		return diags
 	}
