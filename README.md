@@ -27,9 +27,7 @@ The `/path/to/project/root` should point to the location where you have cloned t
 
 ### Testing
 
-```shell
-curl -L https://github.com/golangci/golangci-lint/releases/download/v1.50.1/golangci-lint-1.50.1-linux-amd64.tar.gz \
-    | tar --wildcards -xzf - --strip-components 1 "**/golangci-lint"
+You will need to install [golangci-lint](https://golangci-lint.run/usage/install/) to run lint target.
 
 # linters
 make lint
@@ -44,7 +42,7 @@ The [examples](./examples/) subdirectory contains usage examples for this provid
 
 To release a new version of the provider:
 
-1. Run `go generate` to regenerate docs
+1. Run `tfplugindocs generate` to regenerate docs [tfplugindocs installation guide](https://github.com/hashicorp/terraform-plugin-docs?tab=readme-ov-file#installation).
 2. Commit changes
 3. Push a new tag (this should trigger an automated release process to the Terraform Registry)
 4. Verify the new version is published at https://registry.terraform.io/providers/ansible/aap/latest

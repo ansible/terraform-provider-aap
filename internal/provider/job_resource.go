@@ -64,10 +64,11 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Optional:   true,
 				CustomType: jsontypes.NormalizedType{},
 			},
-			"triggers": schema.MapAttribute{
-				Optional:    true,
-				ElementType: types.StringType,
-				Description: "A map of arbitrary key/values to be set into the HTTP data request when creating/updating the Job resource.",
+			"trigger": schema.StringAttribute{
+				Optional: true,
+				Description: "This attribute is used to force Terraform to update the Job resource" +
+					"while no other required values have changed," +
+					"this will have the effect of creating a new AAP Job with the same attribute",
 			},
 			"ignored_fields": schema.ListAttribute{
 				ElementType: types.StringType,
@@ -87,7 +88,7 @@ type jobResourceModel struct {
 	InventoryID   types.Int64          `tfsdk:"inventory_id"`
 	ExtraVars     jsontypes.Normalized `tfsdk:"extra_vars"`
 	IgnoredFields types.List           `tfsdk:"ignored_fields"`
-	Triggers      types.Map            `tfsdk:"triggers"`
+	Trigger       types.String         `tfsdk:"trigger"`
 }
 
 var keyMapping = map[string]string{
@@ -142,14 +143,6 @@ func IsValueProvided(value attr.Value) bool {
 func (d *jobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	body := make(map[string]interface{})
 	var diags diag.Diagnostics
-
-	// Triggers
-	if IsValueProvided(d.Triggers) {
-		// Set manual triggers
-		for key, value := range d.Triggers.Elements() {
-			body[key] = value.(types.String).ValueString()
-		}
-	}
 
 	// Extra vars
 	if IsValueProvided(d.ExtraVars) {

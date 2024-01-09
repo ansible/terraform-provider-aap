@@ -151,13 +151,10 @@ func TestCreateRequestBody(t *testing.T) {
 		{
 			name: "manual_triggers",
 			input: jobResourceModel{
-				Triggers: basetypes.NewMapValueMust(types.StringType, map[string]attr.Value{
-					"execution_environment_id": types.StringValue("3"),
-					"JobTags":                  types.StringValue("validate"),
-				}),
+				Trigger:     basetypes.NewStringValue("some_trigger"),
 				InventoryID: basetypes.NewInt64Value(3),
 			},
-			expected: []byte(`{"inventory": 3, "execution_environment_id": "3", "JobTags": "validate"}`),
+			expected: []byte(`{"inventory": 3}`),
 		},
 	}
 
@@ -592,7 +589,40 @@ func TestAccAAPJob_UpdateWithNewInventoryId(t *testing.T) {
 				),
 			},
 			{
-				Config: testAccUpdateJob(jobTemplateID, inventoryID),
+				Config: testAccUpdateJobWithInventoryID(jobTemplateID, inventoryID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					testAccCheckJobUpdate(&jobURLBefore, true),
+				),
+			},
+		},
+	})
+}
+
+func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
+	var jobURLBefore string
+
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
+	trigger := "some value to trigger the update"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create and Read testing
+			{
+				Config: testAccBasicJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					testAccCheckJobUpdate(&jobURLBefore, false),
+				),
+			},
+			{
+				Config: testAccUpdateJobWithTrigger(jobTemplateID, trigger),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
@@ -612,11 +642,20 @@ resource "aap_job" "test" {
 `, jobTemplateID)
 }
 
-func testAccUpdateJob(jobTemplateID, inventoryID string) string {
+func testAccUpdateJobWithInventoryID(jobTemplateID, inventoryID string) string {
 	return fmt.Sprintf(`
 resource "aap_job" "test" {
 	job_template_id   = %s
 	inventory_id = %s
 }
 `, jobTemplateID, inventoryID)
+}
+
+func testAccUpdateJobWithTrigger(jobTemplateID, trigger string) string {
+	return fmt.Sprintf(`
+resource "aap_job" "test" {
+	job_template_id   = %s
+	trigger = "%s"
+}
+`, jobTemplateID, trigger)
 }
