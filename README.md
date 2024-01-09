@@ -1,6 +1,6 @@
 # Terraform Provider for Ansible Automation Platform (AAP)
 
-The AWS Provider allows Terraform to manage AAP resources.
+The AAP Provider allows Terraform to manage AAP resources.
 
 
 ## Requirements
