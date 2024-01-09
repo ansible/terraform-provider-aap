@@ -159,6 +159,7 @@ func (p *aapProvider) DataSources(_ context.Context) []func() datasource.DataSou
 // Resources defines the resources implemented in the provider.
 func (p *aapProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
+		NewInventoryResource,
 		NewJobResource,
 		NewGroupResource,
 	}
