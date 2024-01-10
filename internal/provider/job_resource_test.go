@@ -151,7 +151,7 @@ func TestCreateRequestBody(t *testing.T) {
 		{
 			name: "manual_triggers",
 			input: jobResourceModel{
-				Trigger:     basetypes.NewStringValue("some_trigger"),
+				Triggers:    types.MapNull(types.StringType),
 				InventoryID: basetypes.NewInt64Value(3),
 			},
 			expected: []byte(`{"inventory": 3}`),
@@ -605,7 +605,6 @@ func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 	var jobURLBefore string
 
 	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
-	trigger := "some value to trigger the update"
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
@@ -622,7 +621,7 @@ func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 				),
 			},
 			{
-				Config: testAccUpdateJobWithTrigger(jobTemplateID, trigger),
+				Config: testAccUpdateJobWithTrigger(jobTemplateID),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
@@ -651,11 +650,14 @@ resource "aap_job" "test" {
 `, jobTemplateID, inventoryID)
 }
 
-func testAccUpdateJobWithTrigger(jobTemplateID, trigger string) string {
+func testAccUpdateJobWithTrigger(jobTemplateID string) string {
 	return fmt.Sprintf(`
 resource "aap_job" "test" {
 	job_template_id   = %s
-	trigger = "%s"
+	triggers = {
+		"key1" = "value1"
+		"key2" = "value2"
+	}
 }
-`, jobTemplateID, trigger)
+`, jobTemplateID)
 }

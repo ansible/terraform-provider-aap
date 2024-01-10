@@ -64,11 +64,12 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Optional:   true,
 				CustomType: jsontypes.NormalizedType{},
 			},
-			"trigger": schema.StringAttribute{
-				Optional: true,
-				Description: "This attribute is used to force Terraform to update the Job resource" +
-					"while no other required values have changed," +
-					"this will have the effect of creating a new AAP Job with the same attribute",
+			"triggers": schema.MapAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "Map of arbitrary keys and values that, when changed, will trigger a creation" +
+					" of a new Job on AAP. Use 'terraform taint' if you want to force the creation of a new job" +
+					" without changing this value.",
 			},
 			"ignored_fields": schema.ListAttribute{
 				ElementType: types.StringType,
@@ -88,7 +89,7 @@ type jobResourceModel struct {
 	InventoryID   types.Int64          `tfsdk:"inventory_id"`
 	ExtraVars     jsontypes.Normalized `tfsdk:"extra_vars"`
 	IgnoredFields types.List           `tfsdk:"ignored_fields"`
-	Trigger       types.String         `tfsdk:"trigger"`
+	Triggers      types.Map            `tfsdk:"triggers"`
 }
 
 var keyMapping = map[string]string{
