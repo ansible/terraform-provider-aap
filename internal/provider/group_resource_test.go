@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -17,7 +18,7 @@ import (
 
 func TestParseHttpResponse(t *testing.T) {
 	t.Run("Basic Test", func(t *testing.T) {
-		g := groupResourceModel{
+		g := GroupResourceModel{
 			Name: types.StringValue("group1"),
 			URL:  types.StringValue("/api/v2/groups/24/"),
 		}
@@ -26,7 +27,7 @@ func TestParseHttpResponse(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	t.Run("Test with variables", func(t *testing.T) {
-		g := groupResourceModel{
+		g := GroupResourceModel{
 			Name: types.StringValue("group1"),
 			URL:  types.StringValue("/api/v2/groups/24/"),
 		}
@@ -38,7 +39,7 @@ func TestParseHttpResponse(t *testing.T) {
 
 func TestCreateRequestBody(t *testing.T) {
 	t.Run("Basic Test", func(t *testing.T) {
-		g := groupResourceModel{
+		g := GroupResourceModel{
 			InventoryId: basetypes.NewInt64Value(1),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
@@ -48,35 +49,23 @@ func TestCreateRequestBody(t *testing.T) {
 		if diags.HasError() {
 			t.Fatal(diags.Errors())
 		}
-		test, err := DeepEqualJSONByte(body, result)
-		if err != nil {
-			t.Errorf("expected (%s)", string(body))
-			t.Errorf("computed (%s)", string(result))
-			t.Fatal("Error while comparing results " + err.Error())
-		}
-		if !test {
-			t.Errorf("expected (%s)", string(body))
-			t.Errorf("computed (%s)", string(result))
-		}
+		assert.JSONEq(t, string(body), string(result))
 	})
 	t.Run("Unknown Values", func(t *testing.T) {
-		g := groupResourceModel{
+		g := GroupResourceModel{
 			InventoryId: basetypes.NewInt64Unknown(),
 		}
-		body := []byte(nil)
 		result, diags := g.CreateRequestBody()
+
 		if diags.HasError() {
 			t.Fatal(diags.Errors())
 		}
-		_, err := DeepEqualJSONByte(body, result)
-		if err == nil {
-			t.Errorf("expected (%s)", string(body))
-			t.Errorf("computed (%s)", string(result))
-			t.Fatal("Expected Error while comparing results ")
-		}
+
+		bytes.Equal(result, []byte(nil))
+
 	})
 	t.Run("All Values", func(t *testing.T) {
-		g := groupResourceModel{
+		g := GroupResourceModel{
 			InventoryId: basetypes.NewInt64Value(5),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
@@ -89,19 +78,11 @@ func TestCreateRequestBody(t *testing.T) {
 		if diags.HasError() {
 			t.Fatal(diags.Errors())
 		}
-		test, err := DeepEqualJSONByte(body, result)
-		if err != nil {
-			t.Errorf("expected (%s)", string(body))
-			t.Errorf("computed (%s)", string(result))
-			t.Fatal("Error while comparing results " + err.Error())
-		}
-		if !test {
-			t.Errorf("expected (%s)", string(body))
-			t.Errorf("computed (%s)", string(result))
-		}
+		assert.JSONEq(t, string(body), string(result))
+
 	})
 	t.Run("Multiple values for Variables", func(t *testing.T) {
-		g := groupResourceModel{
+		g := GroupResourceModel{
 			InventoryId: basetypes.NewInt64Value(5),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
@@ -114,29 +95,20 @@ func TestCreateRequestBody(t *testing.T) {
 		if diags.HasError() {
 			t.Fatal(diags.Errors())
 		}
-		test, err := DeepEqualJSONByte(body, result)
-		if err != nil {
-			t.Errorf("expected (%s)", string(body))
-			t.Errorf("computed (%s)", string(result))
-			t.Fatal("Error while comparing results " + err.Error())
-		}
-		if !test {
-			t.Errorf("expected (%s)", string(body))
-			t.Errorf("computed (%s)", string(result))
-		}
+		assert.JSONEq(t, string(body), string(result))
+
 	})
 }
 
 type MockGroupResource struct {
-	ID          types.Int64
-	InventoryId types.Int64
+	InventoryId string
 	Name        string
 	Description string
 	URL         string
 	Response    map[string]string
 }
 
-func NewMockGroupResource(inventory types.Int64, name, description, url string) *MockGroupResource {
+func NewMockGroupResource(inventory, name, description, url string) *MockGroupResource {
 	return &MockGroupResource{
 		InventoryId: inventory,
 		URL:         url,
@@ -162,7 +134,7 @@ func (d *MockGroupResource) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	m := make(map[string]interface{})
-	m["Inventory"] = d.InventoryId.ValueInt64()
+	m["Inventory"] = d.InventoryId
 	m["Name"] = d.Name
 	jsonRaw, err := json.Marshal(m)
 	if err != nil {
@@ -180,7 +152,7 @@ var mResponse1 = map[string]string{
 
 func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
 	config := map[string]map[string]string{
-		"/api/v2/groups": mResponse1,
+		"/api/v2/groups/": mResponse1,
 	}
 
 	if !slices.Contains(c.acceptMethods, method) {
@@ -190,6 +162,7 @@ func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (
 	if !ok {
 		return &http.Response{StatusCode: http.StatusNotFound}, nil, nil
 	}
+
 	if data != nil {
 		// add request info into response
 		buf := new(strings.Builder)
@@ -213,10 +186,11 @@ func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (
 
 func TestCreateGroup(t *testing.T) {
 	t.Run("Create Group", func(t *testing.T) {
-		g := NewMockGroupResource(basetypes.NewInt64Value(1), basetypes.NewInt64Value(1), "Group1", "", "")
-		group := groupResource{
+		g := NewMockGroupResource("1", "Group1", "", "")
+		group := GroupResource{
 			client: NewMockHTTPClient([]string{"POST", "post"}, http.StatusCreated),
 		}
+
 		diags := group.CreateGroup(g)
 		if diags.HasError() {
 			t.Errorf("Create Group failed")

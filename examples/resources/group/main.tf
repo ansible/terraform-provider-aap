@@ -16,7 +16,7 @@ provider "aap" {
 resource "aap_group" "sample" {
   inventory_id = 1
   name = "tf_group" 
-  variables = "{\"ansible_network_os\": \"ios\"}"
+  variables = jsonencode({"ansible_network_os": "ios"})
 }
 
 output "group" {

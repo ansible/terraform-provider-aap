@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"runtime"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -21,12 +20,13 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource = &groupResource{}
+	_ resource.Resource              = &GroupResource{}
+	_ resource.ResourceWithConfigure = &GroupResource{}
 )
 
 // NewGroupResource is a helper function to simplify the provider implementation.
 func NewGroupResource() resource.Resource {
-	return &groupResource{}
+	return &GroupResource{}
 }
 
 type GroupResourceModelInterface interface {
@@ -35,18 +35,18 @@ type GroupResourceModelInterface interface {
 	GetURL() string
 }
 
-// groupResource is the resource implementation.
-type groupResource struct {
+// GroupResource is the resource implementation.
+type GroupResource struct {
 	client ProviderHTTPClient
 }
 
 // Metadata returns the resource type name.
-func (r *groupResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+func (r *GroupResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_group"
 }
 
 // Schema defines the schema for the group resource.
-func (r *groupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 
@@ -73,8 +73,8 @@ func (r *groupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 	}
 }
 
-// groupResourceModel maps the resource schema data.
-type groupResourceModel struct {
+// GroupResourceModel maps the resource schema data.
+type GroupResourceModel struct {
 	InventoryId types.Int64          `tfsdk:"inventory_id"`
 	Name        types.String         `tfsdk:"name"`
 	Description types.String         `tfsdk:"description"`
@@ -86,26 +86,14 @@ func IsValueProvided(value attr.Value) bool {
 	return !value.IsNull() && !value.IsUnknown()
 }
 
-func (d *groupResourceModel) GetURL() string {
-	if !d.URL.IsNull() && !d.URL.IsUnknown() {
+func (d *GroupResourceModel) GetURL() string {
+	if IsValueProvided(d.URL) {
 		return d.URL.ValueString()
 	}
 	return ""
 }
 
-func GetFunctionName(caller int) string {
-	pc, _, _, result := runtime.Caller(caller + 1)
-	if !result {
-		return ""
-	}
-	f := runtime.FuncForPC(pc)
-	if f == nil {
-		return ""
-	}
-	return f.Name()
-}
-
-func (d *groupResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
+func (d *GroupResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	body := make(map[string]interface{})
 	var diags diag.Diagnostics
 
@@ -132,9 +120,6 @@ func (d *groupResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 		body["description"] = d.Description.ValueString()
 	}
 
-	if len(body) == 0 {
-		return nil, diags
-	}
 	json_raw, err := json.Marshal(body)
 	if err != nil {
 		diags.Append(diag.NewErrorDiagnostic("Body JSON Marshal Error", err.Error()))
@@ -143,7 +128,7 @@ func (d *groupResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	return json_raw, diags
 }
 
-func (d *groupResourceModel) ParseHttpResponse(body []byte) error {
+func (d *GroupResourceModel) ParseHttpResponse(body []byte) error {
 	/* Unmarshal the json string */
 	result := make(map[string]interface{})
 
@@ -160,7 +145,7 @@ func (d *groupResourceModel) ParseHttpResponse(body []byte) error {
 }
 
 // Configure adds the provider configured client to the resource.
-func (d *groupResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (d *GroupResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -178,7 +163,7 @@ func (d *groupResource) Configure(ctx context.Context, req resource.ConfigureReq
 	d.client = client
 }
 
-func (r groupResource) CreateGroup(data GroupResourceModelInterface) diag.Diagnostics {
+func (r GroupResource) CreateGroup(data GroupResourceModelInterface) diag.Diagnostics {
 	var diags diag.Diagnostics
 	var req_data io.Reader = nil
 	req_body, diagCreateReq := data.CreateRequestBody()
@@ -190,31 +175,30 @@ func (r groupResource) CreateGroup(data GroupResourceModelInterface) diag.Diagno
 		req_data = bytes.NewReader(req_body)
 	}
 
-	post_url := "/api/v2/groups/"
-	resp, body, err := r.client.doRequest(http.MethodPost, post_url, req_data)
+	resp, body, err := r.client.doRequest(http.MethodPost, "/api/v2/groups/", req_data)
 	if err != nil {
-		diags.AddError(GetFunctionName(0)+" Body JSON Marshal Error", err.Error())
+		diags.AddError("Body JSON Marshal Error", err.Error())
 		return diags
 	}
 	if resp == nil {
-		diags.AddError(GetFunctionName(0)+" Http response Error", "no http response from server")
+		diags.AddError("Http response Error", "no http response from server")
 		return diags
 	}
 	if resp.StatusCode != http.StatusCreated {
-		diags.AddError(GetFunctionName(0)+" Unexpected Http Status code",
+		diags.AddError("Unexpected Http Status code",
 			fmt.Sprintf("expected (%d) got (%s)", http.StatusCreated, resp.Status))
 		return diags
 	}
 	err = data.ParseHttpResponse(body)
 	if err != nil {
-		diags.AddError(GetFunctionName(0)+" error while parsing the json response: ", err.Error())
+		diags.AddError("error while parsing the json response: ", err.Error())
 		return diags
 	}
 	return diags
 }
 
-func (r groupResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var data groupResourceModel
+func (r GroupResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var data GroupResourceModel
 
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
@@ -232,29 +216,28 @@ func (r groupResource) Create(ctx context.Context, req resource.CreateRequest, r
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func (r groupResource) DeleteGroup(data GroupResourceModelInterface) diag.Diagnostics {
+func (r GroupResource) DeleteGroup(data GroupResourceModelInterface) diag.Diagnostics {
 	var diags diag.Diagnostics
-	group_url := data.GetURL()
 
-	resp, _, err := r.client.doRequest(http.MethodDelete, group_url, nil)
+	resp, _, err := r.client.doRequest(http.MethodDelete, data.GetURL(), nil)
 	if err != nil {
-		diags.AddError(GetFunctionName(0)+" Body JSON Marshal Error", err.Error())
+		diags.AddError("Body JSON Marshal Error", err.Error())
 		return diags
 	}
 	if resp == nil {
-		diags.AddError(GetFunctionName(0)+" Http response Error", "no http response from server")
+		diags.AddError("Http response Error", "no http response from server")
 		return diags
 	}
 	if resp.StatusCode != http.StatusNoContent {
-		diags.AddError(GetFunctionName(0)+" Unexpected Http Status code",
+		diags.AddError("Unexpected Http Status code",
 			fmt.Sprintf("expected (%d) got (%s)", http.StatusNoContent, resp.Status))
 		return diags
 	}
 	return diags
 }
 
-func (r groupResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var data groupResourceModel
+func (r GroupResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var data GroupResourceModel
 
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
@@ -268,7 +251,7 @@ func (r groupResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func (r groupResource) UpdateGroup(data GroupResourceModelInterface) diag.Diagnostics {
+func (r GroupResource) UpdateGroup(data GroupResourceModelInterface) diag.Diagnostics {
 	var diags diag.Diagnostics
 	var req_data io.Reader = nil
 	req_body, diagCreateReq := data.CreateRequestBody()
@@ -281,31 +264,33 @@ func (r groupResource) UpdateGroup(data GroupResourceModelInterface) diag.Diagno
 	}
 	resp, body, err := r.client.doRequest(http.MethodPut, data.GetURL(), req_data)
 	if err != nil {
-		diags.AddError(GetFunctionName(0)+" Body JSON Marshal Error", err.Error())
+		diags.AddError("Body JSON Marshal Error", err.Error())
 		return diags
 	}
 	if resp == nil {
-		diags.AddError(GetFunctionName(0)+" Http response Error", "no http response from server")
+		diags.AddError("Http response Error", "no http response from server")
 		return diags
 	}
 	if resp.StatusCode != http.StatusOK {
-		diags.AddError(GetFunctionName(0)+" Unexpected Http Status code",
+		diags.AddError("Unexpected Http Status code",
 			fmt.Sprintf("expected (%d) got (%s)", http.StatusOK, resp.Status))
 		return diags
 	}
 	err = data.ParseHttpResponse(body)
 	if err != nil {
-		diags.AddError(GetFunctionName(0)+" error while parsing the json response: ", err.Error())
+		diags.AddError("error while parsing the json response: ", err.Error())
 		return diags
 	}
 	return diags
 }
 
-func (r groupResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data groupResourceModel
-	var data_with_URL groupResourceModel
+func (r GroupResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var data GroupResourceModel
+	var data_with_URL GroupResourceModel
 
-	// Read Terraform plan data into the model
+	// Read Terraform plan and state data into the model
+	// The URL is generated once the group is created. To update the correct group, we retrieve the state data and append the URL from the state data to the plan data.
+
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	resp.Diagnostics.Append(req.State.Get(ctx, &data_with_URL)...)
 	data.URL = data_with_URL.URL
@@ -319,34 +304,34 @@ func (r groupResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func (r groupResource) ReadGroup(data GroupResourceModelInterface) diag.Diagnostics {
+func (r GroupResource) ReadGroup(data GroupResourceModelInterface) diag.Diagnostics {
 	var diags diag.Diagnostics
 	// Read existing Group
 	group_url := data.GetURL()
 	resp, body, err := r.client.doRequest(http.MethodGet, group_url, nil)
 	if err != nil {
-		diags.AddError(GetFunctionName(0)+" Get Error", err.Error())
+		diags.AddError("Get Error", err.Error())
 		return diags
 	}
 	if resp == nil {
-		diags.AddError(GetFunctionName(0)+" Http response Error", "no http response from server")
+		diags.AddError("Http response Error", "no http response from server")
 		return diags
 	}
 	if resp.StatusCode != http.StatusOK {
-		diags.AddError(GetFunctionName(0)+" Unexpected Http Status code",
+		diags.AddError("Unexpected Http Status code",
 			fmt.Sprintf("expected (%d) got (%s)", http.StatusOK, resp.Status))
 	}
 
 	err = data.ParseHttpResponse(body)
 	if err != nil {
-		diags.AddError(GetFunctionName(0)+" error while parsing the json response: ", err.Error())
+		diags.AddError("error while parsing the json response: ", err.Error())
 		return diags
 	}
 	return diags
 }
 
-func (r groupResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var data groupResourceModel
+func (r GroupResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var data GroupResourceModel
 
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
