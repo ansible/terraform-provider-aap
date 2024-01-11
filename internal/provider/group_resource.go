@@ -263,6 +263,7 @@ func (r GroupResource) UpdateGroup(data GroupResourceModelInterface) diag.Diagno
 		req_data = bytes.NewReader(req_body)
 	}
 	resp, body, err := r.client.doRequest(http.MethodPut, data.GetURL(), req_data)
+
 	if err != nil {
 		diags.AddError("Body JSON Marshal Error", err.Error())
 		return diags

@@ -105,15 +105,17 @@ type MockGroupResource struct {
 	Name        string
 	Description string
 	URL         string
+	Variables   string
 	Response    map[string]string
 }
 
-func NewMockGroupResource(inventory, name, description, url string) *MockGroupResource {
+func NewMockGroupResource(inventory, name, description, url, variables string) *MockGroupResource {
 	return &MockGroupResource{
 		InventoryId: inventory,
 		URL:         url,
 		Name:        name,
 		Description: description,
+		Variables:   variables,
 		Response:    map[string]string{},
 	}
 }
@@ -150,9 +152,24 @@ var mResponse1 = map[string]string{
 	"name":        "Group1",
 }
 
+var mResponse2 = map[string]string{
+	"description": "Updated group",
+	"inventory":   "1",
+	"name":        "Group1",
+}
+
+var mResponse3 = map[string]string{
+	"description": "",
+	"inventory":   "3",
+	"name":        "Group1",
+	"variables":   "{\"ansible_network_os\": \"ios\"}",
+}
+
 func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
 	config := map[string]map[string]string{
-		"/api/v2/groups/": mResponse1,
+		"/api/v2/groups/":   mResponse1,
+		"/api/v2/groups/1/": mResponse2,
+		"/api/v2/groups/2/": mResponse3,
 	}
 
 	if !slices.Contains(c.acceptMethods, method) {
@@ -186,7 +203,7 @@ func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (
 
 func TestCreateGroup(t *testing.T) {
 	t.Run("Create Group", func(t *testing.T) {
-		g := NewMockGroupResource("1", "Group1", "", "")
+		g := NewMockGroupResource("1", "Group1", "", "", "")
 		group := GroupResource{
 			client: NewMockHTTPClient([]string{"POST", "post"}, http.StatusCreated),
 		}
@@ -197,6 +214,63 @@ func TestCreateGroup(t *testing.T) {
 			for _, d := range diags {
 				t.Errorf("Summary = '%s' - details = '%s'", d.Summary(), d.Detail())
 			}
+		}
+	})
+}
+func TestUpdateGroup(t *testing.T) {
+	t.Run("Update Group", func(t *testing.T) {
+		g := NewMockGroupResource("1", "Group1", "Updated Group", "/api/v2/groups/1/", "")
+		group := GroupResource{
+			client: NewMockHTTPClient([]string{"PUT", "put"}, http.StatusOK),
+		}
+
+		diags := group.UpdateGroup(g)
+		if diags.HasError() {
+			t.Errorf("Update Group failed")
+			for _, d := range diags {
+				t.Errorf("Summary = '%s' - details = '%s'", d.Summary(), d.Detail())
+			}
+		}
+	})
+	t.Run("Update Group with variables", func(t *testing.T) {
+		g := NewMockGroupResource("2", "Group1", "Updated Group", "/api/v2/groups/2/", "{\"ansible_network_os\": \"ios\"}")
+		group := GroupResource{
+			client: NewMockHTTPClient([]string{"PUT", "put"}, http.StatusOK),
+		}
+
+		diags := group.UpdateGroup(g)
+		if diags.HasError() {
+			t.Errorf("Update Group with variables failed")
+			for _, d := range diags {
+				t.Errorf("Summary = '%s' - details = '%s'", d.Summary(), d.Detail())
+			}
+		}
+	})
+}
+func TestReadGroup(t *testing.T) {
+	t.Run("Read Group", func(t *testing.T) {
+		g := NewMockGroupResource("1", "Group1", "", "/api/v2/groups/2/", "")
+		group := GroupResource{
+			client: NewMockHTTPClient([]string{"GET", "get"}, http.StatusOK),
+		}
+
+		diags := group.ReadGroup(g)
+		if diags.HasError() {
+			t.Errorf("Read Group failed")
+			for _, d := range diags {
+				t.Errorf("Summary = '%s' - details = '%s'", d.Summary(), d.Detail())
+			}
+		}
+	})
+	t.Run("Read Group with no URL", func(t *testing.T) {
+		g := NewMockGroupResource("1", "Group1", "", "", "")
+		group := GroupResource{
+			client: NewMockHTTPClient([]string{"GET", "get"}, http.StatusOK),
+		}
+
+		err := group.ReadGroup(g)
+		if err == nil {
+			t.Errorf("Failure expected but the ReadJob did not fail!!")
 		}
 
 	})
