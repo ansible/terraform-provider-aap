@@ -1,4 +1,5 @@
 # Local .terraform directories
+terraform-provider-aap
 **/.terraform/*
 
 # .tfstate files
