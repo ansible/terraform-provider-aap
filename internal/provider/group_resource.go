@@ -125,7 +125,7 @@ func (d *GroupResourceModel) ParseHttpResponse(body []byte) error {
 	/* Unmarshal the json string */
 	result := make(map[string]interface{})
 
-	err := json.Unmarshal([]byte(body), &result)
+	err := json.Unmarshal(body, &result)
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func (d *GroupResourceModel) ParseHttpResponse(body []byte) error {
 }
 
 // Configure adds the provider configured client to the resource.
-func (d *GroupResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (d *GroupResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}

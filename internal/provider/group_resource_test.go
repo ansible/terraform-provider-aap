@@ -48,7 +48,6 @@ func TestGroupParseHttpResponse(t *testing.T) {
 		body := []byte("Not valid JSON")
 		err := g.ParseHttpResponse(body)
 		assert.Error(t, err)
-
 	})
 }
 
@@ -77,7 +76,6 @@ func TestGroupCreateRequestBody(t *testing.T) {
 		}
 
 		bytes.Equal(result, []byte(nil))
-
 	})
 	t.Run("All Values", func(t *testing.T) {
 		g := GroupResourceModel{
@@ -87,31 +85,39 @@ func TestGroupCreateRequestBody(t *testing.T) {
 			Variables:   jsontypes.NewNormalizedValue("{\"ansible_network_os\":\"ios\"}"),
 			Description: types.StringValue("New Group"),
 		}
-		body := []byte(`{"name": "group1", "inventory": 5, "url": "/api/v2/groups/24/", "description": "New Group", "variables": "{\"ansible_network_os\":\"ios\"}"}`)
+		body := []byte(`{"name": "group1", "inventory": 5,
+		                 "url": "/api/v2/groups/24/",
+						 "description": "New Group",
+						 "variables": "{\"ansible_network_os\":\"ios\"}"}`)
 
 		result, diags := g.CreateRequestBody()
 		if diags.HasError() {
 			t.Fatal(diags.Errors())
 		}
 		assert.JSONEq(t, string(body), string(result))
-
 	})
 	t.Run("Multiple values for Variables", func(t *testing.T) {
 		g := GroupResourceModel{
 			InventoryId: basetypes.NewInt64Value(5),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
-			Variables:   jsontypes.NewNormalizedValue("{\"ansible_network_os\":\"ios\", \"ansible_connection\":\"network_cli\", \"ansible_ssh_user\":\"ansible\", \"ansible_ssh_pass\":\"ansible\"}"),
+			Variables: jsontypes.NewNormalizedValue(
+				"{\"ansible_network_os\":\"ios\",\"ansible_connection\":\"network_cli\", \"ansible_ssh_user\":\"ansible\", \"ansible_ssh_pass\":\"ansible\"}",
+			),
 			Description: types.StringValue("New Group"),
 		}
-		body := []byte(`{"name": "group1", "inventory": 5, "url": "/api/v2/groups/24/", "description": "New Group", "variables": "{\"ansible_network_os\":\"ios\", \"ansible_connection\":\"network_cli\", \"ansible_ssh_user\":\"ansible\", \"ansible_ssh_pass\":\"ansible\"}"}`)
+		body := []byte(`{"name": "group1", "inventory": 5,
+		                "url": "/api/v2/groups/24/",
+						"description": "New Group",
+				        "variables":
+			"{\"ansible_network_os\":\"ios\", \"ansible_connection\":\"network_cli\", \"ansible_ssh_user\":\"ansible\", \"ansible_ssh_pass\":\"ansible\"}"}`,
+		)
 
 		result, diags := g.CreateRequestBody()
 		if diags.HasError() {
 			t.Fatal(diags.Errors())
 		}
 		assert.JSONEq(t, string(body), string(result))
-
 	})
 }
 
@@ -232,6 +238,5 @@ func TestReadGroup(t *testing.T) {
 		if err == nil {
 			t.Errorf("Failure expected but the ReadJob did not fail!!")
 		}
-
 	})
 }

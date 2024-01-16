@@ -31,7 +31,6 @@ func NewClient(host string, username *string, password *string, insecureSkipVeri
 		Password: password,
 	}
 
-
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify},
 	}

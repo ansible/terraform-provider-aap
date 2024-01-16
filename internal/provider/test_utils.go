@@ -45,7 +45,6 @@ func mergeStringMaps(m1 map[string]string, m2 map[string]string) map[string]stri
 }
 
 func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
-
 	if !slices.Contains(c.acceptMethods, method) {
 		return nil, nil, nil
 	}
