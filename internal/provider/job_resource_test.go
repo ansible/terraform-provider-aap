@@ -45,7 +45,7 @@ func TestParseHttpResponse(t *testing.T) {
 		{
 			name:    "ignored fields",
 			failure: false,
-			body: []byte(`{"job_type": "run", "url": "/api/v2/jobs/14/", "status": 
+			body: []byte(`{"job_type": "run", "url": "/api/v2/jobs/14/", "status":
 			"pending", "ignored_fields": {"extra_vars": "{\"bucket_state\":\"absent\"}"}}`),
 			expected: jobResourceModel{
 				TemplateID:    templateID,
