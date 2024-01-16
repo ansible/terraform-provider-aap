@@ -18,22 +18,40 @@ import (
 
 func TestParseHttpResponse(t *testing.T) {
 	t.Run("Basic Test", func(t *testing.T) {
-		g := GroupResourceModel{
-			Name: types.StringValue("group1"),
-			URL:  types.StringValue("/api/v2/groups/24/"),
+		expected := GroupResourceModel{
+			Name:        types.StringValue("group1"),
+			Description: types.StringValue(""),
+			URL:         types.StringValue("/api/v2/groups/24/"),
 		}
+		g := GroupResourceModel{}
 		body := []byte(`{"name": "group1", "url": "/api/v2/groups/24/", "description": ""}`)
 		err := g.ParseHttpResponse(body)
 		assert.NoError(t, err)
+		if expected != g {
+			t.Errorf("Expected (%s) not equal to actual (%s)", expected, g)
+		}
 	})
 	t.Run("Test with variables", func(t *testing.T) {
-		g := GroupResourceModel{
-			Name: types.StringValue("group1"),
-			URL:  types.StringValue("/api/v2/groups/24/"),
+		expected := GroupResourceModel{
+			Name:        types.StringValue("group1"),
+			URL:         types.StringValue("/api/v2/groups/24/"),
+			Description: types.StringValue(""),
+			Variables:   jsontypes.NewNormalizedValue("{\"ansible_network_os\":\"ios\"}"),
 		}
+		g := GroupResourceModel{}
 		body := []byte(`{"name": "group1", "url": "/api/v2/groups/24/", "description": "", "variables": "{\"ansible_network_os\":\"ios\"}"}`)
 		err := g.ParseHttpResponse(body)
 		assert.NoError(t, err)
+		if expected != g {
+			t.Errorf("Expected (%s) not equal to actual (%s)", expected, g)
+		}
+	})
+	t.Run("JSON error", func(t *testing.T) {
+		g := GroupResourceModel{}
+		body := []byte("Not valid JSON")
+		err := g.ParseHttpResponse(body)
+		assert.Error(t, err)
+
 	})
 }
 

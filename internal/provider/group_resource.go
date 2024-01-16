@@ -105,8 +105,6 @@ func (d *GroupResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 
 	// Variables
 	if IsValueProvided(d.Variables) {
-		// var vars map[string]interface{}
-		// diags.Append(d.Variables.Unmarshal(&vars)...)
 		body["variables"] = d.Variables.ValueString()
 	}
 
@@ -138,8 +136,17 @@ func (d *GroupResourceModel) ParseHttpResponse(body []byte) error {
 	}
 
 	d.Name = types.StringValue(result["name"].(string))
-	d.Description = types.StringValue(result["description"].(string))
+	if result["description"] != "" {
+		d.Description = types.StringValue(result["description"].(string))
+	} else {
+		d.Description = types.StringNull()
+	}
 	d.URL = types.StringValue(result["url"].(string))
+	if result["variables"] != nil {
+		d.Variables = jsontypes.NewNormalizedValue(result["variables"].(string))
+	} else {
+		d.Variables = jsontypes.NewNormalizedNull()
+	}
 
 	return nil
 }
@@ -287,15 +294,8 @@ func (r GroupResource) UpdateGroup(data GroupResourceModelInterface) diag.Diagno
 
 func (r GroupResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var data GroupResourceModel
-	var data_with_URL GroupResourceModel
-
-	// Read Terraform plan and state data into the model
-	// The URL is generated once the group is created. To update the correct group, we retrieve the state data and append the URL from the state data to the plan data.
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-	resp.Diagnostics.Append(req.State.Get(ctx, &data_with_URL)...)
-	data.URL = data_with_URL.URL
-
 	resp.Diagnostics.Append(r.UpdateGroup(&data)...)
 	if resp.Diagnostics.HasError() {
 		return
