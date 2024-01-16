@@ -5,6 +5,8 @@ terraform-provider-aap
 # .tfstate files
 *.tfstate
 *.tfstate.*
+*.tfrc
+/examples/
 
 # Crash log files
 crash.log
