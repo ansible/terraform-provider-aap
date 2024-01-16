@@ -3,10 +3,7 @@ package provider
 import (
 	"bytes"
 	"encoding/json"
-	"io"
 	"net/http"
-	"slices"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
@@ -16,11 +13,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseHttpResponse(t *testing.T) {
+func TestGroupParseHttpResponse(t *testing.T) {
 	t.Run("Basic Test", func(t *testing.T) {
 		expected := GroupResourceModel{
 			Name:        types.StringValue("group1"),
-			Description: types.StringValue(""),
+			Description: types.StringNull(),
 			URL:         types.StringValue("/api/v2/groups/24/"),
 		}
 		g := GroupResourceModel{}
@@ -35,7 +32,7 @@ func TestParseHttpResponse(t *testing.T) {
 		expected := GroupResourceModel{
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
-			Description: types.StringValue(""),
+			Description: types.StringNull(),
 			Variables:   jsontypes.NewNormalizedValue("{\"ansible_network_os\":\"ios\"}"),
 		}
 		g := GroupResourceModel{}
@@ -55,7 +52,7 @@ func TestParseHttpResponse(t *testing.T) {
 	})
 }
 
-func TestCreateRequestBody(t *testing.T) {
+func TestGroupCreateRequestBody(t *testing.T) {
 	t.Run("Basic Test", func(t *testing.T) {
 		g := GroupResourceModel{
 			InventoryId: basetypes.NewInt64Value(1),
@@ -162,61 +159,6 @@ func (d *MockGroupResource) CreateRequestBody() ([]byte, diag.Diagnostics) {
 		return nil, diags
 	}
 	return jsonRaw, diags
-}
-
-var mResponse1 = map[string]string{
-	"description": "",
-	"inventory":   "1",
-	"name":        "Group1",
-}
-
-var mResponse2 = map[string]string{
-	"description": "Updated group",
-	"inventory":   "1",
-	"name":        "Group1",
-}
-
-var mResponse3 = map[string]string{
-	"description": "",
-	"inventory":   "3",
-	"name":        "Group1",
-	"variables":   "{\"ansible_network_os\": \"ios\"}",
-}
-
-func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
-	config := map[string]map[string]string{
-		"/api/v2/groups/":   mResponse1,
-		"/api/v2/groups/1/": mResponse2,
-		"/api/v2/groups/2/": mResponse3,
-	}
-
-	if !slices.Contains(c.acceptMethods, method) {
-		return nil, nil, nil
-	}
-	response, ok := config[path]
-	if !ok {
-		return &http.Response{StatusCode: http.StatusNotFound}, nil, nil
-	}
-
-	if data != nil {
-		// add request info into response
-		buf := new(strings.Builder)
-		_, err := io.Copy(buf, data)
-		if err != nil {
-			return nil, nil, err
-		}
-		var mData map[string]string
-		err = json.Unmarshal([]byte(buf.String()), &mData)
-		if err != nil {
-			return nil, nil, err
-		}
-		response = mergeStringMaps(response, mData)
-	}
-	result, err := json.Marshal(response)
-	if err != nil {
-		return nil, nil, err
-	}
-	return &http.Response{StatusCode: c.httpCode}, result, nil
 }
 
 func TestCreateGroup(t *testing.T) {

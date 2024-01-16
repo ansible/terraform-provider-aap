@@ -2,7 +2,11 @@ package provider
 
 import (
 	"encoding/json"
+	"io"
+	"net/http"
 	"reflect"
+	"slices"
+	"strings"
 )
 
 // DeepEqualJSONByte compares the JSON in two byte slices.
@@ -38,4 +42,35 @@ func mergeStringMaps(m1 map[string]string, m2 map[string]string) map[string]stri
 		merged[k] = v
 	}
 	return merged
+}
+
+func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
+
+	if !slices.Contains(c.acceptMethods, method) {
+		return nil, nil, nil
+	}
+	response, ok := MockConfig[path]
+	if !ok {
+		return &http.Response{StatusCode: http.StatusNotFound}, nil, nil
+	}
+
+	if data != nil {
+		// add request info into response
+		buf := new(strings.Builder)
+		_, err := io.Copy(buf, data)
+		if err != nil {
+			return nil, nil, err
+		}
+		var mData map[string]string
+		err = json.Unmarshal([]byte(buf.String()), &mData)
+		if err != nil {
+			return nil, nil, err
+		}
+		response = mergeStringMaps(response, mData)
+	}
+	result, err := json.Marshal(response)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &http.Response{StatusCode: c.httpCode}, result, nil
 }
