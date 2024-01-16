@@ -9,7 +9,6 @@ import (
 	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -80,10 +79,6 @@ type GroupResourceModel struct {
 	Description types.String         `tfsdk:"description"`
 	URL         types.String         `tfsdk:"group_url"`
 	Variables   jsontypes.Normalized `tfsdk:"variables"`
-}
-
-func IsValueProvided(value attr.Value) bool {
-	return !value.IsNull() && !value.IsUnknown()
 }
 
 func (d *GroupResourceModel) GetURL() string {

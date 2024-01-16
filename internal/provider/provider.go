@@ -62,11 +62,7 @@ func (p *aapProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *
 			"timeout": schema.Int64Attribute{
 				Optional: true,
 				Description: "Timeout specifies a time limit for requests made to the AAP server." +
-<<<<<<< HEAD
 					"Defaults to 5 if not provided. A Timeout of zero means no timeout.",
-=======
-					" A Timeout of zero means no timeout.",
->>>>>>> 3078ed9 (Add Group Resource)
 			},
 		},
 	}
@@ -108,51 +104,13 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		return
 	}
 
-<<<<<<< HEAD
 	var host, username, password string
 	var insecureSkipVerify bool
 	var timeout int64
 	config.ReadValues(&host, &username, &password, &insecureSkipVerify, &timeout, resp)
 	if resp.Diagnostics.HasError() {
 		return
-=======
-	// Default values to environment variables, but override
-	// with Terraform configuration value if set.
-
-	host := os.Getenv("AAP_HOST")
-	username := os.Getenv("AAP_USERNAME")
-	password := os.Getenv("AAP_PASSWORD")
-	var insecureSkipVerify = false
-	var err error
-	rawInsecureSkipVerify := os.Getenv("AAP_INSECURE_SKIP_VERIFY")
-	if rawInsecureSkipVerify != "" {
-		insecureSkipVerify, err = strconv.ParseBool(rawInsecureSkipVerify)
-		if err != nil {
-			resp.Diagnostics.AddAttributeError(
-				path.Root("insecure_skip_verify"),
-				"Invalid value for insecure_skip_verify",
-				"The provider cannot create the AAP API client as the value provided for insecure_skip_verify is not a valid boolean.",
-			)
-			return
-		}
 	}
-
-	rawTimeout := os.Getenv("AAP_TIMEOUT")
-	var timeout int64
-	if rawTimeout != "" {
-		// convert string into int64 value
-		timeout, err = strconv.ParseInt(rawTimeout, 10, 64)
-		if err != nil {
-			resp.Diagnostics.AddAttributeError(
-				path.Root("timeout"),
-				"Invalid value for timeout",
-				"The provider cannot create the AAP API client as the value provided for timeout is not a valid int64 value.",
-			)
-			return
-		}
->>>>>>> 3078ed9 (Add Group Resource)
-	}
-	config.ReadValues(&host, &username, &password, &insecureSkipVerify, &timeout)
 
 	// If any of the expected configurations are missing, return
 	// errors with provider-specific guidance.
@@ -201,11 +159,8 @@ func (p *aapProvider) DataSources(_ context.Context) []func() datasource.DataSou
 // Resources defines the resources implemented in the provider.
 func (p *aapProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-<<<<<<< HEAD
 		NewJobResource,
-=======
 		NewGroupResource,
->>>>>>> 3078ed9 (Add Group Resource)
 	}
 }
 
@@ -240,7 +195,6 @@ func (p *aapProviderModel) checkUnknownValue(resp *provider.ConfigureResponse) {
 	}
 }
 
-<<<<<<< HEAD
 const (
 	DefaultTimeOut            = 5     // Default http session timeout
 	DefaultInsecureSkipVerify = false // Default value for insecure skip verify
@@ -265,24 +219,12 @@ func (p *aapProviderModel) ReadValues(host, username, password *string, insecure
 		*username = p.Username.ValueString()
 	}
 	// Read password from user configuration
-=======
-func (p *aapProviderModel) ReadValues(host, username, password *string, insecureSkipVerify *bool, timeout *int64) {
-	if !p.Host.IsNull() {
-		*host = p.Host.ValueString()
-	}
-
-	if !p.Username.IsNull() {
-		*username = p.Username.ValueString()
-	}
-
->>>>>>> 3078ed9 (Add Group Resource)
 	if !p.Password.IsNull() {
 		*password = p.Password.ValueString()
 	}
 
 	if !p.InsecureSkipVerify.IsNull() {
 		*insecureSkipVerify = p.InsecureSkipVerify.ValueBool()
-<<<<<<< HEAD
 	} else if boolValue := os.Getenv("AAP_INSECURE_SKIP_VERIFY"); boolValue != "" {
 		*insecureSkipVerify, err = strconv.ParseBool(boolValue)
 		if err != nil {
@@ -308,14 +250,5 @@ func (p *aapProviderModel) ReadValues(host, username, password *string, insecure
 				"The provider cannot create the AAP API client as the value provided for timeout is not a valid int64 value.",
 			)
 		}
-=======
-	}
-
-	if !p.Timeout.IsNull() && !p.Timeout.IsUnknown() {
-		*timeout = p.Timeout.ValueInt64()
-	} else {
-		// setting default timeout value
-		*timeout = 5
->>>>>>> 3078ed9 (Add Group Resource)
 	}
 }

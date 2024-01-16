@@ -6,11 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-<<<<<<< HEAD
-	"time"
-	"strings"
-=======
->>>>>>> 73e7c47 (use diags - verified create)
 	"time"
 )
 
@@ -45,40 +40,6 @@ func NewClient(host string, username *string, password *string, insecureSkipVeri
 	return &client, nil
 }
 
-<<<<<<< HEAD
-func (c *AAPClient) computeURLPath(path string) string {
-	fullPath, _ := url.JoinPath(c.HostURL, path, "/")
-	return fullPath
-}
-
-func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
-	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, method, c.computeURLPath(path), data)
-	if err != nil {
-		return nil, []byte{}, err
-	}
-	if c.Username != nil && c.Password != nil {
-		req.SetBasicAuth(*c.Username, *c.Password)
-	}
-
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, []byte{}, err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, []byte{}, err
-	}
-	return resp, body, nil
-}
-
-=======
->>>>>>> 73e7c47 (use diags - verified create)
 func (c *AAPClient) computeURLPath(path string) string {
 	fullPath, _ := url.JoinPath(c.HostURL, path, "/")
 	return fullPath
