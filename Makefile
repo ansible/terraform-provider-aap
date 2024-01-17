@@ -2,7 +2,7 @@
 
 default: build
 
-build: 
+build:
 	@echo "==> Building package..."
 	go build ./...
 

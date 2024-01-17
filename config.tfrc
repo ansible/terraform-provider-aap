@@ -1,0 +1,7 @@
+provider_installation {
+  dev_overrides {
+    "ansible/aap" = "/Users/alinabuzachis/dev/ansible/terraform-provider-aap"
+  }
+
+  direct {}
+}
