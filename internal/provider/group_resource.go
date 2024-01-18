@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -65,8 +64,7 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				},
 			},
 			"variables": schema.StringAttribute{
-				Optional:   true,
-				CustomType: jsontypes.NormalizedType{},
+				Optional: true,
 			},
 		},
 	}
@@ -74,11 +72,11 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 
 // GroupResourceModel maps the resource schema data.
 type GroupResourceModel struct {
-	InventoryId types.Int64          `tfsdk:"inventory_id"`
-	Name        types.String         `tfsdk:"name"`
-	Description types.String         `tfsdk:"description"`
-	URL         types.String         `tfsdk:"group_url"`
-	Variables   jsontypes.Normalized `tfsdk:"variables"`
+	InventoryId types.Int64  `tfsdk:"inventory_id"`
+	Name        types.String `tfsdk:"name"`
+	Description types.String `tfsdk:"description"`
+	URL         types.String `tfsdk:"group_url"`
+	Variables   types.String `tfsdk:"variables"`
 }
 
 func (d *GroupResourceModel) GetURL() string {
@@ -91,7 +89,6 @@ func (d *GroupResourceModel) GetURL() string {
 func (d *GroupResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	body := make(map[string]interface{})
 	var diags diag.Diagnostics
-
 	// Inventory id
 	body["inventory"] = d.InventoryId.ValueInt64()
 
@@ -101,11 +98,6 @@ func (d *GroupResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	// Variables
 	if IsValueProvided(d.Variables) {
 		body["variables"] = d.Variables.ValueString()
-	}
-
-	// URL
-	if IsValueProvided(d.URL) {
-		body["url"] = d.URL.ValueString()
 	}
 
 	// Description
@@ -130,17 +122,21 @@ func (d *GroupResourceModel) ParseHttpResponse(body []byte) error {
 		return err
 	}
 
+	invid := int64(result["inventory"].(float64))
+	d.InventoryId = types.Int64Value(invid)
 	d.Name = types.StringValue(result["name"].(string))
+
 	if result["description"] != "" {
 		d.Description = types.StringValue(result["description"].(string))
 	} else {
 		d.Description = types.StringNull()
 	}
 	d.URL = types.StringValue(result["url"].(string))
-	if result["variables"] != nil {
-		d.Variables = jsontypes.NewNormalizedValue(result["variables"].(string))
+
+	if result["variables"] != "" {
+		d.Variables = types.StringValue(result["variables"].(string))
 	} else {
-		d.Variables = jsontypes.NewNormalizedNull()
+		d.Variables = types.StringNull()
 	}
 
 	return nil

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
@@ -16,12 +15,14 @@ import (
 func TestGroupParseHttpResponse(t *testing.T) {
 	t.Run("Basic Test", func(t *testing.T) {
 		expected := GroupResourceModel{
+			InventoryId: types.Int64Value(1),
 			Name:        types.StringValue("group1"),
 			Description: types.StringNull(),
 			URL:         types.StringValue("/api/v2/groups/24/"),
+			Variables:   types.StringNull(),
 		}
 		g := GroupResourceModel{}
-		body := []byte(`{"name": "group1", "url": "/api/v2/groups/24/", "description": ""}`)
+		body := []byte(`{"inventory": 1, "name": "group1", "url": "/api/v2/groups/24/", "description": "", "variables": ""}`)
 		err := g.ParseHttpResponse(body)
 		assert.NoError(t, err)
 		if expected != g {
@@ -30,13 +31,14 @@ func TestGroupParseHttpResponse(t *testing.T) {
 	})
 	t.Run("Test with variables", func(t *testing.T) {
 		expected := GroupResourceModel{
+			InventoryId: types.Int64Value(1),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
 			Description: types.StringNull(),
-			Variables:   jsontypes.NewNormalizedValue("{\"ansible_network_os\":\"ios\"}"),
+			Variables:   types.StringValue("{\"ansible_network_os\":\"ios\"}"),
 		}
 		g := GroupResourceModel{}
-		body := []byte(`{"name": "group1", "url": "/api/v2/groups/24/", "description": "", "variables": "{\"ansible_network_os\":\"ios\"}"}`)
+		body := []byte(`{"inventory": 1, "name": "group1", "url": "/api/v2/groups/24/", "description": "", "variables": "{\"ansible_network_os\":\"ios\"}"}`)
 		err := g.ParseHttpResponse(body)
 		assert.NoError(t, err)
 		if expected != g {
@@ -54,7 +56,7 @@ func TestGroupParseHttpResponse(t *testing.T) {
 func TestGroupCreateRequestBody(t *testing.T) {
 	t.Run("Basic Test", func(t *testing.T) {
 		g := GroupResourceModel{
-			InventoryId: basetypes.NewInt64Value(1),
+			InventoryId: types.Int64Value(1),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
 		}
@@ -82,7 +84,7 @@ func TestGroupCreateRequestBody(t *testing.T) {
 			InventoryId: basetypes.NewInt64Value(5),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
-			Variables:   jsontypes.NewNormalizedValue("{\"ansible_network_os\":\"ios\"}"),
+			Variables:   types.StringValue("{\"ansible_network_os\":\"ios\"}"),
 			Description: types.StringValue("New Group"),
 		}
 		body := []byte(`{"name": "group1", "inventory": 5,
@@ -101,7 +103,7 @@ func TestGroupCreateRequestBody(t *testing.T) {
 			InventoryId: basetypes.NewInt64Value(5),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
-			Variables: jsontypes.NewNormalizedValue(
+			Variables: types.StringValue(
 				"{\"ansible_network_os\":\"ios\",\"ansible_connection\":\"network_cli\",\"ansible_ssh_user\":\"ansible\",\"ansible_ssh_pass\":\"ansi\"}",
 			),
 			Description: types.StringValue("New Group"),
