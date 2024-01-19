@@ -174,19 +174,7 @@ func (r GroupResource) CreateGroup(data GroupResourceModelInterface) diag.Diagno
 	}
 
 	resp, body, err := r.client.doRequest(http.MethodPost, "/api/v2/groups/", req_data)
-	if err != nil {
-		diags.AddError("Body JSON Marshal Error", err.Error())
-		return diags
-	}
-	if resp == nil {
-		diags.AddError("Http response Error", "no http response from server")
-		return diags
-	}
-	if resp.StatusCode != http.StatusCreated {
-		diags.AddError("Unexpected Http Status code",
-			fmt.Sprintf("expected (%d) got (%s)", http.StatusCreated, resp.Status))
-		return diags
-	}
+	diags.Append(IsResponseValid(resp, err, http.StatusCreated)...)
 	err = data.ParseHttpResponse(body)
 	if err != nil {
 		diags.AddError("error while parsing the json response: ", err.Error())
@@ -218,19 +206,7 @@ func (r GroupResource) DeleteGroup(data GroupResourceModelInterface) diag.Diagno
 	var diags diag.Diagnostics
 
 	resp, _, err := r.client.doRequest(http.MethodDelete, data.GetURL(), nil)
-	if err != nil {
-		diags.AddError("Body JSON Marshal Error", err.Error())
-		return diags
-	}
-	if resp == nil {
-		diags.AddError("Http response Error", "no http response from server")
-		return diags
-	}
-	if resp.StatusCode != http.StatusNoContent {
-		diags.AddError("Unexpected Http Status code",
-			fmt.Sprintf("expected (%d) got (%s)", http.StatusNoContent, resp.Status))
-		return diags
-	}
+	diags.Append(IsResponseValid(resp, err, http.StatusNoContent)...)
 	return diags
 }
 
@@ -261,20 +237,8 @@ func (r GroupResource) UpdateGroup(data GroupResourceModelInterface) diag.Diagno
 		req_data = bytes.NewReader(req_body)
 	}
 	resp, body, err := r.client.doRequest(http.MethodPut, data.GetURL(), req_data)
+	diags.Append(IsResponseValid(resp, err, http.StatusOK)...)
 
-	if err != nil {
-		diags.AddError("Body JSON Marshal Error", err.Error())
-		return diags
-	}
-	if resp == nil {
-		diags.AddError("Http response Error", "no http response from server")
-		return diags
-	}
-	if resp.StatusCode != http.StatusOK {
-		diags.AddError("Unexpected Http Status code",
-			fmt.Sprintf("expected (%d) got (%s)", http.StatusOK, resp.Status))
-		return diags
-	}
 	err = data.ParseHttpResponse(body)
 	if err != nil {
 		diags.AddError("error while parsing the json response: ", err.Error())
@@ -301,18 +265,7 @@ func (r GroupResource) ReadGroup(data GroupResourceModelInterface) diag.Diagnost
 	// Read existing Group
 	group_url := data.GetURL()
 	resp, body, err := r.client.doRequest(http.MethodGet, group_url, nil)
-	if err != nil {
-		diags.AddError("Get Error", err.Error())
-		return diags
-	}
-	if resp == nil {
-		diags.AddError("Http response Error", "no http response from server")
-		return diags
-	}
-	if resp.StatusCode != http.StatusOK {
-		diags.AddError("Unexpected Http Status code",
-			fmt.Sprintf("expected (%d) got (%s)", http.StatusOK, resp.Status))
-	}
+	diags.Append(IsResponseValid(resp, err, http.StatusOK)...)
 
 	err = data.ParseHttpResponse(body)
 	if err != nil {
