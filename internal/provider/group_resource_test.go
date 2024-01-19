@@ -60,7 +60,7 @@ func TestGroupCreateRequestBody(t *testing.T) {
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
 		}
-		body := []byte(`{"inventory": 1, "name": "group1", "url": "/api/v2/groups/24/"}`)
+		body := []byte(`{"inventory": 1, "name": "group1"}`)
 		result, diags := g.CreateRequestBody()
 		if diags.HasError() {
 			t.Fatal(diags.Errors())
@@ -88,8 +88,7 @@ func TestGroupCreateRequestBody(t *testing.T) {
 			Description: types.StringValue("New Group"),
 		}
 		body := []byte(`{"name": "group1", "inventory": 5,
-		                 "url": "/api/v2/groups/24/",
-						 "description": "New Group",
+		                 "description": "New Group",
 						 "variables": "{\"ansible_network_os\":\"ios\"}"}`)
 
 		result, diags := g.CreateRequestBody()
@@ -111,7 +110,6 @@ func TestGroupCreateRequestBody(t *testing.T) {
 		body := []byte(`{
     	"name": "group1",
     	"inventory": 5,
-    	"url": "/api/v2/groups/24/",
     	"description": "New Group",
     	"variables": "{\"ansible_network_os\":\"ios\",\"ansible_connection\":\"network_cli\",\"ansible_ssh_user\":\"ansible\",\"ansible_ssh_pass\":\"ansi\"}"
         }`)
