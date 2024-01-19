@@ -3,13 +3,10 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"reflect"
 	"regexp"
-	"slices"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
@@ -48,7 +45,7 @@ func TestParseHttpResponse(t *testing.T) {
 		{
 			name:    "ignored fields",
 			failure: false,
-			body: []byte(`{"job_type": "run", "url": "/api/v2/jobs/14/", "status": 
+			body: []byte(`{"job_type": "run", "url": "/api/v2/jobs/14/", "status":
 			"pending", "ignored_fields": {"extra_vars": "{\"bucket_state\":\"absent\"}"}}`),
 			expected: jobResourceModel{
 				TemplateID:    templateID,
@@ -88,18 +85,6 @@ func TestParseHttpResponse(t *testing.T) {
 			}
 		})
 	}
-}
-
-// DeepEqualJSONByte compares the JSON in two byte slices.
-func DeepEqualJSONByte(a, b []byte) (bool, error) {
-	var j1, j2 interface{}
-	if err := json.Unmarshal(a, &j1); err != nil {
-		return false, err
-	}
-	if err := json.Unmarshal(b, &j2); err != nil {
-		return false, err
-	}
-	return reflect.DeepEqual(j2, j1), nil
 }
 
 func TestCreateRequestBody(t *testing.T) {
@@ -233,80 +218,6 @@ func (d *MockJobResource) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	return jsonRaw, diags
 }
 
-type MockHTTPClient struct {
-	acceptMethods []string
-	httpCode      int
-}
-
-func NewMockHTTPClient(methods []string, httpCode int) *MockHTTPClient {
-	return &MockHTTPClient{
-		acceptMethods: methods,
-		httpCode:      httpCode,
-	}
-}
-
-func mergeStringMaps(m1 map[string]string, m2 map[string]string) map[string]string {
-	merged := make(map[string]string)
-	for k, v := range m1 {
-		merged[k] = v
-	}
-	for k, v := range m2 {
-		merged[k] = v
-	}
-	return merged
-}
-
-var mResponse1 = map[string]string{
-	"status": "running",
-	"type":   "check",
-}
-
-var mResponse2 = map[string]string{
-	"status":   "pending",
-	"playbook": "ansible_aws.yaml",
-}
-
-var mResponse3 = map[string]string{
-	"status":                "complete",
-	"execution_environment": "3",
-}
-
-func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
-	config := map[string]map[string]string{
-		"/api/v2/job_templates/1/launch/": mResponse1,
-		"/api/v2/job_templates/2/launch/": mResponse2,
-		"/api/v2/jobs/1/":                 mResponse1,
-		"/api/v2/jobs/2/":                 mResponse3,
-	}
-
-	if !slices.Contains(c.acceptMethods, method) {
-		return nil, nil, nil
-	}
-	response, ok := config[path]
-	if !ok {
-		return &http.Response{StatusCode: http.StatusNotFound}, nil, nil
-	}
-	if data != nil {
-		// add request info into response
-		buf := new(strings.Builder)
-		_, err := io.Copy(buf, data)
-		if err != nil {
-			return nil, nil, err
-		}
-		var mData map[string]string
-		err = json.Unmarshal([]byte(buf.String()), &mData)
-		if err != nil {
-			return nil, nil, err
-		}
-		response = mergeStringMaps(response, mData)
-	}
-	result, err := json.Marshal(response)
-	if err != nil {
-		return nil, nil, err
-	}
-	return &http.Response{StatusCode: c.httpCode}, result, nil
-}
-
 func TestCreateJob(t *testing.T) {
 	testTable := []struct {
 		name          string
@@ -324,7 +235,7 @@ func TestCreateJob(t *testing.T) {
 			httpCode:      http.StatusCreated,
 			failed:        false,
 			acceptMethods: []string{"POST", "post"},
-			expected:      mResponse1,
+			expected:      JobResponse1,
 		},
 		{
 			name:          "create job with request data",
@@ -333,7 +244,7 @@ func TestCreateJob(t *testing.T) {
 			httpCode:      http.StatusCreated,
 			failed:        false,
 			acceptMethods: []string{"POST", "post"},
-			expected:      mergeStringMaps(mResponse1, map[string]string{"Inventory": "3"}),
+			expected:      mergeStringMaps(JobResponse1, map[string]string{"Inventory": "3"}),
 		},
 		{
 			name:          "try with non existing template id",
@@ -360,7 +271,7 @@ func TestCreateJob(t *testing.T) {
 			httpCode:      http.StatusCreated,
 			failed:        false,
 			acceptMethods: []string{"POST", "post"},
-			expected:      mergeStringMaps(mResponse2, map[string]string{"Inventory": "1"}),
+			expected:      mergeStringMaps(JobResponse2, map[string]string{"Inventory": "1"}),
 		},
 	}
 
@@ -404,7 +315,7 @@ func TestReadJob(t *testing.T) {
 			httpCode:      http.StatusOK,
 			failed:        false,
 			acceptMethods: []string{"GET", "get"},
-			expected:      mResponse1,
+			expected:      JobResponse1,
 		},
 		{
 			name:          "Read another job",
@@ -412,7 +323,7 @@ func TestReadJob(t *testing.T) {
 			httpCode:      http.StatusOK,
 			failed:        false,
 			acceptMethods: []string{"GET", "get"},
-			expected:      mResponse3,
+			expected:      JobResponse3,
 		},
 		{
 			name:          "GET not part of accepted methods",
@@ -536,6 +447,7 @@ func TestAccAAPJob_basic(t *testing.T) {
 	})
 }
 
+//nolint:dupl
 func TestAccAAPJob_UpdateWithSameParameters(t *testing.T) {
 	var jobURLBefore string
 
@@ -601,6 +513,7 @@ func TestAccAAPJob_UpdateWithNewInventoryId(t *testing.T) {
 	})
 }
 
+//nolint:dupl
 func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 	var jobURLBefore string
 

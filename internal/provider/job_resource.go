@@ -137,10 +137,6 @@ func (d *jobResourceModel) ParseHTTPResponse(body []byte) error {
 	return nil
 }
 
-func IsValueProvided(value attr.Value) bool {
-	return !value.IsNull() && !value.IsUnknown()
-}
-
 func (d *jobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	body := make(map[string]interface{})
 	var diags diag.Diagnostics
