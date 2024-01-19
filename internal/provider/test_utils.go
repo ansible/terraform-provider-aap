@@ -2,11 +2,15 @@ package provider
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"reflect"
 	"slices"
 	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // DeepEqualJSONByte compares the JSON in two byte slices.
@@ -72,4 +76,52 @@ func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (
 		return nil, nil, err
 	}
 	return &http.Response{StatusCode: c.httpCode}, result, nil
+}
+
+const (
+	expectedStatusCode   = 200
+	unexpectedStatusCode = 404
+)
+
+func TestIsResponseValid(t *testing.T) {
+	var testTable = []struct {
+		resp     *http.Response
+		err      error
+		expected int
+	}{
+		{
+			resp: &http.Response{
+				StatusCode: expectedStatusCode,
+				Status:     "OK",
+			},
+			err: nil,
+		},
+		{
+			resp: nil,
+			err:  fmt.Errorf("sample error message"),
+		},
+		{
+			resp: nil,
+			err:  nil,
+		},
+		{
+			resp: &http.Response{
+				StatusCode: unexpectedStatusCode,
+				Status:     "Not Found",
+			},
+			err: nil,
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(fmt.Sprintf("Status: %d", expectedStatusCode), func(t *testing.T) {
+			diags := IsResponseValid(test.resp, test.err, expectedStatusCode)
+
+			if test.resp != nil && test.err == nil && test.resp.StatusCode == expectedStatusCode {
+				assert.Empty(t, diags, "No errors expected for a successful response")
+			} else {
+				assert.NotEmpty(t, diags, "Error expected")
+			}
+		})
+	}
 }
