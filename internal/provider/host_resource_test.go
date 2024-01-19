@@ -5,7 +5,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
@@ -45,14 +44,14 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				Name:              types.StringValue("test host"),
 				Description:       types.StringUnknown(),
 				URL:               types.StringUnknown(),
-				Variables:         jsontypes.NewNormalizedUnknown(),
+				Variables:         types.StringNull(),
 				GroupId:           types.Int64Unknown(),
 				DisassociateGroup: basetypes.NewBoolValue(false),
 				Enabled:           basetypes.NewBoolValue(false),
 				InventoryId:       types.Int64Unknown(),
-				InstanceId:        types.Int64Unknown(),
+				InstanceId:        types.StringNull(),
 			},
-			expected: []byte(`{"enabled":false,"instance_id":0,"inventory":0,"name":"test host"}`),
+			expected: []byte(`{"enabled":false,"instance_id":"","inventory":0,"name":"test host"}`),
 		},
 		{
 			name: "test with null values",
@@ -60,26 +59,26 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				Name:              types.StringValue("test host"),
 				Description:       types.StringNull(),
 				URL:               types.StringNull(),
-				Variables:         jsontypes.NewNormalizedNull(),
+				Variables:         types.StringNull(),
 				GroupId:           types.Int64Null(),
 				DisassociateGroup: basetypes.NewBoolValue(false),
 				Enabled:           basetypes.NewBoolValue(false),
 				InventoryId:       types.Int64Null(),
-				InstanceId:        types.Int64Null(),
+				InstanceId:        types.StringNull(),
 			},
-			expected: []byte(`{"enabled":false,"instance_id":0,"inventory":0,"name":"test host"}`),
+			expected: []byte(`{"enabled":false,"instance_id":"","inventory":0,"name":"test host"}`),
 		},
 		{
 			name: "test with some values",
 			input: HostResourceModel{
+				InventoryId: types.Int64Value(1),
 				Name:        types.StringValue("host1"),
 				Description: types.StringNull(),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
-				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\"}"),
+				Variables:   types.StringValue("{\"foo\":\"bar\"}"),
 			},
 			expected: []byte(
-				`{"instance_id":0,"inventory":0,"name":"host1","url":"/api/v2/hosts/1/",` +
-					`"variables":"{\"foo\":\"bar\"}"}`,
+				`{"instance_id":"","inventory":1,"name":"host1","variables":"{\"foo\":\"bar\"}"}`,
 			),
 		},
 		{
@@ -88,12 +87,11 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("host1"),
 				Description: types.StringNull(),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
-				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\"}"),
+				Variables:   types.StringValue("{\"foo\":\"bar\"}"),
 				GroupId:     basetypes.NewInt64Value(2),
 			},
 			expected: []byte(
-				`{"id":2,"instance_id":0,"inventory":0,"name":"host1","url":"/api/v2/hosts/1/",` +
-					`"variables":"{\"foo\":\"bar\"}"}`,
+				`{"id":2,"instance_id":"","inventory":0,"name":"host1","variables":"{\"foo\":\"bar\"}"}`,
 			),
 		},
 	}
@@ -141,13 +139,13 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 		},
 		{
 			name:  "test with missing values",
-			input: []byte(`{"name": "host1", "url": "/api/v2/hosts/1/", "description": "", "variables": "", "group_id": 2}`),
+			input: []byte(`{"inventory":1,"name": "host1", "url": "/api/v2/hosts/1/", "description": "", "variables": "", "group_id": 2}`),
 			expected: HostResourceModel{
+				InventoryId: types.Int64Value(1),
 				Name:        types.StringValue("host1"),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
 				Description: types.StringNull(),
-				GroupId:     types.Int64Value(2),
-				Variables:   jsontypes.NewNormalizedNull(),
+				Variables:   types.StringNull(),
 			},
 			errors: emptyError,
 		},
@@ -158,13 +156,11 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 					`"enabled":false,"url":"/api/v2/hosts/1/","variables":"{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"}`,
 			),
 			expected: HostResourceModel{
-				Name:              types.StringValue("host1"),
-				URL:               types.StringValue("/api/v2/hosts/1/"),
-				Description:       types.StringValue("A basic test host"),
-				GroupId:           types.Int64Value(1),
-				DisassociateGroup: basetypes.NewBoolValue(false),
-				Variables:         jsontypes.NewNormalizedValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
-				Enabled:           basetypes.NewBoolValue(false),
+				Name:        types.StringValue("host1"),
+				URL:         types.StringValue("/api/v2/hosts/1/"),
+				Description: types.StringValue("A basic test host"),
+				Variables:   types.StringValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
+				Enabled:     basetypes.NewBoolValue(false),
 			},
 			errors: emptyError,
 		},

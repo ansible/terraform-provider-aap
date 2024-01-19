@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -53,8 +52,9 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"inventory_id": schema.Int64Attribute{
 				Required: true,
 			},
-			"instance_id": schema.Int64Attribute{
+			"instance_id": schema.StringAttribute{
 				Optional: true,
+				Computed: true,
 			},
 			"name": schema.StringAttribute{
 				Required: true,
@@ -70,8 +70,7 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				},
 			},
 			"variables": schema.StringAttribute{
-				Optional:   true,
-				CustomType: jsontypes.NormalizedType{},
+				Optional: true,
 			},
 			"enabled": schema.BoolAttribute{
 				Optional:    true,
@@ -93,15 +92,15 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 
 // HostResourceModel maps the resource schema data.
 type HostResourceModel struct {
-	InventoryId       types.Int64          `tfsdk:"inventory_id"`
-	InstanceId        types.Int64          `tfsdk:"instance_id"`
-	Name              types.String         `tfsdk:"name"`
-	Description       types.String         `tfsdk:"description"`
-	URL               types.String         `tfsdk:"host_url"`
-	Variables         jsontypes.Normalized `tfsdk:"variables"`
-	Enabled           types.Bool           `tfsdk:"enabled"`
-	GroupId           types.Int64          `tfsdk:"group_id"`
-	DisassociateGroup types.Bool           `tfsdk:"disassociate_group"`
+	InventoryId       types.Int64  `tfsdk:"inventory_id"`
+	InstanceId        types.String `tfsdk:"instance_id"`
+	Name              types.String `tfsdk:"name"`
+	Description       types.String `tfsdk:"description"`
+	URL               types.String `tfsdk:"host_url"`
+	Variables         types.String `tfsdk:"variables"`
+	Enabled           types.Bool   `tfsdk:"enabled"`
+	GroupId           types.Int64  `tfsdk:"group_id"`
+	DisassociateGroup types.Bool   `tfsdk:"disassociate_group"`
 }
 
 func (d *HostResourceModel) GetURL() string {
@@ -119,7 +118,7 @@ func (d *HostResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	body["inventory"] = d.InventoryId.ValueInt64()
 
 	// Instance id
-	body["instance_id"] = d.InstanceId.ValueInt64()
+	body["instance_id"] = d.InstanceId.ValueString()
 
 	// Name
 	body["name"] = d.Name.ValueString()
@@ -142,11 +141,6 @@ func (d *HostResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 		if d.DisassociateGroup.ValueBool() {
 			body["disassociate_group"] = true
 		}
-	}
-
-	// URL
-	if IsValueProvided(d.URL) {
-		body["url"] = d.URL.ValueString()
 	}
 
 	// Description
@@ -180,6 +174,14 @@ func (d *HostResourceModel) ParseHttpResponse(body []byte) error {
 	d.Name = types.StringValue(result["name"].(string))
 	d.URL = types.StringValue(result["url"].(string))
 
+	if r, ok := result["instance_id"]; ok {
+		d.InstanceId = types.StringValue(r.(string))
+	}
+
+	if r, ok := result["inventory"]; ok {
+		d.InventoryId = types.Int64Value(int64(r.(float64)))
+	}
+
 	if result["description"] != "" {
 		d.Description = types.StringValue(result["description"].(string))
 	} else {
@@ -187,17 +189,9 @@ func (d *HostResourceModel) ParseHttpResponse(body []byte) error {
 	}
 
 	if result["variables"] != "" {
-		d.Variables = jsontypes.NewNormalizedValue(result["variables"].(string))
+		d.Variables = types.StringValue(result["variables"].(string))
 	} else {
-		d.Variables = jsontypes.NewNormalizedNull()
-	}
-
-	if r, ok := result["group_id"]; ok {
-		d.GroupId = basetypes.NewInt64Value(int64(r.(float64)))
-	}
-
-	if r, ok := result["disassociate_group"]; ok && r != nil {
-		d.DisassociateGroup = basetypes.NewBoolValue(r.(bool))
+		d.Variables = types.StringNull()
 	}
 
 	if r, ok := result["enabled"]; ok && r != nil {
