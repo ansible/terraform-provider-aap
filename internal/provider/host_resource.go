@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -52,8 +53,8 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"inventory_id": schema.Int64Attribute{
 				Required: true,
 			},
-			"instance_id": schema.StringAttribute{
-				Required: true,
+			"instance_id": schema.Int64Attribute{
+				Optional: true,
 			},
 			"name": schema.StringAttribute{
 				Required: true,
@@ -72,18 +73,35 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:   true,
 				CustomType: jsontypes.NormalizedType{},
 			},
+			"enabled": schema.BoolAttribute{
+				Optional:    true,
+				Computed:    true,
+				Description: "Defaults true.",
+			},
+			"group_id": schema.Int64Attribute{
+				Optional:    true,
+				Description: "Set this option to associate an existing group with a host.",
+			},
+			"disassociate_group": schema.BoolAttribute{
+				Optional: true,
+				Description: "Set group_id and and disassociate_group options to remove " +
+					"the group from a host without deleting the group.",
+			},
 		},
 	}
 }
 
 // HostResourceModel maps the resource schema data.
 type HostResourceModel struct {
-	InventoryId types.Int64          `tfsdk:"inventory_id"`
-	InstanceId  types.Int64          `tfsdk:"instance_id"`
-	Name        types.String         `tfsdk:"name"`
-	Description types.String         `tfsdk:"description"`
-	URL         types.String         `tfsdk:"host_url"`
-	Variables   jsontypes.Normalized `tfsdk:"variables"`
+	InventoryId       types.Int64          `tfsdk:"inventory_id"`
+	InstanceId        types.Int64          `tfsdk:"instance_id"`
+	Name              types.String         `tfsdk:"name"`
+	Description       types.String         `tfsdk:"description"`
+	URL               types.String         `tfsdk:"host_url"`
+	Variables         jsontypes.Normalized `tfsdk:"variables"`
+	Enabled           types.Bool           `tfsdk:"enabled"`
+	GroupId           types.Int64          `tfsdk:"group_id"`
+	DisassociateGroup types.Bool           `tfsdk:"disassociate_group"`
 }
 
 func (d *HostResourceModel) GetURL() string {
@@ -108,9 +126,22 @@ func (d *HostResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 
 	// Variables
 	if IsValueProvided(d.Variables) {
-		// var vars map[string]interface{}
-		// diags.Append(d.Variables.Unmarshal(&vars)...)
 		body["variables"] = d.Variables.ValueString()
+	}
+
+	// Groups
+	if IsValueProvided(d.GroupId) {
+		body["id"] = d.GroupId.ValueInt64()
+	}
+
+	// DisassociateGroup
+	if IsValueProvided(d.DisassociateGroup) {
+		// DisassociateGroup value does not really matter
+		// To remove a group from a host you only need to pass this parameter
+		// Add it to the body only if set to true
+		if d.DisassociateGroup.ValueBool() {
+			body["disassociate_group"] = true
+		}
 	}
 
 	// URL
@@ -123,11 +154,17 @@ func (d *HostResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 		body["description"] = d.Description.ValueString()
 	}
 
+	// Enabled
+	if IsValueProvided(d.Enabled) {
+		body["enabled"] = d.Enabled.ValueBool()
+	}
+
 	json_raw, err := json.Marshal(body)
 	if err != nil {
 		diags.Append(diag.NewErrorDiagnostic("Body JSON Marshal Error", err.Error()))
 		return nil, diags
 	}
+
 	return json_raw, diags
 }
 
@@ -135,20 +172,43 @@ func (d *HostResourceModel) ParseHttpResponse(body []byte) error {
 	/* Unmarshal the json string */
 	result := make(map[string]interface{})
 
-	err := json.Unmarshal([]byte(body), &result)
+	err := json.Unmarshal(body, &result)
 	if err != nil {
 		return err
 	}
 
 	d.Name = types.StringValue(result["name"].(string))
-	d.Description = types.StringValue(result["description"].(string))
 	d.URL = types.StringValue(result["url"].(string))
+
+	if result["description"] != "" {
+		d.Description = types.StringValue(result["description"].(string))
+	} else {
+		d.Description = types.StringNull()
+	}
+
+	if result["variables"] != "" {
+		d.Variables = jsontypes.NewNormalizedValue(result["variables"].(string))
+	} else {
+		d.Variables = jsontypes.NewNormalizedNull()
+	}
+
+	if r, ok := result["group_id"]; ok {
+		d.GroupId = basetypes.NewInt64Value(int64(r.(float64)))
+	}
+
+	if r, ok := result["disassociate_group"]; ok && r != nil {
+		d.DisassociateGroup = basetypes.NewBoolValue(r.(bool))
+	}
+
+	if r, ok := result["enabled"]; ok && r != nil {
+		d.Enabled = basetypes.NewBoolValue(r.(bool))
+	}
 
 	return nil
 }
 
 // Configure adds the provider configured client to the resource.
-func (d *HostResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (d *HostResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -166,41 +226,45 @@ func (d *HostResource) Configure(ctx context.Context, req resource.ConfigureRequ
 	d.client = client
 }
 
-
-func (r HostResource) CreateHost(data HostResourceModelInterface) diag.Diagnostics {
+func MakeReqData(data HostResourceModelInterface) (io.Reader, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	var req_data io.Reader = nil
+
 	req_body, diagCreateReq := data.CreateRequestBody()
 	diags.Append(diagCreateReq...)
+
 	if diags.HasError() {
-		return diags
+		return nil, diags
 	}
+
 	if req_body != nil {
 		req_data = bytes.NewReader(req_body)
 	}
 
+	return req_data, diags
+}
+
+func (r HostResource) CreateHost(data HostResourceModelInterface) diag.Diagnostics {
+	req_data, diags := MakeReqData(data)
 	resp, body, err := r.client.doRequest(http.MethodPost, "/api/v2/hosts/", req_data)
-	if err != nil {
-		diags.AddError("Body JSON Marshal Error", err.Error())
-		return diags
-	}
-	if resp == nil {
-		diags.AddError("Http response Error", "no http response from server")
-		return diags
-	}
-	if resp.StatusCode != http.StatusCreated {
-		diags.AddError("Unexpected Http Status code",
-			fmt.Sprintf("expected (%d) got (%s)", http.StatusCreated, resp.Status))
-		return diags
-	}
+	diags.Append(IsResponseValid(resp, err, http.StatusCreated)...)
+
 	err = data.ParseHttpResponse(body)
 	if err != nil {
 		diags.AddError("error while parsing the json response: ", err.Error())
 		return diags
 	}
+
 	return diags
 }
 
+func (r HostResource) AssociateGroup(data HostResourceModelInterface) diag.Diagnostics {
+	req_data, diags := MakeReqData(data)
+	resp, _, err := r.client.doRequest(http.MethodPost, data.GetURL()+"/groups/", req_data)
+	diags.Append(IsResponseValid(resp, err, http.StatusNoContent)...)
+
+	return diags
+}
 
 func (r HostResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data HostResourceModel
@@ -219,28 +283,25 @@ func (r HostResource) Create(ctx context.Context, req resource.CreateRequest, re
 
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+
+	if IsValueProvided((&data).GroupId) {
+		resp.Diagnostics.Append(r.AssociateGroup(&data)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		// Save updated data into Terraform state
+		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	}
 }
 
 func (r HostResource) DeleteHost(data HostResourceModelInterface) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	resp, _, err := r.client.doRequest(http.MethodDelete, data.GetURL(), nil)
-	if err != nil {
-		diags.AddError("Body JSON Marshal Error", err.Error())
-		return diags
-	}
-	if resp == nil {
-		diags.AddError("Http response Error", "no http response from server")
-		return diags
-	}
-	if resp.StatusCode != http.StatusNoContent {
-		diags.AddError("Unexpected Http Status code",
-			fmt.Sprintf("expected (%d) got (%s)", http.StatusNoContent, resp.Status))
-		return diags
-	}
+	diags.Append(IsResponseValid(resp, err, http.StatusNoContent)...)
+
 	return diags
 }
-
 
 func (r HostResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var data HostResourceModel
@@ -258,36 +319,16 @@ func (r HostResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 }
 
 func (r HostResource) UpdateHost(data HostResourceModelInterface) diag.Diagnostics {
-	var diags diag.Diagnostics
-	var req_data io.Reader = nil
-	req_body, diagCreateReq := data.CreateRequestBody()
-	diags.Append(diagCreateReq...)
-	if diags.HasError() {
-		return diags
-	}
-	if req_body != nil {
-		req_data = bytes.NewReader(req_body)
-	}
+	req_data, diags := MakeReqData(data)
 	resp, body, err := r.client.doRequest(http.MethodPut, data.GetURL(), req_data)
+	diags.Append(IsResponseValid(resp, err, http.StatusOK)...)
 
-	if err != nil {
-		diags.AddError("Body JSON Marshal Error", err.Error())
-		return diags
-	}
-	if resp == nil {
-		diags.AddError("Http response Error", "no http response from server")
-		return diags
-	}
-	if resp.StatusCode != http.StatusOK {
-		diags.AddError("Unexpected Http Status code",
-			fmt.Sprintf("expected (%d) got (%s)", http.StatusOK, resp.Status))
-		return diags
-	}
 	err = data.ParseHttpResponse(body)
 	if err != nil {
 		diags.AddError("error while parsing the json response: ", err.Error())
 		return diags
 	}
+
 	return diags
 }
 
@@ -296,7 +337,9 @@ func (r HostResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	var data_with_URL HostResourceModel
 
 	// Read Terraform plan and state data into the model
-	// The URL is generated once the host is created. To update the correct host, we retrieve the state data and append the URL from the state data to the plan data.
+	// The URL is generated once the host is created.
+	// To update the correct host, we retrieve the state data
+	// and append the URL from the state data to the plan data.
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	resp.Diagnostics.Append(req.State.Get(ctx, &data_with_URL)...)
 	data.URL = data_with_URL.URL
@@ -308,25 +351,23 @@ func (r HostResource) Update(ctx context.Context, req resource.UpdateRequest, re
 
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+
+	if IsValueProvided((&data).GroupId) {
+		resp.Diagnostics.Append(r.AssociateGroup(&data)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		// Save updated data into Terraform state
+		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	}
 }
 
 func (r HostResource) ReadHost(data HostResourceModelInterface) diag.Diagnostics {
 	var diags diag.Diagnostics
 	// Read existing Host
-    host_url := data.GetURL()
+	host_url := data.GetURL()
 	resp, body, err := r.client.doRequest(http.MethodGet, host_url, nil)
-	if err != nil {
-		diags.AddError("Get Error", err.Error())
-		return diags
-	}
-	if resp == nil {
-		diags.AddError("Http response Error", "no http response from server")
-		return diags
-	}
-	if resp.StatusCode != http.StatusOK {
-		diags.AddError("Unexpected Http Status code",
-			fmt.Sprintf("expected (%d) got (%s)", http.StatusOK, resp.Status))
-	}
+	diags.Append(IsResponseValid(resp, err, http.StatusOK)...)
 
 	err = data.ParseHttpResponse(body)
 	if err != nil {

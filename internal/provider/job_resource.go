@@ -203,20 +203,8 @@ func (r JobResource) CreateJob(data JobResourceModelInterface) diag.Diagnostics 
 
 	var postURL = "/api/v2/job_templates/" + data.GetTemplateID() + "/launch/"
 	resp, body, err := r.client.doRequest(http.MethodPost, postURL, reqData)
+	diags.Append(IsResponseValid(resp, err, http.StatusCreated)...)
 
-	if err != nil {
-		diags.AddError("client request error", err.Error())
-		return diags
-	}
-	if resp == nil {
-		diags.AddError("Http response Error", "no http response from server")
-		return diags
-	}
-	if resp.StatusCode != http.StatusCreated {
-		diags.AddError("Unexpected Http Status code",
-			fmt.Sprintf("expected (%d) got (%d)", http.StatusCreated, resp.StatusCode))
-		return diags
-	}
 	err = data.ParseHTTPResponse(body)
 	if err != nil {
 		diags.AddError("error while parsing the json response: ", err.Error())
@@ -227,18 +215,11 @@ func (r JobResource) CreateJob(data JobResourceModelInterface) diag.Diagnostics 
 
 func (r JobResource) ReadJob(data JobResourceModelInterface) error {
 	// Read existing Job
+	var diags diag.Diagnostics
 	jobURL := data.GetURL()
 	if len(jobURL) > 0 {
 		resp, body, err := r.client.doRequest("GET", jobURL, nil)
-		if err != nil {
-			return err
-		}
-		if resp == nil {
-			return fmt.Errorf("the server response is null")
-		}
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("the server returned status code %d while attempting to Get from URL %s", resp.StatusCode, jobURL)
-		}
+		diags.Append(IsResponseValid(resp, err, http.StatusOK)...)
 
 		err = data.ParseHTTPResponse(body)
 		if err != nil {
