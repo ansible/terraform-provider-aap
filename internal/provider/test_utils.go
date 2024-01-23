@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 )
 
 // DeepEqualJSONByte compares the JSON in two byte slices.
@@ -72,4 +74,28 @@ func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (
 		return nil, nil, err
 	}
 	return &http.Response{StatusCode: c.httpCode}, result, nil
+}
+
+func (c *MockHTTPClient) Create(path string, data io.Reader) ([]byte, diag.Diagnostics) {
+	createResponse, body, err := c.doRequest("POST", path, data)
+	diags := ValidateResponse(createResponse, body, err, []int{http.StatusCreated})
+	return body, diags
+}
+
+func (c *MockHTTPClient) Get(path string) ([]byte, diag.Diagnostics) {
+	getResponse, body, err := c.doRequest("GET", path, nil)
+	diags := ValidateResponse(getResponse, body, err, []int{http.StatusOK})
+	return body, diags
+}
+
+func (c *MockHTTPClient) Update(path string, data io.Reader) ([]byte, diag.Diagnostics) {
+	updateResponse, body, err := c.doRequest("PUT", path, data)
+	diags := ValidateResponse(updateResponse, body, err, []int{http.StatusOK})
+	return body, diags
+}
+
+func (c *MockHTTPClient) Delete(path string) ([]byte, diag.Diagnostics) {
+	deleteResponse, body, err := c.doRequest("DELETE", path, nil)
+	diags := ValidateResponse(deleteResponse, body, err, []int{http.StatusNoContent})
+	return body, diags
 }

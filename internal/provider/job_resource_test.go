@@ -373,7 +373,14 @@ func getJobResourceFromStateFile(s *terraform.State) (map[string]interface{}, er
 			continue
 		}
 		jobURL := rs.Primary.Attributes["job_url"]
-		return testGetResource(jobURL)
+		body, err := testGetResource(jobURL)
+		if err != nil {
+			return nil, err
+		}
+
+		var result map[string]interface{}
+		err = json.Unmarshal(body, &result)
+		return result, err
 	}
 	return nil, fmt.Errorf("Job resource not found from state file")
 }

@@ -3,12 +3,19 @@ package provider
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestInventoryResourceSchema(t *testing.T) {
@@ -152,4 +159,148 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAccInventoryResource(t *testing.T) {
+	var inventory inventoryAPIModel
+	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	updatedName := "updated " + randomName
+	updatedDescription := "A test inventory"
+	updatedVariables := "{\"foo\": \"bar\"}"
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Invalid variables testing
+			{
+				Config:      testAccInventoryResourceBadVariables(updatedName),
+				ExpectError: regexp.MustCompile("A string value was provided that is not valid JSON string format"),
+			},
+			// Create and Read testing
+			{
+				Config: testAccInventoryResourceMinimal(randomName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckInventoryResourceExists("aap_inventory.test", &inventory),
+					testAccCheckInventoryResourceValues(&inventory, randomName, "", ""),
+					resource.TestCheckResourceAttr("aap_inventory.test", "name", randomName),
+					resource.TestCheckResourceAttr("aap_inventory.test", "organization", "1"),
+					resource.TestCheckResourceAttrSet("aap_inventory.test", "id"),
+					resource.TestCheckResourceAttrSet("aap_inventory.test", "url"),
+				),
+			},
+			// Update and Read testing
+			{
+				Config: testAccInventoryResourceComplete(updatedName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckInventoryResourceExists("aap_inventory.test", &inventory),
+					testAccCheckInventoryResourceValues(&inventory, updatedName, updatedDescription, updatedVariables),
+					resource.TestCheckResourceAttr("aap_inventory.test", "name", updatedName),
+					resource.TestCheckResourceAttr("aap_inventory.test", "organization", "1"),
+					resource.TestCheckResourceAttr("aap_inventory.test", "description", updatedDescription),
+					resource.TestCheckResourceAttr("aap_inventory.test", "variables", updatedVariables),
+					resource.TestCheckResourceAttrSet("aap_inventory.test", "id"),
+					resource.TestCheckResourceAttrSet("aap_inventory.test", "url"),
+				),
+			},
+		},
+		CheckDestroy: testAccCheckInventoryResourceDestroy,
+	})
+}
+
+// testAccInventoryResourceMinimal returns a configuration for an AAP Inventory with the provided name only.
+func testAccInventoryResourceMinimal(name string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+  name = "%s"
+}`, name)
+}
+
+// testAccInventoryResourceComplete returns a configuration for an AAP Inventory with the provided name and all options.
+func testAccInventoryResourceComplete(name string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+  name = "%s"
+  description = "A test inventory"
+  variables = "{\"foo\": \"bar\"}"
+}`, name)
+}
+
+// testAccInventoryResourceBadVariables returns a configuration for an AAP Inventory with the provided name and invalid variables.
+func testAccInventoryResourceBadVariables(name string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+  name = "%s"
+  variables = "Not valid JSON"
+}`, name)
+}
+
+// testAccCheckInventoryResourceExists queries the AAP API and retrieves the matching inventory.
+func testAccCheckInventoryResourceExists(name string, inventory *inventoryAPIModel) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		inventoryResource, ok := s.RootModule().Resources[name]
+		if !ok {
+			return fmt.Errorf("inventory (%s) not found in state", name)
+		}
+
+		inventoryResponseBody, err := testGetResource(inventoryResource.Primary.Attributes["url"])
+		if err != nil {
+			return err
+		}
+
+		err = json.Unmarshal(inventoryResponseBody, &inventory)
+		if err != nil {
+			return err
+		}
+
+		if inventory.Id == 0 {
+			return fmt.Errorf("inventory (%s) not found in AAP", inventoryResource.Primary.ID)
+		}
+
+		return nil
+	}
+}
+
+// testAccCheckInventoryResourcesValues verifies that the provided inventory retrieved from AAP contains the expected values.
+func testAccCheckInventoryResourceValues(inventory *inventoryAPIModel, name string, description string, variables string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		if inventory.Id == 0 {
+			return fmt.Errorf("bad inventory ID in AAP, expected a positive int64, got: %dv", inventory.Id)
+		}
+		if inventory.Organization == 0 {
+			return fmt.Errorf("bad inventory organization in AAP, expected a positive int64, got: %d", inventory.Organization)
+		}
+		if inventory.Url == "" {
+			return fmt.Errorf("bad inventory URL in AAP, expected a URL path, got: %s", inventory.Url)
+		}
+		if inventory.Name != name {
+			return fmt.Errorf("bad inventory name in AAP, expected \"%s\", got: %s", name, inventory.Name)
+		}
+		if inventory.Description != description {
+			return fmt.Errorf("bad inventory description in AAP, expected \"%s\", got: %s", description, inventory.Description)
+		}
+		if inventory.Variables != variables {
+			return fmt.Errorf("bad inventory variables in AAP, expected \"%s\", got: %s", variables, inventory.Variables)
+		}
+		return nil
+	}
+}
+
+// testAccCheckInventoryDestroy verifies the inventory has been destroyed.
+func testAccCheckInventoryResourceDestroy(s *terraform.State) error {
+	for _, rs := range s.RootModule().Resources {
+		if rs.Type != "inventory" {
+			continue
+		}
+
+		_, err := testGetResource(rs.Primary.Attributes["url"])
+		if err == nil {
+			return fmt.Errorf("inventory (%s) still exists.", rs.Primary.Attributes["id"])
+		}
+
+		if !strings.Contains(err.Error(), "404") {
+			return err
+		}
+	}
+
+	return nil
 }

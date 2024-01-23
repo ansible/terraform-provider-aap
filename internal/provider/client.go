@@ -79,128 +79,31 @@ func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http
 // Create sends a POST request with the provided data to the provided path, checks for errors,
 // and returns the response body with any errors as diagnostics.
 func (c *AAPClient) Create(path string, data io.Reader) ([]byte, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
 	createResponse, body, err := c.doRequest("POST", path, data)
-
-	if err != nil {
-		diags.AddError(
-			fmt.Sprintf("Client request error, unable to create resource at path %s", path),
-			err.Error(),
-		)
-		return nil, diags
-	}
-	if createResponse == nil {
-		diags.AddError("HTTP response error", "No HTTP response from server")
-		return nil, diags
-	}
-	if createResponse.StatusCode != http.StatusCreated {
-		var info map[string]interface{}
-		err := json.Unmarshal([]byte(body), &info)
-		if err != nil {
-			diags.AddError("Error unmarshaling response body", err.Error())
-		}
-		diags.AddError(
-			fmt.Sprintf("Unexpected HTTP status code received while attempting to create resource at path %s", path),
-			fmt.Sprintf("Expected (%d), got (%d). Response details: %v", http.StatusCreated, createResponse.StatusCode, info),
-		)
-		return nil, diags
-	}
+	diags := ValidateResponse(createResponse, body, err, []int{http.StatusCreated})
 	return body, diags
 }
 
 // Get sends a GET request to the provided path, checks for errors, and returns the response body with any errors as diagnostics.
 func (c *AAPClient) Get(path string) ([]byte, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
 	getResponse, body, err := c.doRequest("GET", path, nil)
-
-	if err != nil {
-		diags.AddError(
-			fmt.Sprintf("Client request error, unable to get resource at path %s", path),
-			err.Error(),
-		)
-		return nil, diags
-	}
-	if getResponse == nil {
-		diags.AddError("HTTP response error", "No HTTP response from server")
-		return nil, diags
-	}
-	if getResponse.StatusCode != http.StatusOK {
-		var info map[string]interface{}
-		err := json.Unmarshal([]byte(body), &info)
-		if err != nil {
-			diags.AddError("Error unmarshaling response body", err.Error())
-		}
-		diags.AddError(
-			fmt.Sprintf("Unexpected HTTP status code received while attempting to get resource at path %s", path),
-			fmt.Sprintf("Expected (%d), got (%d). Response details: %v", http.StatusOK, getResponse.StatusCode, info),
-		)
-		return nil, diags
-	}
+	diags := ValidateResponse(getResponse, body, err, []int{http.StatusOK})
 	return body, diags
 }
 
 // Update sends a PUT request with the provided data to the provided path, checks for errors,
 // and returns the response body with any errors as diagnostics.
 func (c *AAPClient) Update(path string, data io.Reader) ([]byte, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
 	updateResponse, body, err := c.doRequest("PUT", path, data)
-	if err != nil {
-		diags.AddError(
-			fmt.Sprintf("Client request error, unable to update resource at path %s", path),
-			err.Error(),
-		)
-		return nil, diags
-	}
-	if updateResponse == nil {
-		diags.AddError("HTTP response error", "No HTTP response from server")
-		return nil, diags
-	}
-	if updateResponse.StatusCode != http.StatusOK {
-		var info map[string]interface{}
-		err := json.Unmarshal([]byte(body), &info)
-		if err != nil {
-			diags.AddError("Error unmarshaling response body", err.Error())
-		}
-		diags.AddError(
-			fmt.Sprintf("Unexpected HTTP status code received while attempting to update resource at path %s", path),
-			fmt.Sprintf("Expected (%d), got (%d). Response details: %v", http.StatusCreated, updateResponse.StatusCode, info),
-		)
-		return nil, diags
-	}
-
+	diags := ValidateResponse(updateResponse, body, err, []int{http.StatusOK})
 	return body, diags
 }
 
 // Delete sends a DELETE request to the provided path, checks for errors, and returns any errors as diagnostics.
 func (c *AAPClient) Delete(path string) ([]byte, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
 	deleteResponse, body, err := c.doRequest("DELETE", path, nil)
-	if err != nil {
-		diags.AddError(
-			fmt.Sprintf("Client request error, unable to delete resource at path %s", path),
-			err.Error(),
-		)
-		return nil, diags
-	}
-	if deleteResponse == nil {
-		diags.AddError("HTTP response error", "No HTTP response from server")
-		return nil, diags
-	}
-	if deleteResponse.StatusCode != http.StatusAccepted {
-		var info map[string]interface{}
-		err := json.Unmarshal([]byte(body), &info)
-		if err != nil {
-			diags.AddError("Error unmarshaling response body", err.Error())
-		}
-		diags.AddError(
-			fmt.Sprintf("Unexpected HTTP status code received while attempting to delete resource at path %s", path),
-			fmt.Sprintf("Expected (%d), got (%d). Response details: %v", http.StatusOK, deleteResponse.StatusCode, info),
-		)
-		return nil, diags
-	}
+	// Note: the AAP API documentation says that an inventory delete request should return a 204 response, but it currently returns a 202.
+	// Once that bug is fixed we should be able to update this to just expect http.StatusNoContent.
+	diags := ValidateResponse(deleteResponse, body, err, []int{http.StatusAccepted, http.StatusNoContent})
 	return body, diags
 }

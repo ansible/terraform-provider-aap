@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,7 +46,7 @@ func testAccPreCheck(t *testing.T) {
 	}
 }
 
-func testGetResource(urlPath string) (map[string]interface{}, error) {
+func testGetResource(urlPath string) ([]byte, error) {
 	host := os.Getenv("AAP_HOST")
 	username := os.Getenv("AAP_USERNAME")
 	password := os.Getenv("AAP_PASSWORD")
@@ -82,9 +81,7 @@ func testGetResource(urlPath string) (map[string]interface{}, error) {
 	}
 	defer resp.Body.Close()
 
-	var result map[string]interface{}
-	err = json.Unmarshal(body, &result)
-	return result, err
+	return body, err
 }
 
 func TestReadValues(t *testing.T) {

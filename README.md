@@ -25,17 +25,41 @@ provider_installation {
 
 The `/path/to/project/root` should point to the location where you have cloned this repo, where the `terraform-provider-aap` binary will be built. You can then set the `TF_CLI_CONFIG_FILE` environment variable to point to this config file, and Terraform will use the provider binary you just built.
 
-### Testing
+## Testing
 
-You will need to install [golangci-lint](https://golangci-lint.run/usage/install/) to run lint target.
+### Linters
+You will need to install [golangci-lint](https://golangci-lint.run/usage/install/) to run linters.
 
-# linters
-make lint
+Run `make lint`
 
-# unit tests
-make test
+### Unit tests
 
-### Examples
+Run `make test`
+
+### Acceptance tests
+
+Acceptance tests apply test terraform configurations to a running AAP instance and make changes to resources in that instance, use with caution!
+
+To run acceptance tests locally, start a local AAP instance following the [docker-compose instructions for local AWX development](https://github.com/ansible/awx/blob/devel/tools/docker-compose/README.md). Create an admin user for the AAP instance and save the credentials to these environment variables:
+
+```bash
+export AAP_USERNAME=<your admin username>
+export AAP_PASSWORD=<your admin password>
+```
+
+Then you can run acceptance tests with `make testacc`.
+
+Acceptance tests for the job resource will fail unless the following environment variables are also set:
+
+```bash
+export AAP_TEST_JOB_TEMPLATE_ID=<the ID of a job template in your AAP instance>
+export AAP_TEST_JOB_INVENTORY_ID=<the ID of an inventory in your AAP instance>
+```
+
+**WARNING**: running acceptance tests for the job resource will launch several jobs for the specified job template. It's strongly recommended that you create a "check" type job template for testing to ensure the launched jobs do not deploy any actual infrastructure.
+
+## Examples
+
 The [examples](./examples/) subdirectory contains usage examples for this provider.
 
 ## Releasing
