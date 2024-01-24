@@ -1,12 +1,7 @@
 package provider
 
 import (
-	"context"
-	"crypto/tls"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"testing"
 
@@ -51,35 +46,16 @@ func testGetResource(urlPath string) ([]byte, error) {
 	username := os.Getenv("AAP_USERNAME")
 	password := os.Getenv("AAP_PASSWORD")
 
-	resourceURL, _ := url.JoinPath(host, urlPath)
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := http.Client{Transport: tr}
-
-	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, resourceURL, nil)
+	client, err := NewClient(host, &username, &password, true, 0)
 	if err != nil {
 		return nil, err
 	}
-	req.SetBasicAuth(username, password)
 
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
+	body, diags := client.Get(urlPath)
+	if diags.HasError() {
+		err = fmt.Errorf("%v", diags.Errors())
 		return nil, err
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("get request on URL='%s' returned http code [%d]", resourceURL, resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
 
 	return body, err
 }

@@ -30,10 +30,7 @@ func ValidateResponse(resp *http.Response, body []byte, err error, expected_stat
 	}
 	if !slices.Contains(expected_statuses, resp.StatusCode) {
 		var info map[string]interface{}
-		err := json.Unmarshal(body, &info)
-		if err != nil {
-			diags.AddError("Error unmarshaling JSON response body", err.Error())
-		}
+		_ = json.Unmarshal(body, &info)
 		diags.AddError(
 			fmt.Sprintf("Unexpected HTTP status code received for %s request to path %s", resp.Request.Method, resp.Request.URL),
 			fmt.Sprintf("Expected one of (%v), got (%d). Response details: %v", expected_statuses, resp.StatusCode, info),
