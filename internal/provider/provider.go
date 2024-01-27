@@ -162,6 +162,7 @@ func (p *aapProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewInventoryResource,
 		NewJobResource,
 		NewGroupResource,
+		NewHostResource,
 	}
 }
 
