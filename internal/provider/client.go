@@ -7,11 +7,17 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 )
 
 // Provider Http Client interface (will be useful for unit tests)
 type ProviderHTTPClient interface {
 	doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error)
+	Create(path string, data io.Reader) ([]byte, diag.Diagnostics)
+	Get(path string) ([]byte, diag.Diagnostics)
+	Update(path string, data io.Reader) ([]byte, diag.Diagnostics)
+	Delete(path string) ([]byte, diag.Diagnostics)
 }
 
 // Client -
@@ -68,4 +74,36 @@ func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http
 		return nil, []byte{}, err
 	}
 	return resp, body, nil
+}
+
+// Create sends a POST request with the provided data to the provided path, checks for errors,
+// and returns the response body with any errors as diagnostics.
+func (c *AAPClient) Create(path string, data io.Reader) ([]byte, diag.Diagnostics) {
+	createResponse, body, err := c.doRequest("POST", path, data)
+	diags := ValidateResponse(createResponse, body, err, []int{http.StatusCreated})
+	return body, diags
+}
+
+// Get sends a GET request to the provided path, checks for errors, and returns the response body with any errors as diagnostics.
+func (c *AAPClient) Get(path string) ([]byte, diag.Diagnostics) {
+	getResponse, body, err := c.doRequest("GET", path, nil)
+	diags := ValidateResponse(getResponse, body, err, []int{http.StatusOK})
+	return body, diags
+}
+
+// Update sends a PUT request with the provided data to the provided path, checks for errors,
+// and returns the response body with any errors as diagnostics.
+func (c *AAPClient) Update(path string, data io.Reader) ([]byte, diag.Diagnostics) {
+	updateResponse, body, err := c.doRequest("PUT", path, data)
+	diags := ValidateResponse(updateResponse, body, err, []int{http.StatusOK})
+	return body, diags
+}
+
+// Delete sends a DELETE request to the provided path, checks for errors, and returns any errors as diagnostics.
+func (c *AAPClient) Delete(path string) ([]byte, diag.Diagnostics) {
+	deleteResponse, body, err := c.doRequest("DELETE", path, nil)
+	// Note: the AAP API documentation says that an inventory delete request should return a 204 response, but it currently returns a 202.
+	// Once that bug is fixed we should be able to update this to just expect http.StatusNoContent.
+	diags := ValidateResponse(deleteResponse, body, err, []int{http.StatusAccepted, http.StatusNoContent})
+	return body, diags
 }
