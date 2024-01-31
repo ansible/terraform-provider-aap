@@ -421,7 +421,7 @@ func testAccJobResourcePreCheck(t *testing.T) {
 
 	requiredAAPJobEnvVars := []string{
 		"AAP_TEST_JOB_TEMPLATE_ID",
-		"AAP_TEST_JOB_INVENTORY_ID",
+		"AAP_TEST_INVENTORY_ID",
 	}
 
 	for _, key := range requiredAAPJobEnvVars {
@@ -491,7 +491,7 @@ func TestAccAAPJob_UpdateWithNewInventoryId(t *testing.T) {
 	var jobURLBefore string
 
 	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
-	inventoryID := os.Getenv("AAP_TEST_JOB_INVENTORY_ID")
+	inventoryID := os.Getenv("AAP_TEST_INVENTORY_ID")
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
