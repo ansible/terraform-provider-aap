@@ -8,14 +8,14 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -86,7 +86,7 @@ type GroupResourceModel struct {
 	Description types.String         `tfsdk:"description"`
 	URL         types.String         `tfsdk:"group_url"`
 	Variables   jsontypes.Normalized `tfsdk:"variables"`
-    Id          types.Int64          `tfsdk:"id"`
+	Id          types.Int64          `tfsdk:"id"`
 }
 
 func (d *GroupResourceModel) GetURL() string {
@@ -146,9 +146,9 @@ func (d *GroupResourceModel) ParseHttpResponse(body []byte) error {
 
 	if result["variables"] != "" {
 		d.Variables = jsontypes.NewNormalizedValue(result["variables"].(string))
-	}// } else {
-	// 	d.Variables = jsontypes.NewNormalizedNull()
-	// }
+	} else {
+		d.Variables = jsontypes.NewNormalizedNull()
+	}
 	return nil
 }
 

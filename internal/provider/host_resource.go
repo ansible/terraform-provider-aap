@@ -6,16 +6,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -105,28 +106,30 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 
 // Host AAP API model
 type HostAPIModel struct {
-	InventoryId  int64  `json:"inventory"`
-	InstanceId   string `json:"instance_id,omitempty"`
-	Name         string `json:"name"`
-	Description  string `json:"description,omitempty"`
-	URL          string `json:"url,omitempty"`
-	Variables    string `json:"variables,omitempty"`
-	Enabled      bool   `json:"enabled"`
-	Id           int64  `json:"id,omitempty"`
+	InventoryId int64  `json:"inventory"`
+	InstanceId  string `json:"instance_id,omitempty"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	URL         string `json:"url,omitempty"`
+	Variables   string `json:"variables,omitempty"`
+	Enabled     bool   `json:"enabled"`
+	Id          int64  `json:"id,omitempty"`
 }
 
 // HostResourceModel maps the host resource schema to a Go struct
 type HostResourceModel struct {
-	InventoryId  types.Int64          `tfsdk:"inventory_id"`
-	InstanceId   types.String         `tfsdk:"instance_id"`
-	Name         types.String         `tfsdk:"name"`
-	URL          types.String         `tfsdk:"host_url"`
-	Description  types.String         `tfsdk:"description"`
-	Variables    jsontypes.Normalized `tfsdk:"variables"`
-	Groups       types.List           `tfsdk:"groups"`
-	Enabled      types.Bool           `tfsdk:"enabled"`
-	Id           types.Int64          `tfsdk:"id"`
+	InventoryId types.Int64          `tfsdk:"inventory_id"`
+	InstanceId  types.String         `tfsdk:"instance_id"`
+	Name        types.String         `tfsdk:"name"`
+	URL         types.String         `tfsdk:"host_url"`
+	Description types.String         `tfsdk:"description"`
+	Variables   jsontypes.Normalized `tfsdk:"variables"`
+	Groups      types.List           `tfsdk:"groups"`
+	Enabled     types.Bool           `tfsdk:"enabled"`
+	Id          types.Int64          `tfsdk:"id"`
 }
+
+const pathGroup = "/groups/"
 
 // Create creates the host resource and sets the Terraform state on success.
 func (r *HostResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -167,7 +170,7 @@ func (r *HostResource) Create(ctx context.Context, req resource.CreateRequest, r
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		resp.Diagnostics.Append(r.AssociateGroups(ctx, elements, data.URL.ValueString() + "/groups/")...)
+		resp.Diagnostics.Append(r.AssociateGroups(ctx, elements, data.URL.ValueString()+pathGroup)...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
@@ -189,7 +192,6 @@ func (r *HostResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
 }
 
 // Read refreshes the Terraform state with the latest host data.
@@ -292,7 +294,7 @@ func (r *HostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 }
 
-func(d *HostResourceModel) UpdateStateWithGroups(ctx context.Context, groups []int64) diag.Diagnostics {
+func (d *HostResourceModel) UpdateStateWithGroups(ctx context.Context, groups []int64) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	convertedGroups, diagConvertToInt64 := types.ListValueFrom(ctx, types.Int64Type, groups)
@@ -310,9 +312,7 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	var diags diag.Diagnostics
 
 	// Read current Terraform state data into host resource model
-	//resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-	diags = req.State.Get(ctx, &data)
-	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -330,7 +330,7 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 }
 
 func extractIDs(data map[string]interface{}) []int64 {
-    var ids []int64
+	var ids []int64
 
 	if value, ok := data["results"]; ok {
 		for _, v := range value.([]interface{}) {
@@ -341,7 +341,7 @@ func extractIDs(data map[string]interface{}) []int64 {
 		}
 	}
 
-    return ids
+	return ids
 }
 
 func sliceDifference(slice1 []int64, slice2 []int64) []int64 {
@@ -355,7 +355,7 @@ func sliceDifference(slice1 []int64, slice2 []int64) []int64 {
 	var difference []int64
 	for _, v := range slice1 {
 		if _, ok := seen[int(v)]; !ok {
-			difference = append(difference, int64(v))
+			difference = append(difference, v)
 		}
 	}
 
@@ -368,18 +368,18 @@ func (r *HostResource) HandleGroupAssociation(ctx context.Context, data HostReso
 	elements := make([]int64, 0, len(data.Groups.Elements()))
 	diags.Append(data.Groups.ElementsAs(ctx, &elements, false)...)
 	if diags.HasError() {
-        return diags
-    }
+		return diags
+	}
 
 	groups, diagReadgroups := r.ReadAssociatedGroups(data)
 	diags.Append(diagReadgroups...)
 	if diags.HasError() {
-        return diags
-    }
+		return diags
+	}
 
 	toBeAdded := sliceDifference(elements, groups)
 	toBeRemoved := sliceDifference(groups, elements)
-	url := data.URL.ValueString() + "/groups/"
+	url := data.URL.ValueString() + pathGroup
 
 	if len(toBeAdded) > 0 {
 		diags.Append(r.AssociateGroups(ctx, toBeAdded, url)...)
@@ -396,7 +396,6 @@ func (r *HostResource) HandleGroupAssociation(ctx context.Context, data HostReso
 	}
 
 	return diags
-
 }
 
 func (r *HostResource) ReadAssociatedGroups(data HostResourceModel) ([]int64, diag.Diagnostics) {
@@ -404,7 +403,7 @@ func (r *HostResource) ReadAssociatedGroups(data HostResourceModel) ([]int64, di
 	var result map[string]interface{}
 
 	// Get latest host data from AAP
-	readResponseBody, diagsGetGroups := r.client.Get(data.URL.ValueString() + "/groups/")
+	readResponseBody, diagsGetGroups := r.client.Get(data.URL.ValueString() + pathGroup)
 	diags.Append(diagsGetGroups...)
 	if diags.HasError() {
 		return nil, diags
@@ -420,58 +419,87 @@ func (r *HostResource) ReadAssociatedGroups(data HostResourceModel) ([]int64, di
 	return extractIDs(result), diags
 }
 
-func (r *HostResource)AssociateGroups(ctx context.Context, data []int64, url string, args ...bool) diag.Diagnostics {
+func (r *HostResource) AssociateGroups(ctx context.Context, data []int64, url string, args ...bool) diag.Diagnostics {
 	var diags diag.Diagnostics
-	body := make(map[string]int64)
+	var wg sync.WaitGroup
 	disassociate := false
 
 	// If disassociate is not provided (zero value), use default value (false)
-    if len(args) > 0 {
-        disassociate = args[0]
-    }
-
-	for  _, elem := range data {
-		body["id"] = elem
-		if disassociate {
-			body["disassociate"] = 1
-		}
-		json_raw, err := json.Marshal(body)
-		if err != nil {
-			diags.Append(diag.NewErrorDiagnostic("Body JSON Marshal Error", err.Error()))
-			return diags
-		}
-		req_data := bytes.NewReader(json_raw)
-
-		resp, _, err := r.client.doRequest(http.MethodPost, url, req_data)
-		if err != nil {
-			diags.AddError("Body JSON Marshal Error", err.Error())
-			return diags
-		}
-		if resp == nil {
-			diags.AddError("HTTP response Error", "no HTTP response from server")
-			return diags
-		}
-		if resp.StatusCode != http.StatusNoContent {
-			diags.AddError("Unexpected HTTP Status code",
-				fmt.Sprintf("expected (%d) got (%s)", http.StatusNoContent, resp.Status))
-			return diags
-		}
+	if len(args) > 0 {
+		disassociate = args[0]
 	}
-	return diags
 
+	ctx, cancel := context.WithCancel(context.Background())
+	// Make sure it's called to release resources even if no errors
+	defer cancel()
+
+	for _, elem := range data {
+		wg.Add(1)
+		go func(elem int64) {
+			defer wg.Done()
+
+			// Check if any error occurred in any other gorouties
+			select {
+			case <-ctx.Done():
+				// Error somewhere, terminate
+				return
+			default: // Default is must to avoid blocking
+			}
+
+			body := make(map[string]int64)
+			body["id"] = elem
+			if disassociate {
+				body["disassociate"] = 1
+			}
+			json_raw, err := json.Marshal(body)
+			if err != nil {
+				diags.Append(diag.NewErrorDiagnostic("Body JSON Marshal Error", err.Error()))
+				cancel()
+				return
+			}
+			req_data := bytes.NewReader(json_raw)
+
+			resp, _, err := r.client.doRequest(http.MethodPost, url, req_data)
+			if err != nil {
+				diags.AddError("Body JSON Marshal Error", err.Error())
+				cancel()
+				return
+			}
+			if resp == nil {
+				diags.AddError("HTTP response Error", "no HTTP response from server")
+				cancel()
+				return
+			}
+			if resp.StatusCode != http.StatusNoContent {
+				diags.AddError("Unexpected HTTP Status code",
+					fmt.Sprintf("expected (%d) got (%s)", http.StatusNoContent, resp.Status))
+				cancel()
+				return
+			}
+		}(elem)
+	}
+
+	// Wait for all goroutines to finish
+	wg.Wait()
+
+	if diags.HasError() {
+		return diags
+	}
+
+	return diags
 }
 
-// CreateRequestBody creates a JSON encoded request body from the host resource data.
+// CreateRequestBody creates a JSON encoded request body from the host resource data
 func (r *HostResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	// Convert host resource data to API data model
 
 	host := HostAPIModel{
-		InventoryId:  r.InventoryId.ValueInt64(),
-		InstanceId:   r.InstanceId.ValueString(),
-		Name:         r.Name.ValueString(),
-		Description:  r.Description.ValueString(),
-		Variables:    r.Variables.ValueString(),
-		Enabled:      r.Enabled.ValueBool(),
+		InventoryId: r.InventoryId.ValueInt64(),
+		InstanceId:  r.InstanceId.ValueString(),
+		Name:        r.Name.ValueString(),
+		Description: r.Description.ValueString(),
+		Variables:   r.Variables.ValueString(),
+		Enabled:     r.Enabled.ValueBool(),
 	}
 
 	// create JSON encoded request body
@@ -489,7 +517,7 @@ func (r *HostResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 }
 
 // ParseHttpResponse updates the host resource data from an AAP API response
-func (r *HostResourceModel)ParseHttpResponse(body []byte) diag.Diagnostics {
+func (r *HostResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	// Unmarshal the JSON response

@@ -21,7 +21,7 @@ resource "aap_host" "sample" {
       "foo": "bar"
     }
   )
-  groups = [3]
+  groups = [2, 3, 4]
 }
 
 output "host" {

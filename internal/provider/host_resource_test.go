@@ -1,22 +1,22 @@
 package provider
 
 import (
-	"os"
-	"fmt"
 	"bytes"
 	"context"
-	"testing"
-	"reflect"
 	"encoding/json"
-	"strings"
+	"fmt"
+	"os"
+	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
+	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
@@ -124,26 +124,26 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "test with unknown values",
 			input: HostResourceModel{
-				Name:              types.StringValue("test host"),
-				Description:       types.StringUnknown(),
-				URL:               types.StringUnknown(),
-				Variables:         jsontypes.NewNormalizedUnknown(),
-				Enabled:           basetypes.NewBoolValue(false),
-				InventoryId:       types.Int64Unknown(),
-				InstanceId:        types.StringNull(),
+				Name:        types.StringValue("test host"),
+				Description: types.StringUnknown(),
+				URL:         types.StringUnknown(),
+				Variables:   jsontypes.NewNormalizedUnknown(),
+				Enabled:     basetypes.NewBoolValue(false),
+				InventoryId: types.Int64Unknown(),
+				InstanceId:  types.StringNull(),
 			},
 			expected: []byte(`{"inventory":0,"name":"test host","enabled":false}`),
 		},
 		{
 			name: "test with null values",
 			input: HostResourceModel{
-				Name:              types.StringValue("test host"),
-				Description:       types.StringNull(),
-				URL:               types.StringNull(),
-				Variables:         jsontypes.NewNormalizedNull(),
-				Enabled:           basetypes.NewBoolValue(false),
-				InventoryId:       types.Int64Null(),
-				InstanceId:        types.StringNull(),
+				Name:        types.StringValue("test host"),
+				Description: types.StringNull(),
+				URL:         types.StringNull(),
+				Variables:   jsontypes.NewNormalizedNull(),
+				Enabled:     basetypes.NewBoolValue(false),
+				InventoryId: types.Int64Null(),
+				InstanceId:  types.StringNull(),
 			},
 			expected: []byte(`{"inventory":0,"name":"test host","enabled":false}`),
 		},
@@ -192,8 +192,9 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 			errors:   jsonError,
 		},
 		{
-			name:  "test with missing values",
-			input: []byte(`{"inventory":1,"name": "host1", "url": "/api/v2/hosts/1/", "description": "", "variables": "{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"}`),
+			name: "test with missing values",
+			input: []byte(`{"inventory":1,"name": "host1", "url": "/api/v2/hosts/1/", "description": "",` +
+				` "variables": "{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"}`),
 			expected: HostResourceModel{
 				InventoryId: types.Int64Value(1),
 				Id:          types.Int64Value(0),
@@ -207,7 +208,8 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 		},
 		{
 			name: "test with all values",
-			input: []byte(`{"inventory":1,"description":"A basic test host","name":"host1","enabled":false,"url":"/api/v2/hosts/1/","variables":"{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"}`),
+			input: []byte(`{"inventory":1,"description":"A basic test host","name":"host1","enabled":false,` +
+				`"url":"/api/v2/hosts/1/","variables":"{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"}`),
 			expected: HostResourceModel{
 				InventoryId: types.Int64Value(1),
 				Id:          types.Int64Value(0),
@@ -245,7 +247,6 @@ type MockHostResource struct {
 	Response    map[string]string
 }
 
-
 func testAccHostResourcePreCheck(t *testing.T) {
 	// ensure provider requirements
 	testAccPreCheck(t)
@@ -278,7 +279,7 @@ func TestAccHostResource(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Invalid variables testing
 			{
-				Config:      testAccInventoryResourceBadVariables(updatedName, inventoryId),
+				Config:      testAccHostResourceBadVariables(updatedName, inventoryId),
 				ExpectError: regexp.MustCompile("A string value was provided that is not valid JSON string format"),
 			},
 			// Create and Read testing
@@ -337,7 +338,7 @@ resource "aap_host" "test" {
 }
 
 // testAccHostResourceBadVariables returns a configuration for an AAP Inventory with the provided name and invalid variables.
-func testAccInventoryResourceBadVariables(name, inventoryId string) string {
+func testAccHostResourceBadVariables(name, inventoryId string) string {
 	return fmt.Sprintf(`
 resource "aap_host" "test" {
   name = "%s"

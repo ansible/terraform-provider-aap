@@ -1,22 +1,22 @@
 package provider
 
 import (
-	"os"
-	"fmt"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"testing"
+	"os"
 	"regexp"
+	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
-    "github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
-	"github.com/stretchr/testify/assert"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGroupParseHttpResponse(t *testing.T) {
@@ -25,7 +25,7 @@ func TestGroupParseHttpResponse(t *testing.T) {
 			InventoryId: types.Int64Value(1),
 			Name:        types.StringValue("group1"),
 			Description: types.StringNull(),
-		    Variables:   jsontypes.NewNormalizedNull(),
+			Variables:   jsontypes.NewNormalizedNull(),
 			URL:         types.StringValue("/api/v2/groups/24/"),
 			Id:          types.Int64Value(1),
 		}
@@ -111,7 +111,7 @@ func TestGroupCreateRequestBody(t *testing.T) {
 			InventoryId: basetypes.NewInt64Value(5),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
-			Variables:   jsontypes.NewNormalizedValue(
+			Variables: jsontypes.NewNormalizedValue(
 				"{\"ansible_network_os\":\"ios\",\"ansible_connection\":\"network_cli\",\"ansible_ssh_user\":\"ansible\",\"ansible_ssh_pass\":\"ansi\"}",
 			),
 			Description: types.StringValue("New Group"),
