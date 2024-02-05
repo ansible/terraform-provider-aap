@@ -49,7 +49,7 @@ export AAP_PASSWORD=<your admin password>
 
 Then you can run acceptance tests with `make testacc`.
 
-Acceptance tests for job, host and group resources require you to export the following environment variable:
+Following environment variable must be exported in order to run acceptance tests for job, host and group resources:
 
 ```bash
 export AAP_TEST_INVENTORY_ID=<the ID of an inventory in your AAP instance>
