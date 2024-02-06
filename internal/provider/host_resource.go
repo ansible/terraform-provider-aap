@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"sync"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
@@ -364,21 +365,15 @@ func extractIDs(data map[string]interface{}) []int64 {
 }
 
 func sliceDifference(slice1 []int64, slice2 []int64) []int64 {
-	// Create a map to store the unique elements from slice2
-	seen := make(map[int]struct{})
-	for _, v := range slice2 {
-		seen[int(v)] = struct{}{}
-	}
-
-	// Append elements from slice1 that are not in the seen map
 	var difference []int64
+
 	for _, v := range slice1 {
-		if _, ok := seen[int(v)]; !ok {
+		if !slices.Contains(slice2, v) {
 			difference = append(difference, v)
 		}
 	}
-
 	return difference
+
 }
 
 func (r *HostResource) HandleGroupAssociation(ctx context.Context, data HostResourceModel) diag.Diagnostics {
