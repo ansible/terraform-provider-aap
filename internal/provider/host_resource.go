@@ -373,7 +373,6 @@ func sliceDifference(slice1 []int64, slice2 []int64) []int64 {
 		}
 	}
 	return difference
-
 }
 
 func (r *HostResource) HandleGroupAssociation(ctx context.Context, data HostResourceModel) diag.Diagnostics {
