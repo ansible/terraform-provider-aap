@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -129,8 +130,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				URL:         types.StringUnknown(),
 				Variables:   jsontypes.NewNormalizedUnknown(),
 				Enabled:     basetypes.NewBoolValue(false),
-				InventoryId: types.Int64Unknown(),
-				InstanceId:  types.StringNull(),
+				InventoryId: types.Int64Value(0),
 			},
 			expected: []byte(`{"inventory":0,"name":"test host","enabled":false}`),
 		},
@@ -142,8 +142,8 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				URL:         types.StringNull(),
 				Variables:   jsontypes.NewNormalizedNull(),
 				Enabled:     basetypes.NewBoolValue(false),
-				InventoryId: types.Int64Null(),
-				InstanceId:  types.StringNull(),
+				InventoryId: types.Int64Value(0),
+				Groups:      types.SetNull(types.Int64Type),
 			},
 			expected: []byte(`{"inventory":0,"name":"test host","enabled":false}`),
 		},
@@ -158,6 +158,21 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 			},
 			expected: []byte(
 				`{"inventory":1,"name":"host1","variables":"{\"foo\":\"bar\"}","enabled":false}`,
+			),
+		},
+		{
+			name: "test with all values",
+			input: HostResourceModel{
+				InventoryId: types.Int64Value(1),
+				Name:        types.StringValue("host1"),
+				Description: types.StringValue("A test host"),
+				URL:         types.StringValue("/api/v2/hosts/1/"),
+				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\"}"),
+				Enabled:     basetypes.NewBoolValue(false),
+				Groups:      types.SetValueMust(types.Int64Type, []attr.Value{types.Int64Value(1), types.Int64Value(2)}),
+			},
+			expected: []byte(
+				`{"inventory":1,"name":"host1","description":"A test host","variables":"{\"foo\":\"bar\"}","enabled":false}`,
 			),
 		},
 	}
@@ -192,24 +207,24 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 			errors:   jsonError,
 		},
 		{
-			name: "test with missing values",
-			input: []byte(`{"inventory":1,"name": "host1", "url": "/api/v2/hosts/1/", "description": "",` +
-				` "variables": "{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"}`),
+			name:  "test with missing values",
+			input: []byte(`{"inventory":1, "id": 0, "name": "host1", "url": "/api/v2/hosts/1/", "description": ""}`),
 			expected: HostResourceModel{
 				InventoryId: types.Int64Value(1),
 				Id:          types.Int64Value(0),
 				Name:        types.StringValue("host1"),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
 				Description: types.StringNull(),
-				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
 				Enabled:     basetypes.NewBoolValue(false),
 			},
 			errors: diag.Diagnostics{},
 		},
 		{
 			name: "test with all values",
-			input: []byte(`{"inventory":1,"description":"A basic test host","name":"host1","enabled":false,` +
-				`"url":"/api/v2/hosts/1/","variables":"{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"}`),
+			input: []byte(`{"inventory":1,"description":"A basic test host","name":"host1","enabled":true,` +
+				`"url":"/api/v2/hosts/1/","variables":"{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}",` +
+				`"groups": [1, 2, 3], "id": 0}
+				`),
 			expected: HostResourceModel{
 				InventoryId: types.Int64Value(1),
 				Id:          types.Int64Value(0),
@@ -217,7 +232,7 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 				URL:         types.StringValue("/api/v2/hosts/1/"),
 				Description: types.StringValue("A basic test host"),
 				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
-				Enabled:     basetypes.NewBoolValue(false),
+				Enabled:     basetypes.NewBoolValue(true),
 			},
 			errors: diag.Diagnostics{},
 		},
@@ -235,16 +250,6 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 			}
 		})
 	}
-}
-
-type MockHostResource struct {
-	InventoryId string
-	Id          string
-	Name        string
-	Description string
-	URL         string
-	Variables   string
-	Response    map[string]string
 }
 
 func testAccHostResourcePreCheck(t *testing.T) {
@@ -290,7 +295,7 @@ func TestAccHostResource(t *testing.T) {
 					testAccCheckHostResourceValues(&hostApiModel, randomName, "", "", inventoryId),
 					resource.TestCheckResourceAttr("aap_host.test", "name", randomName),
 					resource.TestCheckResourceAttr("aap_host.test", "inventory_id", inventoryId),
-					resource.TestCheckResourceAttr("aap_host.test", "enabled", "false"),
+					resource.TestCheckResourceAttr("aap_host.test", "enabled", "true"),
 					resource.TestMatchResourceAttr("aap_host.test", "host_url", regexp.MustCompile("^/api/v2/hosts/[0-9]*/$")),
 					resource.TestCheckResourceAttrSet("aap_host.test", "id"),
 				),
@@ -337,7 +342,7 @@ resource "aap_host" "test" {
 }`, name, inventoryId, groupId)
 }
 
-// testAccHostResourceBadVariables returns a configuration for an AAP Inventory with the provided name and invalid variables.
+// testAccHostResourceBadVariables returns a configuration for an AAP host with the provided name and invalid variables.
 func testAccHostResourceBadVariables(name, inventoryId string) string {
 	return fmt.Sprintf(`
 resource "aap_host" "test" {
@@ -373,7 +378,7 @@ func testAccCheckHostResourceExists(name string, hostApiModel *HostAPIModel) res
 	}
 }
 
-// testAccCheckHostResourcesValues verifies that the provided inventory retrieved from AAP contains the expected values.
+// testAccCheckHostResourcesValues verifies that the provided host retrieved from AAP contains the expected values.
 func testAccCheckHostResourceValues(hostApiModel *HostAPIModel, name string, description string, variables string, inventoryId string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		inv, err := strconv.ParseInt(inventoryId, 10, 64)
@@ -394,6 +399,9 @@ func testAccCheckHostResourceValues(hostApiModel *HostAPIModel, name string, des
 		}
 		if hostApiModel.Variables != variables {
 			return fmt.Errorf("bad host variables in AAP, expected \"%s\", got: %s", variables, hostApiModel.Variables)
+		}
+		if hostApiModel.Enabled != true {
+			return fmt.Errorf("bad enabled value in AAP, expected %d, got: %d", inv, hostApiModel.InventoryId)
 		}
 
 		return nil

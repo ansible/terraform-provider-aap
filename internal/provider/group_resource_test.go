@@ -276,14 +276,20 @@ func testAccCheckGroupExists(s *terraform.State) error {
 	return err
 }
 
-func testAccCheckGroupUpdate(urlBefore *string, shouldDiffer bool) func(s *terraform.State) error {
+func testAccCheckGroupValues(urlBefore *string, groupInventoryId string, groupDescription string,
+	groupName string, groupVariables string, shouldDiffer bool) func(s *terraform.State) error {
 	return func(s *terraform.State) error {
-		var groupURL string
+		var groupURL, description, inventoryId, name, variables string
+		var differ = false
 		for _, rs := range s.RootModule().Resources {
 			if rs.Type != "aap_group" {
 				continue
 			}
 			groupURL = rs.Primary.Attributes["group_url"]
+			description = rs.Primary.Attributes["description"]
+			inventoryId = rs.Primary.Attributes["inventory_id"]
+			name = rs.Primary.Attributes["name"]
+			variables = rs.Primary.Attributes["variables"]
 		}
 		if len(groupURL) == 0 {
 			return fmt.Errorf("Group resource not found from state file")
@@ -292,11 +298,26 @@ func testAccCheckGroupUpdate(urlBefore *string, shouldDiffer bool) func(s *terra
 			*urlBefore = groupURL
 			return nil
 		}
-		if groupURL == *urlBefore && shouldDiffer {
-			return fmt.Errorf("Group resource URLs are equal while expecting them to differ. Before [%s] After [%s]", *urlBefore, groupURL)
-		} else if groupURL != *urlBefore && !shouldDiffer {
-			return fmt.Errorf("Group resource URLs differ while expecting them to be equals. Before [%s] After [%s]", *urlBefore, groupURL)
+
+		if description != groupDescription || inventoryId != groupInventoryId || name != groupName ||
+			variables != groupVariables || groupURL != *urlBefore {
+			differ = true
 		}
+
+		if shouldDiffer && differ {
+			return fmt.Errorf("Group resources are equal while expecting them to differ. "+
+				"Before [URL: %s, Description: %s, Inventory ID: %s, Name: %s, Variables: %s] "+
+				"After [URL: %s, Description: %s, Inventory ID: %s, Name: %s, Variables: %s]",
+				*urlBefore, description, inventoryId, name, variables,
+				groupURL, groupDescription, groupInventoryId, groupName, groupVariables)
+		} else if !shouldDiffer && differ {
+			return fmt.Errorf("Group resources are equal while expecting them to not differ. "+
+				"Before [URL: %s, Description: %s, Inventory ID: %s, Name: %s, Variables: %s] "+
+				"After [URL: %s, Description: %s, Inventory ID: %s, Name: %s, Variables: %s]",
+				*urlBefore, description, inventoryId, name, variables,
+				groupURL, groupDescription, groupInventoryId, groupName, groupVariables)
+		}
+
 		return nil
 	}
 }
@@ -318,6 +339,8 @@ func testAccGroupResourcePreCheck(t *testing.T) {
 
 func TestAccAAPGroup_basic(t *testing.T) {
 	var groupURLBefore string
+	var description = "A test group"
+	var variables = "{\"foo\": \"bar\"}"
 	groupInventoryId := os.Getenv("AAP_TEST_INVENTORY_ID")
 	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	updatedName := "updated" + randomName
@@ -330,30 +353,35 @@ func TestAccAAPGroup_basic(t *testing.T) {
 			{
 				Config: testAccBasicGroup(randomName, groupInventoryId),
 				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckGroupExists,
+					testAccCheckGroupValues(&groupURLBefore, groupInventoryId, "", randomName, "", false),
 					resource.TestCheckResourceAttr("aap_group.test", "name", randomName),
 					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", groupInventoryId),
 					resource.TestMatchResourceAttr("aap_group.test", "group_url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
-					testAccCheckGroupExists,
 				),
 			},
 			// Create and Read testing with same parameters
 			{
 				Config: testAccBasicGroup(randomName, groupInventoryId),
 				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckGroupExists,
+					testAccCheckGroupValues(&groupURLBefore, groupInventoryId, "", randomName, "", false),
 					resource.TestCheckResourceAttr("aap_group.test", "name", randomName),
 					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", groupInventoryId),
 					resource.TestMatchResourceAttr("aap_group.test", "group_url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
-					testAccCheckGroupExists,
 				),
 			},
 			// Update and Read testing
 			{
 				Config: testAccUpdateGroupComplete(updatedName, groupInventoryId),
 				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckGroupExists,
+					testAccCheckGroupValues(&groupURLBefore, groupInventoryId, description, updatedName, variables, false),
 					resource.TestCheckResourceAttr("aap_group.test", "name", updatedName),
 					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", groupInventoryId),
+					resource.TestCheckResourceAttr("aap_group.test", "description", description),
+					resource.TestCheckResourceAttr("aap_group.test", "variables", variables),
 					resource.TestMatchResourceAttr("aap_group.test", "group_url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
-					testAccCheckGroupUpdate(&groupURLBefore, false),
 				),
 			},
 		},

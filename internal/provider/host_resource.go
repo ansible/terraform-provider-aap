@@ -6,15 +6,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
@@ -65,9 +70,6 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"inventory_id": schema.Int64Attribute{
 				Required: true,
 			},
-			"instance_id": schema.StringAttribute{
-				Optional: true,
-			},
 			"host_url": schema.StringAttribute{
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
@@ -91,13 +93,17 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				CustomType: jsontypes.NormalizedType{},
 			},
 			"enabled": schema.BoolAttribute{
-				Optional:    true,
-				Computed:    true,
-				Description: "Defaults False.",
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(true),
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
-			"groups": schema.ListAttribute{
+			"groups": schema.SetAttribute{
 				ElementType: types.Int64Type,
 				Optional:    true,
+				Validators:  []validator.Set{setvalidator.SizeAtLeast(1)},
 				Description: "The list of groups to assosicate with a host.",
 			},
 		},
@@ -107,7 +113,6 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 // Host AAP API model
 type HostAPIModel struct {
 	InventoryId int64  `json:"inventory"`
-	InstanceId  string `json:"instance_id,omitempty"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	URL         string `json:"url,omitempty"`
@@ -119,17 +124,25 @@ type HostAPIModel struct {
 // HostResourceModel maps the host resource schema to a Go struct
 type HostResourceModel struct {
 	InventoryId types.Int64          `tfsdk:"inventory_id"`
-	InstanceId  types.String         `tfsdk:"instance_id"`
 	Name        types.String         `tfsdk:"name"`
 	URL         types.String         `tfsdk:"host_url"`
 	Description types.String         `tfsdk:"description"`
 	Variables   jsontypes.Normalized `tfsdk:"variables"`
-	Groups      types.List           `tfsdk:"groups"`
+	Groups      types.Set            `tfsdk:"groups"`
 	Enabled     types.Bool           `tfsdk:"enabled"`
 	Id          types.Int64          `tfsdk:"id"`
 }
 
-const pathGroup = "/groups/"
+func getURL(hostname string) (string, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	result, err := url.JoinPath(hostname, "groups/")
+	if err != nil {
+		diags.AddError("Error joining the URL", err.Error())
+	}
+
+	return result, diags
+}
 
 // Create creates the host resource and sets the Terraform state on success.
 func (r *HostResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -170,7 +183,14 @@ func (r *HostResource) Create(ctx context.Context, req resource.CreateRequest, r
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		resp.Diagnostics.Append(r.AssociateGroups(ctx, elements, data.URL.ValueString()+pathGroup)...)
+
+		url, diags := getURL(data.URL.ValueString())
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		resp.Diagnostics.Append(r.AssociateGroups(ctx, elements, url)...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
@@ -270,21 +290,19 @@ func (r *HostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	if !data.Groups.IsNull() {
-		resp.Diagnostics.Append(r.HandleGroupAssociation(ctx, data)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		groups, diagReadGroups := r.ReadAssociatedGroups(data)
-		diags.Append(diagReadGroups...)
-		if diags.HasError() {
-			return
-		}
+	resp.Diagnostics.Append(r.HandleGroupAssociation(ctx, data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	groups, diagReadGroups := r.ReadAssociatedGroups(data)
+	diags.Append(diagReadGroups...)
+	if diags.HasError() {
+		return
+	}
 
-		resp.Diagnostics.Append(data.UpdateStateWithGroups(ctx, groups)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
+	resp.Diagnostics.Append(data.UpdateStateWithGroups(ctx, groups)...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	// Save updated data into Terraform state
@@ -297,12 +315,13 @@ func (r *HostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 func (d *HostResourceModel) UpdateStateWithGroups(ctx context.Context, groups []int64) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	convertedGroups, diagConvertToInt64 := types.ListValueFrom(ctx, types.Int64Type, groups)
+	convertedGroups, diagConvertToInt64 := types.SetValueFrom(ctx, types.Int64Type, groups)
 	diags.Append(diagConvertToInt64...)
 	if diags.HasError() {
 		return diags
 	}
 	d.Groups = convertedGroups
+
 	return diags
 }
 
@@ -379,7 +398,11 @@ func (r *HostResource) HandleGroupAssociation(ctx context.Context, data HostReso
 
 	toBeAdded := sliceDifference(elements, groups)
 	toBeRemoved := sliceDifference(groups, elements)
-	url := data.URL.ValueString() + pathGroup
+	url, diags := getURL(data.URL.ValueString())
+	diags.Append(diags...)
+	if diags.HasError() {
+		return diags
+	}
 
 	if len(toBeAdded) > 0 {
 		diags.Append(r.AssociateGroups(ctx, toBeAdded, url)...)
@@ -402,8 +425,14 @@ func (r *HostResource) ReadAssociatedGroups(data HostResourceModel) ([]int64, di
 	var diags diag.Diagnostics
 	var result map[string]interface{}
 
+	url, diags := getURL(data.URL.ValueString())
+	diags.Append(diags...)
+	if diags.HasError() {
+		return nil, diags
+	}
+
 	// Get latest host data from AAP
-	readResponseBody, diagsGetGroups := r.client.Get(data.URL.ValueString() + pathGroup)
+	readResponseBody, diagsGetGroups := r.client.Get(url)
 	diags.Append(diagsGetGroups...)
 	if diags.HasError() {
 		return nil, diags
@@ -459,20 +488,9 @@ func (r *HostResource) AssociateGroups(ctx context.Context, data []int64, url st
 			}
 			req_data := bytes.NewReader(json_raw)
 
-			resp, _, err := r.client.doRequest(http.MethodPost, url, req_data)
-			if err != nil {
-				diags.AddError("Body JSON Marshal Error", err.Error())
-				cancel()
-				return
-			}
-			if resp == nil {
-				diags.AddError("HTTP response Error", "no HTTP response from server")
-				cancel()
-				return
-			}
-			if resp.StatusCode != http.StatusNoContent {
-				diags.AddError("Unexpected HTTP Status code",
-					fmt.Sprintf("expected (%d) got (%s)", http.StatusNoContent, resp.Status))
+			resp, bodyreq, err := r.client.doRequest(http.MethodPost, url, req_data)
+			diags.Append(ValidateResponse(resp, bodyreq, err, []int{http.StatusNoContent})...)
+			if diags.HasError() {
 				cancel()
 				return
 			}
@@ -495,7 +513,6 @@ func (r *HostResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 
 	host := HostAPIModel{
 		InventoryId: r.InventoryId.ValueInt64(),
-		InstanceId:  r.InstanceId.ValueString(),
 		Name:        r.Name.ValueString(),
 		Description: r.Description.ValueString(),
 		Variables:   r.Variables.ValueString(),
@@ -538,11 +555,6 @@ func (r *HostResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 		r.Description = types.StringValue(resultApiHost.Description)
 	} else {
 		r.Description = types.StringNull()
-	}
-	if resultApiHost.InstanceId != "" {
-		r.InstanceId = types.StringValue(resultApiHost.InstanceId)
-	} else {
-		r.InstanceId = types.StringNull()
 	}
 	if resultApiHost.Variables != "" {
 		r.Variables = jsontypes.NewNormalizedValue(resultApiHost.Variables)
