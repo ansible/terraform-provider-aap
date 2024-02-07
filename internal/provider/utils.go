@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"path"
 	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -39,4 +41,17 @@ func ValidateResponse(resp *http.Response, body []byte, err error, expected_stat
 	}
 
 	return diags
+}
+
+func getURL(base string, paths ...string) (string, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	u, err := url.Parse(base)
+	if err != nil {
+		diags.AddError("Error parsing the URL", err.Error())
+		return "", diags
+	}
+
+	u.Path = path.Join(append([]string{u.Path}, paths...)...)
+
+	return u.String(), diags
 }

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"slices"
 	"sync"
 
@@ -134,17 +133,6 @@ type HostResourceModel struct {
 	Id          types.Int64          `tfsdk:"id"`
 }
 
-func getURL(hostname string) (string, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
-	result, err := url.JoinPath(hostname, "groups/")
-	if err != nil {
-		diags.AddError("Error joining the URL", err.Error())
-	}
-
-	return result, diags
-}
-
 // Create creates the host resource and sets the Terraform state on success.
 func (r *HostResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data HostResourceModel
@@ -185,7 +173,7 @@ func (r *HostResource) Create(ctx context.Context, req resource.CreateRequest, r
 			return
 		}
 
-		url, diags := getURL(data.URL.ValueString())
+		url, diags := getURL(data.URL.ValueString(), "groups")
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
@@ -392,7 +380,7 @@ func (r *HostResource) HandleGroupAssociation(ctx context.Context, data HostReso
 
 	toBeAdded := sliceDifference(elements, groups)
 	toBeRemoved := sliceDifference(groups, elements)
-	url, diags := getURL(data.URL.ValueString())
+	url, diags := getURL(data.URL.ValueString(), "groups")
 	diags.Append(diags...)
 	if diags.HasError() {
 		return diags
@@ -419,7 +407,7 @@ func (r *HostResource) ReadAssociatedGroups(data HostResourceModel) ([]int64, di
 	var diags diag.Diagnostics
 	var result map[string]interface{}
 
-	url, diags := getURL(data.URL.ValueString())
+	url, diags := getURL(data.URL.ValueString(), "groups")
 	diags.Append(diags...)
 	if diags.HasError() {
 		return nil, diags
