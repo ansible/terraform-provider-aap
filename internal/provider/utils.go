@@ -45,7 +45,7 @@ func ValidateResponse(resp *http.Response, body []byte, err error, expected_stat
 
 func getURL(base string, paths ...string) (string, diag.Diagnostics) {
 	var diags diag.Diagnostics
-	u, err := url.Parse(base)
+	u, err := url.ParseRequestURI(base)
 	if err != nil {
 		diags.AddError("Error parsing the URL", err.Error())
 		return "", diags

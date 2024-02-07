@@ -14,6 +14,7 @@ func TestGetURL(t *testing.T) {
 		{"https://example.com", []string{"groups", "users"}, "https://example.com/groups/users", false},
 		{"https://example.com/", []string{"groups", "users"}, "https://example.com/groups/users", false},
 		{"https://example.com", []string{"groups", "users", "123"}, "https://example.com/groups/users/123", false},
+		{"invalid-url", []string{"groups", "users"}, "", true},
 	}
 
 	for _, test := range tests {
