@@ -162,7 +162,7 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 }
 
 func TestAccInventoryResource(t *testing.T) {
-	var inventory inventoryAPIModel
+	var inventory InventoryAPIModel
 	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	updatedName := "updated " + randomName
 	updatedDescription := "A test inventory"
@@ -235,7 +235,7 @@ resource "aap_inventory" "test" {
 }
 
 // testAccCheckInventoryResourceExists queries the AAP API and retrieves the matching inventory.
-func testAccCheckInventoryResourceExists(name string, inventory *inventoryAPIModel) resource.TestCheckFunc {
+func testAccCheckInventoryResourceExists(name string, inventory *InventoryAPIModel) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		inventoryResource, ok := s.RootModule().Resources[name]
 		if !ok {
@@ -261,7 +261,7 @@ func testAccCheckInventoryResourceExists(name string, inventory *inventoryAPIMod
 }
 
 // testAccCheckInventoryResourcesValues verifies that the provided inventory retrieved from AAP contains the expected values.
-func testAccCheckInventoryResourceValues(inventory *inventoryAPIModel, name string, description string, variables string) resource.TestCheckFunc {
+func testAccCheckInventoryResourceValues(inventory *InventoryAPIModel, name string, description string, variables string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		if inventory.Id == 0 {
 			return fmt.Errorf("bad inventory ID in AAP, expected a positive int64, got: %dv", inventory.Id)
