@@ -3,12 +3,19 @@ package provider
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"regexp"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,11 +25,12 @@ func TestGroupParseHttpResponse(t *testing.T) {
 			InventoryId: types.Int64Value(1),
 			Name:        types.StringValue("group1"),
 			Description: types.StringNull(),
+			Variables:   jsontypes.NewNormalizedNull(),
 			URL:         types.StringValue("/api/v2/groups/24/"),
-			Variables:   types.StringNull(),
+			Id:          types.Int64Value(1),
 		}
 		g := GroupResourceModel{}
-		body := []byte(`{"inventory": 1, "name": "group1", "url": "/api/v2/groups/24/", "description": "", "variables": ""}`)
+		body := []byte(`{"inventory": 1, "name": "group1", "url": "/api/v2/groups/24/", "id": 1, "description": "", "variables": ""}`)
 		err := g.ParseHttpResponse(body)
 		assert.NoError(t, err)
 		if expected != g {
@@ -35,10 +43,11 @@ func TestGroupParseHttpResponse(t *testing.T) {
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
 			Description: types.StringNull(),
-			Variables:   types.StringValue("{\"ansible_network_os\":\"ios\"}"),
+			Variables:   jsontypes.NewNormalizedValue("{\"ansible_network_os\":\"ios\"}"),
+			Id:          types.Int64Value(1),
 		}
 		g := GroupResourceModel{}
-		body := []byte(`{"inventory": 1, "name": "group1", "url": "/api/v2/groups/24/", "description": "", "variables": "{\"ansible_network_os\":\"ios\"}"}`)
+		body := []byte(`{"inventory": 1, "name": "group1", "url": "/api/v2/groups/24/", "variables": "{\"ansible_network_os\":\"ios\"}", "id": 1, "description": ""}`)
 		err := g.ParseHttpResponse(body)
 		assert.NoError(t, err)
 		if expected != g {
@@ -84,7 +93,7 @@ func TestGroupCreateRequestBody(t *testing.T) {
 			InventoryId: basetypes.NewInt64Value(5),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
-			Variables:   types.StringValue("{\"ansible_network_os\":\"ios\"}"),
+			Variables:   jsontypes.NewNormalizedValue("{\"ansible_network_os\":\"ios\"}"),
 			Description: types.StringValue("New Group"),
 		}
 		body := []byte(`{"name": "group1", "inventory": 5,
@@ -102,7 +111,7 @@ func TestGroupCreateRequestBody(t *testing.T) {
 			InventoryId: basetypes.NewInt64Value(5),
 			Name:        types.StringValue("group1"),
 			URL:         types.StringValue("/api/v2/groups/24/"),
-			Variables: types.StringValue(
+			Variables: jsontypes.NewNormalizedValue(
 				"{\"ansible_network_os\":\"ios\",\"ansible_connection\":\"network_cli\",\"ansible_ssh_user\":\"ansible\",\"ansible_ssh_pass\":\"ansi\"}",
 			),
 			Description: types.StringValue("New Group"),
@@ -240,4 +249,159 @@ func TestReadGroup(t *testing.T) {
 			t.Errorf("Failure expected but the ReadJob did not fail!!")
 		}
 	})
+}
+
+// Acceptance tests
+
+func getGroupResourceFromStateFile(s *terraform.State) (map[string]interface{}, error) {
+	for _, rs := range s.RootModule().Resources {
+		if rs.Type != "aap_group" {
+			continue
+		}
+		groupURL := rs.Primary.Attributes["group_url"]
+		body, err := testGetResource(groupURL)
+		if err != nil {
+			return nil, err
+		}
+
+		var result map[string]interface{}
+		err = json.Unmarshal(body, &result)
+		return result, err
+	}
+	return nil, fmt.Errorf("Group resource not found from state file")
+}
+
+func testAccCheckGroupExists(s *terraform.State) error {
+	_, err := getGroupResourceFromStateFile(s)
+	return err
+}
+
+func testAccCheckGroupValues(urlBefore *string, groupInventoryId string, groupDescription string,
+	groupName string, groupVariables string, shouldDiffer bool) func(s *terraform.State) error {
+	return func(s *terraform.State) error {
+		var groupURL, description, inventoryId, name, variables string
+		var differ = false
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != "aap_group" {
+				continue
+			}
+			groupURL = rs.Primary.Attributes["group_url"]
+			description = rs.Primary.Attributes["description"]
+			inventoryId = rs.Primary.Attributes["inventory_id"]
+			name = rs.Primary.Attributes["name"]
+			variables = rs.Primary.Attributes["variables"]
+		}
+		if len(groupURL) == 0 {
+			return fmt.Errorf("Group resource not found from state file")
+		}
+		if len(*urlBefore) == 0 {
+			*urlBefore = groupURL
+			return nil
+		}
+
+		if description != groupDescription || inventoryId != groupInventoryId || name != groupName ||
+			variables != groupVariables || groupURL != *urlBefore {
+			differ = true
+		}
+
+		if shouldDiffer && differ {
+			return fmt.Errorf("Group resources are equal while expecting them to differ. "+
+				"Before [URL: %s, Description: %s, Inventory ID: %s, Name: %s, Variables: %s] "+
+				"After [URL: %s, Description: %s, Inventory ID: %s, Name: %s, Variables: %s]",
+				*urlBefore, description, inventoryId, name, variables,
+				groupURL, groupDescription, groupInventoryId, groupName, groupVariables)
+		} else if !shouldDiffer && differ {
+			return fmt.Errorf("Group resources are equal while expecting them to not differ. "+
+				"Before [URL: %s, Description: %s, Inventory ID: %s, Name: %s, Variables: %s] "+
+				"After [URL: %s, Description: %s, Inventory ID: %s, Name: %s, Variables: %s]",
+				*urlBefore, description, inventoryId, name, variables,
+				groupURL, groupDescription, groupInventoryId, groupName, groupVariables)
+		}
+
+		return nil
+	}
+}
+
+func testAccGroupResourcePreCheck(t *testing.T) {
+	// ensure provider requirements
+	testAccPreCheck(t)
+
+	requiredAAPGroupEnvVars := []string{
+		"AAP_TEST_INVENTORY_ID",
+	}
+
+	for _, key := range requiredAAPGroupEnvVars {
+		if v := os.Getenv(key); v == "" {
+			t.Fatalf("'%s' environment variable must be set when running acceptance tests for group resource", key)
+		}
+	}
+}
+
+func TestAccAAPGroup_basic(t *testing.T) {
+	var groupURLBefore string
+	var description = "A test group"
+	var variables = "{\"foo\": \"bar\"}"
+	groupInventoryId := os.Getenv("AAP_TEST_INVENTORY_ID")
+	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	updatedName := "updated" + randomName
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccGroupResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create and Read testing
+			{
+				Config: testAccBasicGroup(randomName, groupInventoryId),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckGroupExists,
+					testAccCheckGroupValues(&groupURLBefore, groupInventoryId, "", randomName, "", false),
+					resource.TestCheckResourceAttr("aap_group.test", "name", randomName),
+					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", groupInventoryId),
+					resource.TestMatchResourceAttr("aap_group.test", "group_url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
+				),
+			},
+			// Create and Read testing with same parameters
+			{
+				Config: testAccBasicGroup(randomName, groupInventoryId),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckGroupExists,
+					testAccCheckGroupValues(&groupURLBefore, groupInventoryId, "", randomName, "", false),
+					resource.TestCheckResourceAttr("aap_group.test", "name", randomName),
+					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", groupInventoryId),
+					resource.TestMatchResourceAttr("aap_group.test", "group_url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
+				),
+			},
+			// Update and Read testing
+			{
+				Config: testAccUpdateGroupComplete(updatedName, groupInventoryId),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckGroupExists,
+					testAccCheckGroupValues(&groupURLBefore, groupInventoryId, description, updatedName, variables, false),
+					resource.TestCheckResourceAttr("aap_group.test", "name", updatedName),
+					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", groupInventoryId),
+					resource.TestCheckResourceAttr("aap_group.test", "description", description),
+					resource.TestCheckResourceAttr("aap_group.test", "variables", variables),
+					resource.TestMatchResourceAttr("aap_group.test", "group_url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
+				),
+			},
+		},
+	})
+}
+
+func testAccBasicGroup(name, groupInventoryId string) string {
+	return fmt.Sprintf(`
+resource "aap_group" "test" {
+  name = "%s"
+  inventory_id = %s
+}`, name, groupInventoryId)
+}
+
+func testAccUpdateGroupComplete(name, groupInventoryId string) string {
+	return fmt.Sprintf(`
+resource "aap_group" "test" {
+  name = "%s"
+  inventory_id = %s
+  description = "A test group"
+  variables = "{\"foo\": \"bar\"}"
+}`, name, groupInventoryId)
 }
