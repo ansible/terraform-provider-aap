@@ -102,7 +102,6 @@ func (d *InventoryDataSource) ReadInventory(id string) (*InventoryDataSourceMode
 	}
 
 	return inventory, nil
-
 }
 
 // Read refreshes the Terraform state with the latest data.
