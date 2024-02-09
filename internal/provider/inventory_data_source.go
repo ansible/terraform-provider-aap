@@ -41,18 +41,19 @@ func (d *InventoryDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 				Required: true,
 			},
 			"organization": schema.Int64Attribute{
-				Computed: true,
-				Description: "Identifier for the organization the inventory should be created in. " +
-					"If not provided, the inventory will be created in the default organization.",
+				Computed:    true,
+				Description: "Identifier for the organization to which the inventory belongs",
 			},
 			"url": schema.StringAttribute{
 				Computed: true,
 			},
 			"name": schema.StringAttribute{
 				Computed: true,
+				Optional: true,
 			},
 			"description": schema.StringAttribute{
 				Computed: true,
+				Optional: true,
 			},
 			"variables": schema.StringAttribute{
 				Optional:   true,
@@ -87,8 +88,12 @@ func (d *InventoryDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnosti
 	d.Id = types.Int64Value(apiInventory.Id)
 	d.Organization = types.Int64Value(apiInventory.Organization)
 	d.Url = types.StringValue(apiInventory.Url)
-	d.Name = types.StringValue(apiInventory.Name)
 
+	if apiInventory.Name != "" {
+		d.Name = types.StringValue(apiInventory.Name)
+	} else {
+		d.Name = types.StringNull()
+	}
 	if apiInventory.Description != "" {
 		d.Description = types.StringValue(apiInventory.Description)
 	} else {
@@ -113,13 +118,7 @@ func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	url, diags := getURL(state.Url.ValueString(), state.Id.String())
-	diags.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	readResponseBody, diags := d.client.Get(url)
+	readResponseBody, diags := d.client.Get("api/v2/inventories/" + state.Id.String())
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -136,7 +135,6 @@ func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadReque
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
 }
 
 // Configure adds the provider configured client to the data source.
