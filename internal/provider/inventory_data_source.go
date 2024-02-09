@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -72,60 +72,71 @@ type InventoryDataSourceModel struct {
 	Variables    jsontypes.Normalized `tfsdk:"variables"`
 }
 
-func (d *InventoryDataSource) ReadInventory(id string) (*InventoryDataSourceModel, error) {
-	resp, body, err := d.client.doRequest("GET", "api/v2/inventories/"+id+"/", nil)
-	if err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, fmt.Errorf("the server response is null")
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status: %d, body: %s", resp.StatusCode, body)
-	}
+func (d *InventoryDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	// Unmarshal the JSON response
 	var apiInventory InventoryAPIModel
-
-	// return nil, fmt.Errorf("body %s", body)
-	err = json.Unmarshal(body, &apiInventory)
+	err := json.Unmarshal(body, &apiInventory)
 	if err != nil {
-		return nil, err
+		diags.AddError("Error parsing JSON response from AAP", err.Error())
+		return diags
 	}
 
-	// Create InventoryDataSourceModel
-	inventory := &InventoryDataSourceModel{
-		Id:           types.Int64Value(apiInventory.Id),
-		Organization: types.Int64Value(apiInventory.Organization),
-		Url:          types.StringValue(apiInventory.Url),
-		Name:         types.StringValue(apiInventory.Name),
-		Description:  types.StringValue(apiInventory.Description),
-		Variables:    jsontypes.NewNormalizedValue(apiInventory.Variables),
-	}
+	// Map response to the inventory datesource schema
+	d.Id = types.Int64Value(apiInventory.Id)
+	d.Organization = types.Int64Value(apiInventory.Organization)
+	d.Url = types.StringValue(apiInventory.Url)
+	d.Name = types.StringValue(apiInventory.Name)
 
-	return inventory, nil
+	if apiInventory.Description != "" {
+		d.Description = types.StringValue(apiInventory.Description)
+	} else {
+		d.Description = types.StringNull()
+	}
+	if apiInventory.Variables != "" {
+		d.Variables = jsontypes.NewNormalizedValue(apiInventory.Variables)
+	} else {
+		d.Variables = jsontypes.NewNormalizedNull()
+	}
+	return diags
 }
 
 // Read refreshes the Terraform state with the latest data.
 func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state InventoryDataSourceModel
+	var diags diag.Diagnostics
 
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
-
-	result, err := d.ReadInventory(state.Id.String())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Read Inventory",
-			fmt.Sprintf("%s %s", result, err.Error()),
-		)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Set state
-	diags := resp.State.Set(ctx, &result)
+	url, diags := getURL(state.Url.ValueString(), state.Id.String())
+	diags.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	readResponseBody, diags := d.client.Get(url)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	diags = state.ParseHttpResponse(readResponseBody)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	// Set state
+	// Save updated data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 }
 
 // Configure adds the provider configured client to the data source.
