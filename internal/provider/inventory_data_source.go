@@ -63,7 +63,7 @@ func (d *InventoryDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 	}
 }
 
-/ Read refreshes the Terraform state with the latest data.
+// Read refreshes the Terraform state with the latest data.
 func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state InventoryDataSourceModel
 	var diags diag.Diagnostics
