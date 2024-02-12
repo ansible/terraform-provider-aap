@@ -63,51 +63,7 @@ func (d *InventoryDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 	}
 }
 
-// inventoryDataSourceModel maps the data source schema data.
-type InventoryDataSourceModel struct {
-	Id           types.Int64          `tfsdk:"id"`
-	Organization types.Int64          `tfsdk:"organization"`
-	Url          types.String         `tfsdk:"url"`
-	Name         types.String         `tfsdk:"name"`
-	Description  types.String         `tfsdk:"description"`
-	Variables    jsontypes.Normalized `tfsdk:"variables"`
-}
-
-func (d *InventoryDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
-	var diags diag.Diagnostics
-
-	// Unmarshal the JSON response
-	var apiInventory InventoryAPIModel
-	err := json.Unmarshal(body, &apiInventory)
-	if err != nil {
-		diags.AddError("Error parsing JSON response from AAP", err.Error())
-		return diags
-	}
-
-	// Map response to the inventory datesource schema
-	d.Id = types.Int64Value(apiInventory.Id)
-	d.Organization = types.Int64Value(apiInventory.Organization)
-	d.Url = types.StringValue(apiInventory.Url)
-
-	if apiInventory.Name != "" {
-		d.Name = types.StringValue(apiInventory.Name)
-	} else {
-		d.Name = types.StringNull()
-	}
-	if apiInventory.Description != "" {
-		d.Description = types.StringValue(apiInventory.Description)
-	} else {
-		d.Description = types.StringNull()
-	}
-	if apiInventory.Variables != "" {
-		d.Variables = jsontypes.NewNormalizedValue(apiInventory.Variables)
-	} else {
-		d.Variables = jsontypes.NewNormalizedNull()
-	}
-	return diags
-}
-
-// Read refreshes the Terraform state with the latest data.
+/ Read refreshes the Terraform state with the latest data.
 func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state InventoryDataSourceModel
 	var diags diag.Diagnostics
@@ -154,4 +110,48 @@ func (d *InventoryDataSource) Configure(_ context.Context, req datasource.Config
 	}
 
 	d.client = client
+}
+
+// inventoryDataSourceModel maps the data source schema data.
+type InventoryDataSourceModel struct {
+	Id           types.Int64          `tfsdk:"id"`
+	Organization types.Int64          `tfsdk:"organization"`
+	Url          types.String         `tfsdk:"url"`
+	Name         types.String         `tfsdk:"name"`
+	Description  types.String         `tfsdk:"description"`
+	Variables    jsontypes.Normalized `tfsdk:"variables"`
+}
+
+func (d *InventoryDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	// Unmarshal the JSON response
+	var apiInventory InventoryAPIModel
+	err := json.Unmarshal(body, &apiInventory)
+	if err != nil {
+		diags.AddError("Error parsing JSON response from AAP", err.Error())
+		return diags
+	}
+
+	// Map response to the inventory datesource schema
+	d.Id = types.Int64Value(apiInventory.Id)
+	d.Organization = types.Int64Value(apiInventory.Organization)
+	d.Url = types.StringValue(apiInventory.Url)
+
+	if apiInventory.Name != "" {
+		d.Name = types.StringValue(apiInventory.Name)
+	} else {
+		d.Name = types.StringNull()
+	}
+	if apiInventory.Description != "" {
+		d.Description = types.StringValue(apiInventory.Description)
+	} else {
+		d.Description = types.StringNull()
+	}
+	if apiInventory.Variables != "" {
+		d.Variables = jsontypes.NewNormalizedValue(apiInventory.Variables)
+	} else {
+		d.Variables = jsontypes.NewNormalizedNull()
+	}
+	return diags
 }

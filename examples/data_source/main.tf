@@ -13,27 +13,15 @@ provider "aap" {
   insecure_skip_verify = true
 }
 
-resource "aap_inventory" "my_inventory" {
-  name = "My new inventory"
-  description = "A new inventory for testing"
-  variables = jsonencode(
-    {
-      "foo": "bar"
-    }
-  )
-}
-
-output "inventory" {
-  value = aap_inventory.my_inventory
+variable "inventory_id" {
+   type = number
+   description = "The inventory id"
 }
 
 data "aap_inventory" "sample" {
-  id = aap_inventory.my_inventory.id
+  id = var.inventory_id
 }
 
 output "inventory_details" {
   value = data.aap_inventory.sample
-}
-output "inventory_variables" {
-  value = data.aap_inventory.sample.variables
 }
