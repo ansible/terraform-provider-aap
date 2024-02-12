@@ -282,16 +282,8 @@ func (r *GroupResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	r.URL = types.StringValue(resultApiGroup.URL)
 	r.Id = types.Int64Value(resultApiGroup.Id)
 	r.Name = types.StringValue(resultApiGroup.Name)
-	if resultApiGroup.Description != "" {
-		r.Description = types.StringValue(resultApiGroup.Description)
-	} else {
-		r.Description = types.StringNull()
-	}
-	if resultApiGroup.Variables != "" {
-		r.Variables = jsontypes.NewNormalizedValue(resultApiGroup.Variables)
-	} else {
-		r.Variables = jsontypes.NewNormalizedNull()
-	}
+	r.Description = SetDescription(resultApiGroup.Description)
+	r.Variables = SetVariables(resultApiGroup.Variables)
 
 	return diags
 }

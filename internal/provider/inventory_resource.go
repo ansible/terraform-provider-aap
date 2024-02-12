@@ -292,18 +292,8 @@ func (r *inventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics
 	r.Organization = types.Int64Value(apiInventory.Organization)
 	r.Url = types.StringValue(apiInventory.Url)
 	r.Name = types.StringValue(apiInventory.Name)
-
-	if apiInventory.Description != "" {
-		r.Description = types.StringValue(apiInventory.Description)
-	} else {
-		r.Description = types.StringNull()
-	}
-
-	if apiInventory.Variables != "" {
-		r.Variables = jsontypes.NewNormalizedValue(apiInventory.Variables)
-	} else {
-		r.Variables = jsontypes.NewNormalizedNull()
-	}
+	r.Description = SetDescription(apiInventory.Description)
+	r.Variables = SetVariables(apiInventory.Variables)
 
 	return parseResponseDiags
 }

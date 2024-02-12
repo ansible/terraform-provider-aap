@@ -529,16 +529,8 @@ func (r *HostResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	r.Id = types.Int64Value(resultApiHost.Id)
 	r.Name = types.StringValue(resultApiHost.Name)
 	r.Enabled = basetypes.NewBoolValue(resultApiHost.Enabled)
-	if resultApiHost.Description != "" {
-		r.Description = types.StringValue(resultApiHost.Description)
-	} else {
-		r.Description = types.StringNull()
-	}
-	if resultApiHost.Variables != "" {
-		r.Variables = jsontypes.NewNormalizedValue(resultApiHost.Variables)
-	} else {
-		r.Variables = jsontypes.NewNormalizedNull()
-	}
+	r.Description = SetDescription(resultApiHost.Description)
+	r.Variables = SetVariables(resultApiHost.Variables)
 
 	return diags
 }
