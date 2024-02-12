@@ -63,7 +63,7 @@ func (r *HostResource) Configure(_ context.Context, req resource.ConfigureReques
 	r.client = client
 }
 
-// Schema defines the schema for the resource.
+// Schema defines the schema for the host resource.
 func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
@@ -144,12 +144,13 @@ func (r *HostResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	// create request body from host data
+	// Create request body from host data
 	createRequestBody, diags := data.CreateRequestBody()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
 	requestData := bytes.NewReader(createRequestBody)
 
 	// Create new host in AAP
@@ -257,7 +258,7 @@ func (r *HostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	// create request body from host data
+	// Create request body from host data
 	updateRequestBody, diags := data.CreateRequestBody()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -321,10 +322,6 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 
 	// Read current Terraform state data into host resource model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -492,7 +489,6 @@ func (r *HostResource) AssociateGroups(ctx context.Context, data []int64, url st
 // CreateRequestBody creates a JSON encoded request body from the host resource data
 func (r *HostResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	// Convert host resource data to API data model
-
 	host := HostAPIModel{
 		InventoryId: r.InventoryId.ValueInt64(),
 		Name:        r.Name.ValueString(),
@@ -501,7 +497,7 @@ func (r *HostResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 		Enabled:     r.Enabled.ValueBool(),
 	}
 
-	// create JSON encoded request body
+	// Create JSON encoded request body
 	jsonBody, err := json.Marshal(host)
 	if err != nil {
 		var diags diag.Diagnostics

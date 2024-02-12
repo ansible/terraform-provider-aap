@@ -2,328 +2,178 @@ package provider
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
+	"reflect"
 	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
-	"github.com/stretchr/testify/assert"
 )
 
-func TestGroupParseHttpResponse(t *testing.T) {
-	t.Run("Basic Test", func(t *testing.T) {
-		expected := GroupResourceModel{
-			InventoryId: types.Int64Value(1),
-			Name:        types.StringValue("group1"),
-			Description: types.StringNull(),
-			Variables:   jsontypes.NewNormalizedNull(),
-			URL:         types.StringValue("/api/v2/groups/24/"),
-			Id:          types.Int64Value(1),
-		}
-		g := GroupResourceModel{}
-		body := []byte(`{"inventory": 1, "name": "group1", "url": "/api/v2/groups/24/", "id": 1, "description": "", "variables": ""}`)
-		err := g.ParseHttpResponse(body)
-		assert.NoError(t, err)
-		if expected != g {
-			t.Errorf("Expected (%s) not equal to actual (%s)", expected, g)
-		}
-	})
-	t.Run("Test with variables", func(t *testing.T) {
-		expected := GroupResourceModel{
-			InventoryId: types.Int64Value(1),
-			Name:        types.StringValue("group1"),
-			URL:         types.StringValue("/api/v2/groups/24/"),
-			Description: types.StringNull(),
-			Variables:   jsontypes.NewNormalizedValue("{\"ansible_network_os\":\"ios\"}"),
-			Id:          types.Int64Value(1),
-		}
-		g := GroupResourceModel{}
-		body := []byte(`{"inventory": 1, "name": "group1", "url": "/api/v2/groups/24/", "variables": "{\"ansible_network_os\":\"ios\"}", "id": 1, "description": ""}`)
-		err := g.ParseHttpResponse(body)
-		assert.NoError(t, err)
-		if expected != g {
-			t.Errorf("Expected (%s) not equal to actual (%s)", expected, g)
-		}
-	})
-	t.Run("JSON error", func(t *testing.T) {
-		g := GroupResourceModel{}
-		body := []byte("Not valid JSON")
-		err := g.ParseHttpResponse(body)
-		assert.Error(t, err)
-	})
+func TestGroupResourceSchema(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	schemaRequest := fwresource.SchemaRequest{}
+	schemaResponse := &fwresource.SchemaResponse{}
+
+	// Instantiate the GroupResource and call its Schema method
+	NewGroupResource().Schema(ctx, schemaRequest, schemaResponse)
+
+	if schemaResponse.Diagnostics.HasError() {
+		t.Fatalf("Schema method diagnostics: %+v", schemaResponse.Diagnostics)
+	}
+
+	// Validate the schema
+	diagnostics := schemaResponse.Schema.ValidateImplementation(ctx)
+
+	if diagnostics.HasError() {
+		t.Fatalf("Schema validation diagnostics: %+v", diagnostics)
+	}
 }
 
-func TestGroupCreateRequestBody(t *testing.T) {
-	t.Run("Basic Test", func(t *testing.T) {
-		g := GroupResourceModel{
-			InventoryId: types.Int64Value(1),
-			Name:        types.StringValue("group1"),
-			URL:         types.StringValue("/api/v2/groups/24/"),
-		}
-		body := []byte(`{"inventory": 1, "name": "group1"}`)
-		result, diags := g.CreateRequestBody()
-		if diags.HasError() {
-			t.Fatal(diags.Errors())
-		}
-		assert.JSONEq(t, string(body), string(result))
-	})
-	t.Run("Unknown Values", func(t *testing.T) {
-		g := GroupResourceModel{
-			InventoryId: basetypes.NewInt64Unknown(),
-		}
-		result, diags := g.CreateRequestBody()
-
-		if diags.HasError() {
-			t.Fatal(diags.Errors())
-		}
-
-		bytes.Equal(result, []byte(nil))
-	})
-	t.Run("All Values", func(t *testing.T) {
-		g := GroupResourceModel{
-			InventoryId: basetypes.NewInt64Value(5),
-			Name:        types.StringValue("group1"),
-			URL:         types.StringValue("/api/v2/groups/24/"),
-			Variables:   jsontypes.NewNormalizedValue("{\"ansible_network_os\":\"ios\"}"),
-			Description: types.StringValue("New Group"),
-		}
-		body := []byte(`{"name": "group1", "inventory": 5,
-		                 "description": "New Group",
-						 "variables": "{\"ansible_network_os\":\"ios\"}"}`)
-
-		result, diags := g.CreateRequestBody()
-		if diags.HasError() {
-			t.Fatal(diags.Errors())
-		}
-		assert.JSONEq(t, string(body), string(result))
-	})
-	t.Run("Multiple values for Variables", func(t *testing.T) {
-		g := GroupResourceModel{
-			InventoryId: basetypes.NewInt64Value(5),
-			Name:        types.StringValue("group1"),
-			URL:         types.StringValue("/api/v2/groups/24/"),
-			Variables: jsontypes.NewNormalizedValue(
-				"{\"ansible_network_os\":\"ios\",\"ansible_connection\":\"network_cli\",\"ansible_ssh_user\":\"ansible\",\"ansible_ssh_pass\":\"ansi\"}",
+func TestGroupResourceCreateRequestBody(t *testing.T) {
+	var testTable = []struct {
+		name     string
+		input    GroupResourceModel
+		expected []byte
+	}{
+		{
+			name: "test with unknown values",
+			input: GroupResourceModel{
+				Name:        types.StringValue("test group"),
+				Description: types.StringUnknown(),
+				URL:         types.StringUnknown(),
+				Variables:   jsontypes.NewNormalizedUnknown(),
+				InventoryId: types.Int64Value(0),
+			},
+			expected: []byte(`{"inventory":0,"name":"test group"}`),
+		},
+		{
+			name: "test with null values",
+			input: GroupResourceModel{
+				Name:        types.StringValue("test group"),
+				Description: types.StringNull(),
+				URL:         types.StringNull(),
+				Variables:   jsontypes.NewNormalizedNull(),
+				InventoryId: types.Int64Value(0),
+			},
+			expected: []byte(`{"inventory":0,"name":"test group"}`),
+		},
+		{
+			name: "test with some values",
+			input: GroupResourceModel{
+				InventoryId: types.Int64Value(1),
+				Name:        types.StringValue("group1"),
+				Description: types.StringNull(),
+				URL:         types.StringValue("/api/v2/groups/1/"),
+				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\"}"),
+			},
+			expected: []byte(
+				`{"inventory":1,"name":"group1","variables":"{\"foo\":\"bar\"}"}`,
 			),
-			Description: types.StringValue("New Group"),
-		}
-		body := []byte(`{
-    	"name": "group1",
-    	"inventory": 5,
-    	"description": "New Group",
-    	"variables": "{\"ansible_network_os\":\"ios\",\"ansible_connection\":\"network_cli\",\"ansible_ssh_user\":\"ansible\",\"ansible_ssh_pass\":\"ansi\"}"
-        }`)
+		},
+		{
+			name: "test with all values",
+			input: GroupResourceModel{
+				InventoryId: types.Int64Value(1),
+				Name:        types.StringValue("group1"),
+				Description: types.StringValue("A test group"),
+				URL:         types.StringValue("/api/v2/groups/1/"),
+				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\"}"),
+			},
+			expected: []byte(
+				`{"inventory":1,"name":"group1","description":"A test group","variables":"{\"foo\":\"bar\"}"}`,
+			),
+		},
+	}
 
-		result, diags := g.CreateRequestBody()
-		if diags.HasError() {
-			t.Fatal(diags.Errors())
-		}
-		assert.JSONEq(t, string(body), string(result))
-	})
-}
-
-type MockGroupResource struct {
-	InventoryId string
-	Name        string
-	Description string
-	URL         string
-	Variables   string
-	Response    map[string]string
-}
-
-func NewMockGroupResource(inventory, name, description, url, variables string) *MockGroupResource {
-	return &MockGroupResource{
-		InventoryId: inventory,
-		URL:         url,
-		Name:        name,
-		Description: description,
-		Variables:   variables,
-		Response:    map[string]string{},
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			actual, diags := test.input.CreateRequestBody()
+			if diags.HasError() {
+				t.Fatal(diags.Errors())
+			}
+			if !bytes.Equal(test.expected, actual) {
+				t.Errorf("Expected (%s) not equal to actual (%s)", test.expected, actual)
+			}
+		})
 	}
 }
 
-func (d *MockGroupResource) GetURL() string {
-	return d.URL
-}
+func TestGroupResourceParseHttpResponse(t *testing.T) {
+	jsonError := diag.Diagnostics{}
+	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
-func (d *MockGroupResource) ParseHttpResponse(body []byte) error {
-	err := json.Unmarshal(body, &d.Response)
-	if err != nil {
-		return err
+	var testTable = []struct {
+		name     string
+		input    []byte
+		expected GroupResourceModel
+		errors   diag.Diagnostics
+	}{
+		{
+			name:     "test with JSON error",
+			input:    []byte("Not valid JSON"),
+			expected: GroupResourceModel{},
+			errors:   jsonError,
+		},
+		{
+			name:  "test with missing values",
+			input: []byte(`{"inventory":1, "id": 0, "name": "group1", "url": "/api/v2/groups/1/", "description": ""}`),
+			expected: GroupResourceModel{
+				InventoryId: types.Int64Value(1),
+				Id:          types.Int64Value(0),
+				Name:        types.StringValue("group1"),
+				URL:         types.StringValue("/api/v2/groups/1/"),
+				Description: types.StringNull(),
+			},
+			errors: diag.Diagnostics{},
+		},
+		{
+			name: "test with all values",
+			input: []byte(`{"inventory":1,"description":"A basic test group","name":"group1","url":"/api/v2/groups/1/",` +
+				`"variables":"{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"}`),
+			expected: GroupResourceModel{
+				InventoryId: types.Int64Value(1),
+				Id:          types.Int64Value(0),
+				Name:        types.StringValue("group1"),
+				URL:         types.StringValue("/api/v2/groups/1/"),
+				Description: types.StringValue("A basic test group"),
+				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
+			},
+			errors: diag.Diagnostics{},
+		},
 	}
-	return nil
-}
 
-func (d *MockGroupResource) CreateRequestBody() ([]byte, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
-	m := make(map[string]interface{})
-	m["Inventory"] = d.InventoryId
-	m["Name"] = d.Name
-	jsonRaw, err := json.Marshal(m)
-	if err != nil {
-		diags.AddError("Json Marshall Error", err.Error())
-		return nil, diags
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			resource := GroupResourceModel{}
+			diags := resource.ParseHttpResponse(test.input)
+			if !test.errors.Equal(diags) {
+				t.Errorf("Expected error diagnostics (%s), actual was (%s)", test.errors, diags)
+			}
+			if !reflect.DeepEqual(test.expected, resource) {
+				t.Errorf("Expected (%s) not equal to actual (%s)", test.expected, resource)
+			}
+		})
 	}
-	return jsonRaw, diags
-}
-
-func TestCreateGroup(t *testing.T) {
-	t.Run("Create Group", func(t *testing.T) {
-		g := NewMockGroupResource("1", "Group1", "", "", "")
-		group := GroupResource{
-			client: NewMockHTTPClient([]string{"POST", "post"}, http.StatusCreated),
-		}
-
-		diags := group.CreateGroup(g)
-		if diags.HasError() {
-			t.Errorf("Create Group failed")
-			for _, d := range diags {
-				t.Errorf("Summary = '%s' - details = '%s'", d.Summary(), d.Detail())
-			}
-		}
-	})
-}
-func TestUpdateGroup(t *testing.T) {
-	t.Run("Update Group", func(t *testing.T) {
-		g := NewMockGroupResource("1", "Group1", "Updated Group", "/api/v2/groups/1/", "")
-		group := GroupResource{
-			client: NewMockHTTPClient([]string{"PUT", "put"}, http.StatusOK),
-		}
-
-		diags := group.UpdateGroup(g)
-		if diags.HasError() {
-			t.Errorf("Update Group failed")
-			for _, d := range diags {
-				t.Errorf("Summary = '%s' - details = '%s'", d.Summary(), d.Detail())
-			}
-		}
-	})
-	t.Run("Update Group with variables", func(t *testing.T) {
-		g := NewMockGroupResource("2", "Group1", "Updated Group", "/api/v2/groups/2/", "{\"ansible_network_os\": \"ios\"}")
-		group := GroupResource{
-			client: NewMockHTTPClient([]string{"PUT", "put"}, http.StatusOK),
-		}
-
-		diags := group.UpdateGroup(g)
-		if diags.HasError() {
-			t.Errorf("Update Group with variables failed")
-			for _, d := range diags {
-				t.Errorf("Summary = '%s' - details = '%s'", d.Summary(), d.Detail())
-			}
-		}
-	})
-}
-func TestReadGroup(t *testing.T) {
-	t.Run("Read Group", func(t *testing.T) {
-		g := NewMockGroupResource("1", "Group1", "", "/api/v2/groups/2/", "")
-		group := GroupResource{
-			client: NewMockHTTPClient([]string{"GET", "get"}, http.StatusOK),
-		}
-
-		diags := group.ReadGroup(g)
-		if diags.HasError() {
-			t.Errorf("Read Group failed")
-			for _, d := range diags {
-				t.Errorf("Summary = '%s' - details = '%s'", d.Summary(), d.Detail())
-			}
-		}
-	})
-	t.Run("Read Group with no URL", func(t *testing.T) {
-		g := NewMockGroupResource("1", "Group1", "", "", "")
-		group := GroupResource{
-			client: NewMockHTTPClient([]string{"GET", "get"}, http.StatusOK),
-		}
-
-		err := group.ReadGroup(g)
-		if err == nil {
-			t.Errorf("Failure expected but the ReadJob did not fail!!")
-		}
-	})
 }
 
 // Acceptance tests
 
-func getGroupResourceFromStateFile(s *terraform.State) (map[string]interface{}, error) {
-	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "aap_group" {
-			continue
-		}
-		groupURL := rs.Primary.Attributes["group_url"]
-		body, err := testGetResource(groupURL)
-		if err != nil {
-			return nil, err
-		}
-
-		var result map[string]interface{}
-		err = json.Unmarshal(body, &result)
-		return result, err
-	}
-	return nil, fmt.Errorf("Group resource not found from state file")
-}
-
-func testAccCheckGroupExists(s *terraform.State) error {
-	_, err := getGroupResourceFromStateFile(s)
-	return err
-}
-
-func testAccCheckGroupValues(urlBefore *string, groupInventoryId string, groupDescription string,
-	groupName string, groupVariables string, shouldDiffer bool) func(s *terraform.State) error {
-	return func(s *terraform.State) error {
-		var groupURL, description, inventoryId, name, variables string
-		var differ = false
-		for _, rs := range s.RootModule().Resources {
-			if rs.Type != "aap_group" {
-				continue
-			}
-			groupURL = rs.Primary.Attributes["group_url"]
-			description = rs.Primary.Attributes["description"]
-			inventoryId = rs.Primary.Attributes["inventory_id"]
-			name = rs.Primary.Attributes["name"]
-			variables = rs.Primary.Attributes["variables"]
-		}
-		if len(groupURL) == 0 {
-			return fmt.Errorf("Group resource not found from state file")
-		}
-		if len(*urlBefore) == 0 {
-			*urlBefore = groupURL
-			return nil
-		}
-
-		if description != groupDescription || inventoryId != groupInventoryId || name != groupName ||
-			variables != groupVariables || groupURL != *urlBefore {
-			differ = true
-		}
-
-		if shouldDiffer && differ {
-			return fmt.Errorf("Group resources are equal while expecting them to differ. "+
-				"Before [URL: %s, Description: %s, Inventory ID: %s, Name: %s, Variables: %s] "+
-				"After [URL: %s, Description: %s, Inventory ID: %s, Name: %s, Variables: %s]",
-				*urlBefore, description, inventoryId, name, variables,
-				groupURL, groupDescription, groupInventoryId, groupName, groupVariables)
-		} else if !shouldDiffer && differ {
-			return fmt.Errorf("Group resources are equal while expecting them to not differ. "+
-				"Before [URL: %s, Description: %s, Inventory ID: %s, Name: %s, Variables: %s] "+
-				"After [URL: %s, Description: %s, Inventory ID: %s, Name: %s, Variables: %s]",
-				*urlBefore, description, inventoryId, name, variables,
-				groupURL, groupDescription, groupInventoryId, groupName, groupVariables)
-		}
-
-		return nil
-	}
-}
-
 func testAccGroupResourcePreCheck(t *testing.T) {
-	// ensure provider requirements
+	// Ensure provider requirements
 	testAccPreCheck(t)
 
 	requiredAAPGroupEnvVars := []string{
@@ -337,58 +187,53 @@ func testAccGroupResourcePreCheck(t *testing.T) {
 	}
 }
 
-func TestAccAAPGroup_basic(t *testing.T) {
-	var groupURLBefore string
+func TestAccGroupResource(t *testing.T) {
+	var groupApiModel GroupAPIModel
 	var description = "A test group"
 	var variables = "{\"foo\": \"bar\"}"
-	groupInventoryId := os.Getenv("AAP_TEST_INVENTORY_ID")
 	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	updatedName := "updated" + randomName
+
+	inventoryId := os.Getenv("AAP_TEST_INVENTORY_ID")
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccGroupResourcePreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
+			// Invalid variables testing
+			{
+				Config:      testAccGroupResourceBadVariables(updatedName, inventoryId),
+				ExpectError: regexp.MustCompile("A string value was provided that is not valid JSON string format"),
+			},
 			// Create and Read testing
 			{
-				Config: testAccBasicGroup(randomName, groupInventoryId),
+				Config: testAccGroupResourceMinimal(randomName, inventoryId),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckGroupExists,
-					testAccCheckGroupValues(&groupURLBefore, groupInventoryId, "", randomName, "", false),
+					testAccCheckGroupResourceExists("aap_group.test", &groupApiModel),
+					testAccCheckGroupResourceValues(&groupApiModel, randomName, "", "", inventoryId),
 					resource.TestCheckResourceAttr("aap_group.test", "name", randomName),
-					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", groupInventoryId),
+					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", inventoryId),
 					resource.TestMatchResourceAttr("aap_group.test", "group_url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
 				),
 			},
-			// Create and Read testing with same parameters
 			{
-				Config: testAccBasicGroup(randomName, groupInventoryId),
+				Config: testAccGroupResourceComplete(updatedName, inventoryId),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckGroupExists,
-					testAccCheckGroupValues(&groupURLBefore, groupInventoryId, "", randomName, "", false),
-					resource.TestCheckResourceAttr("aap_group.test", "name", randomName),
-					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", groupInventoryId),
-					resource.TestMatchResourceAttr("aap_group.test", "group_url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
-				),
-			},
-			// Update and Read testing
-			{
-				Config: testAccUpdateGroupComplete(updatedName, groupInventoryId),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckGroupExists,
-					testAccCheckGroupValues(&groupURLBefore, groupInventoryId, description, updatedName, variables, false),
+					testAccCheckGroupResourceExists("aap_group.test", &groupApiModel),
+					testAccCheckGroupResourceValues(&groupApiModel, updatedName, description, variables, inventoryId),
 					resource.TestCheckResourceAttr("aap_group.test", "name", updatedName),
-					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", groupInventoryId),
+					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", inventoryId),
 					resource.TestCheckResourceAttr("aap_group.test", "description", description),
 					resource.TestCheckResourceAttr("aap_group.test", "variables", variables),
 					resource.TestMatchResourceAttr("aap_group.test", "group_url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
 				),
 			},
 		},
+		CheckDestroy: testAccCheckGroupResourceDestroy,
 	})
 }
 
-func testAccBasicGroup(name, groupInventoryId string) string {
+func testAccGroupResourceMinimal(name, groupInventoryId string) string {
 	return fmt.Sprintf(`
 resource "aap_group" "test" {
   name = "%s"
@@ -396,7 +241,7 @@ resource "aap_group" "test" {
 }`, name, groupInventoryId)
 }
 
-func testAccUpdateGroupComplete(name, groupInventoryId string) string {
+func testAccGroupResourceComplete(name, groupInventoryId string) string {
 	return fmt.Sprintf(`
 resource "aap_group" "test" {
   name = "%s"
@@ -404,4 +249,87 @@ resource "aap_group" "test" {
   description = "A test group"
   variables = "{\"foo\": \"bar\"}"
 }`, name, groupInventoryId)
+}
+
+// testAccGroupResourceBadVariables returns a configuration for an AAP group with the provided name and invalid variables.
+func testAccGroupResourceBadVariables(name, groupInventoryId string) string {
+	return fmt.Sprintf(`
+resource "aap_group" "test" {
+  name = "%s"
+  inventory_id = %s
+  variables = "Not valid JSON"
+}`, name, groupInventoryId)
+}
+
+// testAccCheckGroupResourceExists queries the AAP API and retrieves the matching group.
+func testAccCheckGroupResourceExists(name string, groupApiModel *GroupAPIModel) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		groupResource, ok := s.RootModule().Resources[name]
+		if !ok {
+			return fmt.Errorf("group (%s) not found in state", name)
+		}
+
+		groupResponseBody, err := testGetResource(groupResource.Primary.Attributes["group_url"])
+		if err != nil {
+			return err
+		}
+
+		err = json.Unmarshal(groupResponseBody, &groupApiModel)
+		if err != nil {
+			return err
+		}
+
+		if groupApiModel.Id == 0 {
+			return fmt.Errorf("group (%s) not found in AAP", groupResource.Primary.ID)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckGroupResourceValues(groupApiModel *GroupAPIModel, name string, description string, variables string,
+	inventoryId string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		inv, err := strconv.ParseInt(inventoryId, 10, 64)
+		if err != nil {
+			return fmt.Errorf("could not convert \"%s\", to int64", inventoryId)
+		}
+		if groupApiModel.InventoryId != inv {
+			return fmt.Errorf("bad roup inventory id in AAP, expected %d, got: %d", inv, groupApiModel.InventoryId)
+		}
+		if groupApiModel.URL == "" {
+			return fmt.Errorf("bad group URL in AAP, expected a URL path, got: %s", groupApiModel.URL)
+		}
+		if groupApiModel.Name != name {
+			return fmt.Errorf("bad group name in AAP, expected \"%s\", got: %s", name, groupApiModel.Name)
+		}
+		if groupApiModel.Description != description {
+			return fmt.Errorf("bad group description in AAP, expected \"%s\", got: %s", description, groupApiModel.Description)
+		}
+		if groupApiModel.Variables != variables {
+			return fmt.Errorf("bad group variables in AAP, expected \"%s\", got: %s", variables, groupApiModel.Variables)
+		}
+
+		return nil
+	}
+}
+
+// testAccCheckGroupResourceDestroy verifies the group has been destroyed.
+func testAccCheckGroupResourceDestroy(s *terraform.State) error {
+	for _, rs := range s.RootModule().Resources {
+		if rs.Type != "group" {
+			continue
+		}
+
+		_, err := testGetResource(rs.Primary.Attributes["url"])
+		if err == nil {
+			return fmt.Errorf("group (%s) still exists.", rs.Primary.Attributes["id"])
+		}
+
+		if !strings.Contains(err.Error(), "404") {
+			return err
+		}
+	}
+
+	return nil
 }
