@@ -185,14 +185,14 @@ func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	// Get latest host data from AAP
+	// Get latest job data from AAP
 	readResponseBody, diags := r.client.Get(data.URL.ValueString())
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Save latest host data into host resource model
+	// Save latest hob data into job resource model
 	diags = data.ParseHttpResponse(readResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -247,7 +247,7 @@ func (r *JobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 		var diags diag.Diagnostics
 		diags.AddError(
 			"Error marshaling request body",
-			fmt.Sprintf("Could not create request body for host resource, unexpected error: %s", err.Error()),
+			fmt.Sprintf("Could not create request body for job resource, unexpected error: %s", err.Error()),
 		)
 		return nil, diags
 	}
