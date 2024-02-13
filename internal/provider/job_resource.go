@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
@@ -16,22 +15,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Ensure provider defined types fully satisfy framework interfaces.
+// Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource = &JobResource{}
+	_ resource.Resource              = &JobResource{}
+	_ resource.ResourceWithConfigure = &JobResource{}
 )
 
+// NewJobResource is a helper function to simplify the provider implementation.
 func NewJobResource() resource.Resource {
 	return &JobResource{}
 }
 
-type JobResourceModelInterface interface {
-	ParseHTTPResponse(body []byte) error
-	CreateRequestBody() ([]byte, diag.Diagnostics)
-	GetTemplateID() string
-	GetURL() string
-}
-
+// JobResource is the resource implementation.
 type JobResource struct {
 	client ProviderHTTPClient
 }
@@ -41,7 +36,27 @@ func (r *JobResource) Metadata(_ context.Context, req resource.MetadataRequest, 
 	resp.TypeName = req.ProviderTypeName + "_job"
 }
 
-// Schema defines the schema for the resource.
+// Configure adds the provider configured client to the data source.
+func (d *JobResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	// Prevent panic if the provider has not been configured.
+	if req.ProviderData == nil {
+		return
+	}
+
+	client, ok := req.ProviderData.(*AAPClient)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *AAPClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+
+		return
+	}
+
+	d.client = client
+}
+
+// Schema defines the schema for the  jobresource.
 func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
@@ -80,8 +95,20 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 	}
 }
 
-// jobResourceModel maps the resource schema data.
-type jobResourceModel struct {
+// Job AAP API model
+type JobAPIModel struct {
+	TemplateID    int64                      `json:"job_template_id,omitempty"`
+	Type          string                     `json:"job_type,omitempty"`
+	URL           string                     `json:"url,omitempty"`
+	Status        string                     `json:"status,omitempty"`
+	Inventory     int64                      `json:"inventory_id"`
+	ExtraVars     string                     `json:"extra_vars,omitempty"`
+	IgnoredFields map[string]json.RawMessage `json:"ignored_fields,omitempty"`
+	Triggers      struct{}                   `json:"triggers,omitempty"`
+}
+
+// JobResourceModel maps the resource schema data.
+type JobResourceModel struct {
 	TemplateID    types.Int64          `tfsdk:"job_template_id"`
 	Type          types.String         `tfsdk:"job_type"`
 	URL           types.String         `tfsdk:"job_url"`
@@ -96,33 +123,152 @@ var keyMapping = map[string]string{
 	"inventory": "inventory",
 }
 
-func (d *jobResourceModel) GetTemplateID() string {
+func (d *JobResourceModel) GetTemplateID() string {
 	return d.TemplateID.String()
 }
 
-func (d *jobResourceModel) GetURL() string {
-	if !d.URL.IsNull() && !d.URL.IsUnknown() {
-		return d.URL.ValueString()
+func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var data JobResourceModel
+
+	// Read Terraform plan data into job resource model
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
-	return ""
+
+	resp.Diagnostics.Append(r.CreateJob(&data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Save updated data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
-func (d *jobResourceModel) ParseHTTPResponse(body []byte) error {
-	/* Unmarshal the json string */
-	var result map[string]interface{}
-	err := json.Unmarshal(body, &result)
-	if err != nil {
-		return err
+func (r *JobResource) CreateJob(data *JobResourceModel) diag.Diagnostics {
+	// Create new Job from job template
+	var diags diag.Diagnostics
+
+	// Create request body from job data
+	requestBody, diagCreateReq := data.CreateRequestBody()
+	diags.Append(diagCreateReq...)
+	if diags.HasError() {
+		return diags
 	}
 
-	d.Type = types.StringValue(result["job_type"].(string))
-	d.URL = types.StringValue(result["url"].(string))
-	d.Status = types.StringValue(result["status"].(string))
-	d.IgnoredFields = types.ListNull(types.StringType)
+	requestData := bytes.NewReader(requestBody)
+	var postURL = "/api/v2/job_templates/" + data.GetTemplateID() + "/launch/"
+	resp, body, err := r.client.doRequest(http.MethodPost, postURL, requestData)
+	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
+	if diags.HasError() {
+		return diags
+	}
 
-	if value, ok := result["ignored_fields"]; ok {
+	// Save new job data into job resource model
+	diags.Append(data.ParseHttpResponse(body)...)
+	if diags.HasError() {
+		return diags
+	}
+
+	return diags
+}
+
+func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var data JobResourceModel
+	var diags diag.Diagnostics
+
+	// Read current Terraform state data into job resource model
+	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	// Get latest host data from AAP
+	readResponseBody, diags := r.client.Get(data.URL.ValueString())
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Save latest host data into host resource model
+	diags = data.ParseHttpResponse(readResponseBody)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Save updated data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var data JobResourceModel
+
+	// Read Terraform plan data into job resource model
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Create new Job from job template
+	resp.Diagnostics.Append(r.CreateJob(&data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Save updated data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r JobResource) Delete(_ context.Context, _ resource.DeleteRequest, _ *resource.DeleteResponse) {
+}
+
+// CreateRequestBody creates a JSON encoded request body from the job resource data
+func (r *JobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
+	//var diags diag.Diagnostics
+
+	// Convert job resource data to API data model
+	job := JobAPIModel{
+		Inventory: r.InventoryID.ValueInt64(),
+		ExtraVars: r.ExtraVars.ValueString(),
+	}
+
+	// Create JSON encoded request body
+	jsonBody, err := json.Marshal(job)
+	if err != nil {
+		var diags diag.Diagnostics
+		diags.AddError(
+			"Error marshaling request body",
+			fmt.Sprintf("Could not create request body for host resource, unexpected error: %s", err.Error()),
+		)
+		return nil, diags
+	}
+	return jsonBody, nil
+}
+
+func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]json.RawMessage) (diags diag.Diagnostics) {
+	r.IgnoredFields = types.ListNull(types.StringType)
+
+	for _, value := range ignoredFields {
+		var innerMap map[string]interface{}
+
+		err := json.Unmarshal(value, &innerMap)
+		if err != nil {
+			diags.AddError("Error parsing JSON response from AAP", err.Error())
+			return diags
+		}
+
 		var keysList = []attr.Value{}
-		for k := range value.(map[string]interface{}) {
+
+		for k := range innerMap {
 			key := k
 			if v, ok := keyMapping[k]; ok {
 				key = v
@@ -130,176 +276,30 @@ func (d *jobResourceModel) ParseHTTPResponse(body []byte) error {
 			keysList = append(keysList, types.StringValue(key))
 		}
 		if len(keysList) > 0 {
-			d.IgnoredFields, _ = types.ListValue(types.StringType, keysList)
+			r.IgnoredFields, _ = types.ListValue(types.StringType, keysList)
 		}
 	}
 
-	return nil
-}
-
-func (d *jobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
-	body := make(map[string]interface{})
-	var diags diag.Diagnostics
-
-	// Extra vars
-	if IsValueProvided(d.ExtraVars) {
-		var extraVars map[string]interface{}
-		diags.Append(d.ExtraVars.Unmarshal(&extraVars)...)
-		if diags.HasError() {
-			return nil, diags
-		}
-		body["extra_vars"] = extraVars
-	}
-
-	// Inventory
-	if IsValueProvided(d.InventoryID) {
-		body["inventory"] = d.InventoryID.ValueInt64()
-	}
-
-	if len(body) == 0 {
-		return nil, diags
-	}
-	jsonRaw, err := json.Marshal(body)
-	if err != nil {
-		diags.Append(diag.NewErrorDiagnostic("Body JSON Marshal Error", err.Error()))
-		return nil, diags
-	}
-	return jsonRaw, diags
-}
-
-// Configure adds the provider configured client to the data source.
-func (d *JobResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	// Prevent panic if the provider has not been configured.
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*AAPClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *AAPClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-
-		return
-	}
-
-	d.client = client
-}
-
-func (r JobResource) CreateJob(data JobResourceModelInterface) diag.Diagnostics {
-	// Create new Job from job template
-	var diags diag.Diagnostics
-	var reqData io.Reader = nil
-	reqBody, diagCreateReq := data.CreateRequestBody()
-	diags.Append(diagCreateReq...)
-	if diags.HasError() {
-		return diags
-	}
-
-	if reqBody != nil {
-		reqData = bytes.NewReader(reqBody)
-	}
-
-	var postURL = "/api/v2/job_templates/" + data.GetTemplateID() + "/launch/"
-	resp, body, err := r.client.doRequest(http.MethodPost, postURL, reqData)
-
-	if err != nil {
-		diags.AddError("client request error", err.Error())
-		return diags
-	}
-	if resp == nil {
-		diags.AddError("Http response Error", "no http response from server")
-		return diags
-	}
-	if resp.StatusCode != http.StatusCreated {
-		diags.AddError("Unexpected Http Status code",
-			fmt.Sprintf("expected (%d) got (%d)", http.StatusCreated, resp.StatusCode))
-		return diags
-	}
-	err = data.ParseHTTPResponse(body)
-	if err != nil {
-		diags.AddError("error while parsing the json response: ", err.Error())
-		return diags
-	}
 	return diags
 }
 
-func (r JobResource) ReadJob(data JobResourceModelInterface) error {
-	// Read existing Job
-	jobURL := data.GetURL()
-	if len(jobURL) > 0 {
-		resp, body, err := r.client.doRequest("GET", jobURL, nil)
-		if err != nil {
-			return err
-		}
-		if resp == nil {
-			return fmt.Errorf("the server response is null")
-		}
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("the server returned status code %d while attempting to Get from URL %s", resp.StatusCode, jobURL)
-		}
+// ParseHttpResponse updates the job resource data from an AAP API response
+func (r *JobResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
+	var diags diag.Diagnostics
 
-		err = data.ParseHTTPResponse(body)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var data jobResourceModel
-
-	// Read Terraform prior state data into the model
-	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
-
-	err := r.ReadJob(&data)
+	// Unmarshal the JSON response
+	var resultApiJob JobAPIModel
+	err := json.Unmarshal(body, &resultApiJob)
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Read error",
-			err.Error(),
-		)
-		return
-	}
-	// Save updated data into Terraform state
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
-}
-
-func (r JobResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var data jobResourceModel
-
-	// Read Terraform plan data into the model
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-
-	if resp.Diagnostics.HasError() {
-		return
+		diags.AddError("Error parsing JSON response from AAP", err.Error())
+		return diags
 	}
 
-	resp.Diagnostics.Append(r.CreateJob(&data)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	// Map response to the job resource schema and update attribute values
+	r.Type = types.StringValue(resultApiJob.Type)
+	r.URL = types.StringValue(resultApiJob.URL)
+	r.Status = types.StringValue(resultApiJob.Status)
+	diags = r.ParseIgnoredFields(resultApiJob.IgnoredFields)
 
-	// Save updated data into Terraform state
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
-}
-
-func (r JobResource) Delete(_ context.Context, _ resource.DeleteRequest, _ *resource.DeleteResponse) {
-}
-
-func (r JobResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data jobResourceModel
-
-	// Read Terraform plan data into the model
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-
-	// Create new Job from job template
-	resp.Diagnostics.Append(r.CreateJob(&data)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	// Save updated data into Terraform state
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	return diags
 }
