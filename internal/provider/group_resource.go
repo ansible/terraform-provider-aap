@@ -282,8 +282,8 @@ func (r *GroupResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	r.URL = types.StringValue(resultApiGroup.URL)
 	r.Id = types.Int64Value(resultApiGroup.Id)
 	r.Name = types.StringValue(resultApiGroup.Name)
-	r.Description = SetDescription(resultApiGroup.Description)
-	r.Variables = SetVariables(resultApiGroup.Variables)
+	r.Description = ParseStringValue(resultApiGroup.Description)
+	r.Variables = ParseNormalizedValue(resultApiGroup.Variables)
 
 	return diags
 }

@@ -529,8 +529,8 @@ func (r *HostResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	r.Id = types.Int64Value(resultApiHost.Id)
 	r.Name = types.StringValue(resultApiHost.Name)
 	r.Enabled = basetypes.NewBoolValue(resultApiHost.Enabled)
-	r.Description = SetDescription(resultApiHost.Description)
-	r.Variables = SetVariables(resultApiHost.Variables)
+	r.Description = ParseStringValue(resultApiHost.Description)
+	r.Variables = ParseNormalizedValue(resultApiHost.Variables)
 
 	return diags
 }

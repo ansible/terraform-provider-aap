@@ -41,7 +41,7 @@ func TestGetURL(t *testing.T) {
 	}
 }
 
-func TestSetDescription(t *testing.T) {
+func TestParseStringValue(t *testing.T) {
 	tests := []struct {
 		input       string
 		expected    types.String
@@ -53,7 +53,7 @@ func TestSetDescription(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.description, func(t *testing.T) {
-			result := SetDescription(test.input)
+			result := ParseStringValue(test.input)
 			if result != test.expected {
 				t.Errorf("Expected %v, but got %v", test.expected, result)
 			}
@@ -61,7 +61,7 @@ func TestSetDescription(t *testing.T) {
 	}
 }
 
-func TestSetVariables(t *testing.T) {
+func TestParseNormalizedValue(t *testing.T) {
 	tests := []struct {
 		input       string
 		expected    jsontypes.Normalized
@@ -73,7 +73,7 @@ func TestSetVariables(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.description, func(t *testing.T) {
-			result := SetVariables(test.input)
+			result := ParseNormalizedValue(test.input)
 			if result != test.expected {
 				t.Errorf("Expected %v, but got %v", test.expected, result)
 			}

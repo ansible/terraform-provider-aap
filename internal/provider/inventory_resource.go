@@ -292,8 +292,8 @@ func (r *inventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics
 	r.Organization = types.Int64Value(apiInventory.Organization)
 	r.Url = types.StringValue(apiInventory.Url)
 	r.Name = types.StringValue(apiInventory.Name)
-	r.Description = SetDescription(apiInventory.Description)
-	r.Variables = SetVariables(apiInventory.Variables)
+	r.Description = ParseStringValue(apiInventory.Description)
+	r.Variables = ParseNormalizedValue(apiInventory.Variables)
 
 	return parseResponseDiags
 }
