@@ -1,9 +1,9 @@
 package provider
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"reflect"
 	"regexp"
@@ -12,114 +12,70 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
-func TestParseHttpResponse(t *testing.T) {
-	templateID := basetypes.NewInt64Value(1)
-	inventoryID := basetypes.NewInt64Value(2)
-	extraVars := jsontypes.NewNormalizedNull()
-	testTable := []struct {
-		name     string
-		body     []byte
-		expected jobResourceModel
-		failure  bool
-	}{
-		{
-			name:    "no ignored fields",
-			failure: false,
-			body:    []byte(`{"job_type": "run", "url": "/api/v2/jobs/14/", "status": "pending"}`),
-			expected: jobResourceModel{
-				TemplateID:    templateID,
-				Type:          types.StringValue("run"),
-				URL:           types.StringValue("/api/v2/jobs/14/"),
-				Status:        types.StringValue("pending"),
-				InventoryID:   inventoryID,
-				ExtraVars:     extraVars,
-				IgnoredFields: types.ListNull(types.StringType),
-			},
-		},
-		{
-			name:    "ignored fields",
-			failure: false,
-			body: []byte(`{"job_type": "run", "url": "/api/v2/jobs/14/", "status":
-			"pending", "ignored_fields": {"extra_vars": "{\"bucket_state\":\"absent\"}"}}`),
-			expected: jobResourceModel{
-				TemplateID:    templateID,
-				Type:          types.StringValue("run"),
-				URL:           types.StringValue("/api/v2/jobs/14/"),
-				Status:        types.StringValue("pending"),
-				InventoryID:   inventoryID,
-				ExtraVars:     extraVars,
-				IgnoredFields: basetypes.NewListValueMust(types.StringType, []attr.Value{types.StringValue("extra_vars")}),
-			},
-		},
-		{
-			name:     "bad json",
-			failure:  true,
-			body:     []byte(`{job_type: run}`),
-			expected: jobResourceModel{},
-		},
+func TestJobResourceSchema(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	schemaRequest := fwresource.SchemaRequest{}
+	schemaResponse := &fwresource.SchemaResponse{}
+
+	// Instantiate the JobResource and call its Schema method
+	NewJobResource().Schema(ctx, schemaRequest, schemaResponse)
+
+	if schemaResponse.Diagnostics.HasError() {
+		t.Fatalf("Schema method diagnostics: %+v", schemaResponse.Diagnostics)
 	}
-	for _, tc := range testTable {
-		t.Run(tc.name, func(t *testing.T) {
-			d := jobResourceModel{
-				TemplateID:  templateID,
-				InventoryID: inventoryID,
-				ExtraVars:   extraVars,
-			}
-			err := d.ParseHTTPResponse(tc.body)
-			if tc.failure {
-				if err == nil {
-					t.Errorf("expecting failure while the process has not failed")
-				}
-			} else {
-				if err != nil {
-					t.Errorf("unexpected process failure (%s)", err.Error())
-				} else if !reflect.DeepEqual(tc.expected, d) {
-					t.Errorf("expected (%v) - result (%v)", tc.expected, d)
-				}
-			}
-		})
+
+	// Validate the schema
+	diagnostics := schemaResponse.Schema.ValidateImplementation(ctx)
+
+	if diagnostics.HasError() {
+		t.Fatalf("Schema validation diagnostics: %+v", diagnostics)
 	}
 }
 
-func TestCreateRequestBody(t *testing.T) {
-	testTable := []struct {
+func TestJobResourceCreateRequestBody(t *testing.T) {
+	var testTable = []struct {
 		name     string
-		input    jobResourceModel
+		input    JobResourceModel
 		expected []byte
 	}{
 		{
-			name: "unknown fields",
-			input: jobResourceModel{
+			name: "unknown values",
+			input: JobResourceModel{
 				ExtraVars:   jsontypes.NewNormalizedNull(),
 				InventoryID: basetypes.NewInt64Unknown(),
+				TemplateID:  types.Int64Value(1),
 			},
-			expected: nil,
+			expected: []byte(`{"inventory":1}`),
 		},
 		{
-			name: "null fields",
-			input: jobResourceModel{
+			name: "null values",
+			input: JobResourceModel{
 				ExtraVars:   jsontypes.NewNormalizedNull(),
 				InventoryID: basetypes.NewInt64Null(),
+				TemplateID:  types.Int64Value(1),
 			},
-			expected: nil,
+			expected: []byte(`{"inventory":1}`),
 		},
 		{
 			name: "extra vars only",
-			input: jobResourceModel{
+			input: JobResourceModel{
 				ExtraVars:   jsontypes.NewNormalizedValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Null(),
 			},
-			expected: []byte(`{"extra_vars":{"test_name":"extra_vars","provider":"aap"}}`),
+			expected: []byte(`{"inventory":1,"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
 		},
 		{
 			name: "inventory vars only",
-			input: jobResourceModel{
+			input: JobResourceModel{
 				ExtraVars:   jsontypes.NewNormalizedNull(),
 				InventoryID: basetypes.NewInt64Value(201),
 			},
@@ -127,15 +83,15 @@ func TestCreateRequestBody(t *testing.T) {
 		},
 		{
 			name: "combined",
-			input: jobResourceModel{
+			input: JobResourceModel{
 				ExtraVars:   jsontypes.NewNormalizedValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Value(3),
 			},
-			expected: []byte(`{"inventory": 3, "extra_vars":{"test_name":"extra_vars","provider":"aap"}}`),
+			expected: []byte(`{"inventory":3,"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
 		},
 		{
 			name: "manual_triggers",
-			input: jobResourceModel{
+			input: JobResourceModel{
 				Triggers:    types.MapNull(types.StringType),
 				InventoryID: basetypes.NewInt64Value(3),
 			},
@@ -151,10 +107,10 @@ func TestCreateRequestBody(t *testing.T) {
 			}
 			if tc.expected == nil || computed == nil {
 				if tc.expected == nil && computed != nil {
-					t.Fatal("expected nil but result is not nil")
+					t.Fatal("expected nil but result is not nil", string(computed))
 				}
 				if tc.expected != nil && computed == nil {
-					t.Fatal("expected result not nil but result is nil")
+					t.Fatal("expected result not nil but result is nil", string(computed))
 				}
 			} else {
 				test, err := DeepEqualJSONByte(tc.expected, computed)
@@ -172,194 +128,65 @@ func TestCreateRequestBody(t *testing.T) {
 	}
 }
 
-type MockJobResource struct {
-	ID        string
-	URL       string
-	Inventory string
-	Response  map[string]string
-}
+func TestJobResourceParseHttpResponse(t *testing.T) {
+	templateID := basetypes.NewInt64Value(1)
+	inventoryID := basetypes.NewInt64Value(2)
+	extraVars := jsontypes.NewNormalizedNull()
+	jsonError := diag.Diagnostics{}
+	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
-func NewMockJobResource(id, inventory, url string) *MockJobResource {
-	return &MockJobResource{
-		ID:        id,
-		URL:       url,
-		Inventory: inventory,
-		Response:  map[string]string{},
-	}
-}
-
-func (d *MockJobResource) GetTemplateID() string {
-	return d.ID
-}
-
-func (d *MockJobResource) GetURL() string {
-	return d.URL
-}
-
-func (d *MockJobResource) ParseHTTPResponse(body []byte) error {
-	err := json.Unmarshal(body, &d.Response)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *MockJobResource) CreateRequestBody() ([]byte, diag.Diagnostics) {
-	var diags diag.Diagnostics
-	if len(d.Inventory) == 0 {
-		return nil, diags
-	}
-	m := map[string]string{"Inventory": d.Inventory}
-	jsonRaw, err := json.Marshal(m)
-	if err != nil {
-		diags.AddError("Json Marshall Error", err.Error())
-		return nil, diags
-	}
-	return jsonRaw, diags
-}
-
-func TestCreateJob(t *testing.T) {
-	testTable := []struct {
-		name          string
-		ID            string
-		Inventory     string
-		expected      map[string]string
-		acceptMethods []string
-		httpCode      int
-		failed        bool
+	var testTable = []struct {
+		name     string
+		input    []byte
+		expected JobResourceModel
+		errors   diag.Diagnostics
 	}{
 		{
-			name:          "create job simple job (no request data)",
-			ID:            "1",
-			Inventory:     "",
-			httpCode:      http.StatusCreated,
-			failed:        false,
-			acceptMethods: []string{"POST", "post"},
-			expected:      JobResponse1,
+			name:     "JSON error",
+			input:    []byte("Not valid JSON"),
+			expected: JobResourceModel{},
+			errors:   jsonError,
 		},
 		{
-			name:          "create job with request data",
-			ID:            "1",
-			Inventory:     "3",
-			httpCode:      http.StatusCreated,
-			failed:        false,
-			acceptMethods: []string{"POST", "post"},
-			expected:      mergeStringMaps(JobResponse1, map[string]string{"Inventory": "3"}),
+			name:  "no ignored fields",
+			input: []byte(`{"inventory":2,"job_template":1,"job_type": "run", "url": "/api/v2/jobs/14/", "status": "pending"}`),
+			expected: JobResourceModel{
+				TemplateID:    templateID,
+				Type:          types.StringValue("run"),
+				URL:           types.StringValue("/api/v2/jobs/14/"),
+				Status:        types.StringValue("pending"),
+				InventoryID:   inventoryID,
+				ExtraVars:     extraVars,
+				IgnoredFields: types.ListNull(types.StringType),
+			},
+			errors: diag.Diagnostics{},
 		},
 		{
-			name:          "try with non existing template id",
-			ID:            "-1",
-			Inventory:     "3",
-			httpCode:      http.StatusCreated,
-			failed:        true,
-			acceptMethods: []string{"POST", "post"},
-			expected:      nil,
-		},
-		{
-			name:          "Unexpected method leading to not found",
-			ID:            "1",
-			Inventory:     "3",
-			httpCode:      http.StatusCreated,
-			failed:        true,
-			acceptMethods: []string{"GET", "get"},
-			expected:      nil,
-		},
-		{
-			name:          "using another template id",
-			ID:            "2",
-			Inventory:     "1",
-			httpCode:      http.StatusCreated,
-			failed:        false,
-			acceptMethods: []string{"POST", "post"},
-			expected:      mergeStringMaps(JobResponse2, map[string]string{"Inventory": "1"}),
+			name: "ignored fields",
+			input: []byte(`{"inventory":2,"job_template":1,"job_type": "run", "url": "/api/v2/jobs/14/", "status":
+			"pending", "ignored_fields": {"extra_vars": "{\"bucket_state\":\"absent\"}"}}`),
+			expected: JobResourceModel{
+				TemplateID:    templateID,
+				Type:          types.StringValue("run"),
+				URL:           types.StringValue("/api/v2/jobs/14/"),
+				Status:        types.StringValue("pending"),
+				InventoryID:   inventoryID,
+				ExtraVars:     extraVars,
+				IgnoredFields: basetypes.NewListValueMust(types.StringType, []attr.Value{types.StringValue("extra_vars")}),
+			},
+			errors: diag.Diagnostics{},
 		},
 	}
 
-	for _, tc := range testTable {
-		t.Run(tc.name, func(t *testing.T) {
-			resource := NewMockJobResource(tc.ID, tc.Inventory, "")
-
-			job := JobResource{
-				client: NewMockHTTPClient(tc.acceptMethods, tc.httpCode),
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			resource := JobResourceModel{}
+			diags := resource.ParseHttpResponse(test.input)
+			if !test.errors.Equal(diags) {
+				t.Errorf("Expected error diagnostics (%s), actual was (%s)", test.errors, diags)
 			}
-			diags := job.CreateJob(resource)
-			if (tc.failed && !diags.HasError()) || (!tc.failed && diags.HasError()) {
-				if diags.HasError() {
-					t.Errorf("process has failed while it should not")
-					for _, d := range diags {
-						t.Errorf("Summary = '%s' - details = '%s'", d.Summary(), d.Detail())
-					}
-				} else {
-					t.Errorf("failure expected but the process did not failed!!")
-				}
-			} else if !tc.failed && !reflect.DeepEqual(tc.expected, resource.Response) {
-				t.Errorf("expected (%v)", tc.expected)
-				t.Errorf("computed (%v)", resource.Response)
-			}
-		})
-	}
-}
-
-func TestReadJob(t *testing.T) {
-	testTable := []struct {
-		name          string
-		url           string
-		expected      map[string]string
-		acceptMethods []string
-		httpCode      int
-		failed        bool
-	}{
-		{
-			name:          "Read existing job",
-			url:           "/api/v2/jobs/1/",
-			httpCode:      http.StatusOK,
-			failed:        false,
-			acceptMethods: []string{"GET", "get"},
-			expected:      JobResponse1,
-		},
-		{
-			name:          "Read another job",
-			url:           "/api/v2/jobs/2/",
-			httpCode:      http.StatusOK,
-			failed:        false,
-			acceptMethods: []string{"GET", "get"},
-			expected:      JobResponse3,
-		},
-		{
-			name:          "GET not part of accepted methods",
-			url:           "/api/v2/jobs/2/",
-			httpCode:      http.StatusOK,
-			failed:        true,
-			acceptMethods: []string{"HEAD"},
-			expected:      nil,
-		},
-		{
-			name:          "no url provided",
-			url:           "",
-			httpCode:      http.StatusOK,
-			failed:        false,
-			acceptMethods: []string{"GET", "get"},
-			expected:      map[string]string{},
-		},
-	}
-
-	for _, tc := range testTable {
-		t.Run(tc.name, func(t *testing.T) {
-			resource := NewMockJobResource("", "", tc.url)
-
-			job := JobResource{
-				client: NewMockHTTPClient(tc.acceptMethods, tc.httpCode),
-			}
-			err := job.ReadJob(resource)
-			if (tc.failed && err == nil) || (!tc.failed && err != nil) {
-				if err != nil {
-					t.Errorf("process has failed with (%s) while it should not", err.Error())
-				} else {
-					t.Errorf("failure expected but the process did not failed!!")
-				}
-			} else if !tc.failed && !reflect.DeepEqual(tc.expected, resource.Response) {
-				t.Errorf("expected (%v)", tc.expected)
-				t.Errorf("computed (%v)", resource.Response)
+			if !reflect.DeepEqual(test.expected, resource) {
+				t.Errorf("Expected (%s) not equal to actual (%s)", test.expected, resource)
 			}
 		})
 	}
@@ -513,7 +340,7 @@ func TestAccAAPJob_UpdateWithNewInventoryId(t *testing.T) {
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
-					testAccCheckJobUpdate(&jobURLBefore, true),
+					testAccCheckJobUpdate(&jobURLBefore, false),
 				),
 			},
 		},

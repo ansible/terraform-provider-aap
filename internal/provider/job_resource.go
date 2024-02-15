@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -65,6 +67,12 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			},
 			"inventory_id": schema.Int64Attribute{
 				Optional: true,
+				Computed: true,
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
+				Description: "Identifier for the inventory where job should be created in. " +
+					"If not provided, the job will be created in the default inventory.",
 			},
 			"job_type": schema.StringAttribute{
 				Computed: true,
@@ -97,14 +105,14 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 
 // Job AAP API model
 type JobAPIModel struct {
-	TemplateID    int64                      `json:"job_template_id,omitempty"`
-	Type          string                     `json:"job_type,omitempty"`
-	URL           string                     `json:"url,omitempty"`
-	Status        string                     `json:"status,omitempty"`
-	Inventory     int64                      `json:"inventory_id"`
-	ExtraVars     string                     `json:"extra_vars,omitempty"`
-	IgnoredFields map[string]json.RawMessage `json:"ignored_fields,omitempty"`
-	Triggers      struct{}                   `json:"triggers,omitempty"`
+	TemplateID    int64                  `json:"job_template,omitempty"`
+	Type          string                 `json:"job_type,omitempty"`
+	URL           string                 `json:"url,omitempty"`
+	Status        string                 `json:"status,omitempty"`
+	Inventory     int64                  `json:"inventory,omitempty"`
+	ExtraVars     string                 `json:"extra_vars,omitempty"`
+	IgnoredFields map[string]interface{} `json:"ignored_fields,omitempty"`
+	Triggers      string                 `json:"triggers,omitempty"`
 }
 
 // JobResourceModel maps the resource schema data.
@@ -185,6 +193,7 @@ func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
 	// Get latest job data from AAP
 	readResponseBody, diags := r.client.Get(data.URL.ValueString())
 	resp.Diagnostics.Append(diags...)
@@ -233,51 +242,61 @@ func (r JobResource) Delete(_ context.Context, _ resource.DeleteRequest, _ *reso
 
 // CreateRequestBody creates a JSON encoded request body from the job resource data
 func (r *JobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
-	//var diags diag.Diagnostics
+	var diags diag.Diagnostics
+	var inventoryID int64
+
+	// Use default inventory if not provided
+	if r.InventoryID.ValueInt64() == 0 {
+		inventoryID = 1
+	} else {
+		inventoryID = r.InventoryID.ValueInt64()
+	}
 
 	// Convert job resource data to API data model
 	job := JobAPIModel{
-		Inventory: r.InventoryID.ValueInt64(),
 		ExtraVars: r.ExtraVars.ValueString(),
+		Inventory: inventoryID,
+	}
+
+	if IsValueProvided(r.Triggers) {
+		mJson, err := json.Marshal(r.Triggers.String())
+		if err != nil {
+			diags.AddError(
+				"Error marshaling request body",
+				fmt.Sprintf("Could not create request body for job resource, unexpected error: %s", err.Error()),
+			)
+			return nil, diags
+		}
+		job.Triggers = string(mJson)
 	}
 
 	// Create JSON encoded request body
 	jsonBody, err := json.Marshal(job)
 	if err != nil {
-		var diags diag.Diagnostics
 		diags.AddError(
 			"Error marshaling request body",
 			fmt.Sprintf("Could not create request body for job resource, unexpected error: %s", err.Error()),
 		)
 		return nil, diags
 	}
-	return jsonBody, nil
+	return jsonBody, diags
 }
 
-func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]json.RawMessage) (diags diag.Diagnostics) {
+// func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]json.RawMessage) (diags diag.Diagnostics) {
+func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]interface{}) (diags diag.Diagnostics) {
 	r.IgnoredFields = types.ListNull(types.StringType)
+	var keysList = []attr.Value{}
 
-	for _, value := range ignoredFields {
-		var innerMap map[string]interface{}
-
-		err := json.Unmarshal(value, &innerMap)
-		if err != nil {
-			diags.AddError("Error parsing JSON response from AAP", err.Error())
-			return diags
+	for k := range ignoredFields {
+		key := k
+		if v, ok := keyMapping[k]; ok {
+			key = v
 		}
+		keysList = append(keysList, types.StringValue(key))
+	}
 
-		var keysList = []attr.Value{}
-
-		for k := range innerMap {
-			key := k
-			if v, ok := keyMapping[k]; ok {
-				key = v
-			}
-			keysList = append(keysList, types.StringValue(key))
-		}
-		if len(keysList) > 0 {
-			r.IgnoredFields, _ = types.ListValue(types.StringType, keysList)
-		}
+	if len(keysList) > 0 {
+		r.IgnoredFields, _ = types.ListValue(types.StringType, keysList)
 	}
 
 	return diags
@@ -299,7 +318,8 @@ func (r *JobResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	r.Type = types.StringValue(resultApiJob.Type)
 	r.URL = types.StringValue(resultApiJob.URL)
 	r.Status = types.StringValue(resultApiJob.Status)
+	r.TemplateID = types.Int64Value(resultApiJob.TemplateID)
+	r.InventoryID = types.Int64Value(resultApiJob.Inventory)
 	diags = r.ParseIgnoredFields(resultApiJob.IgnoredFields)
-
 	return diags
 }
