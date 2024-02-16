@@ -269,7 +269,6 @@ func (r *JobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	return jsonBody, diags
 }
 
-// func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]json.RawMessage) (diags diag.Diagnostics) {
 func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]interface{}) (diags diag.Diagnostics) {
 	r.IgnoredFields = types.ListNull(types.StringType)
 	var keysList = []attr.Value{}
