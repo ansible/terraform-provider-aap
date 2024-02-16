@@ -112,7 +112,6 @@ type JobAPIModel struct {
 	Inventory     int64                  `json:"inventory,omitempty"`
 	ExtraVars     string                 `json:"extra_vars,omitempty"`
 	IgnoredFields map[string]interface{} `json:"ignored_fields,omitempty"`
-	Triggers      string                 `json:"triggers,omitempty"`
 }
 
 // JobResourceModel maps the resource schema data.
@@ -256,18 +255,6 @@ func (r *JobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	job := JobAPIModel{
 		ExtraVars: r.ExtraVars.ValueString(),
 		Inventory: inventoryID,
-	}
-
-	if IsValueProvided(r.Triggers) {
-		mJson, err := json.Marshal(r.Triggers.String())
-		if err != nil {
-			diags.AddError(
-				"Error marshaling request body",
-				fmt.Sprintf("Could not create request body for job resource, unexpected error: %s", err.Error()),
-			)
-			return nil, diags
-		}
-		job.Triggers = string(mJson)
 	}
 
 	// Create JSON encoded request body
