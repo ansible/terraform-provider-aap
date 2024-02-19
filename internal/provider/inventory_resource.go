@@ -65,7 +65,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
-                                Description: "Inventory id",
+				Description: "Inventory id",
 			},
 			"organization": schema.Int64Attribute{
 				Computed: true,
@@ -81,20 +81,20 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
-                                Description: "URL of the inventory",
+				Description: "URL of the inventory",
 			},
 			"name": schema.StringAttribute{
-				Required: true,
-                                Description: "Name of the inventory",
+				Required:    true,
+				Description: "Name of the inventory",
 			},
 			"description": schema.StringAttribute{
-				Optional: true,
-                                Description: "Description for the inventory",
+				Optional:    true,
+				Description: "Description for the inventory",
 			},
 			"variables": schema.StringAttribute{
-				Optional:   true,
-				CustomType: jsontypes.NormalizedType{},
-                                Description: "Inventory variables",
+				Optional:    true,
+				CustomType:  jsontypes.NormalizedType{},
+				Description: "Inventory variables",
 			},
 		},
 	}

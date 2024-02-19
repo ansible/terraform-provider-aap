@@ -10,28 +10,28 @@ terraform {
 }
 
 provider "aap" {
-  host     = "https://localhost:8043"
-  username = "ansible"
-  password = "test123!"
+  host                 = "https://localhost:8043"
+  username             = "ansible"
+  password             = "test123!"
   insecure_skip_verify = true
 }
 
 resource "aap_inventory" "my_inventory" {
-  name = "My new inventory"
+  name        = "My new inventory"
   description = "A new inventory for testing"
   variables = jsonencode(
     {
-      "foo": "bar"
+      "foo" : "bar"
     }
   )
 }
 
 resource "aap_host" "my_host" {
   inventory_id = aap_inventory.my_inventory.id
-  name = "tf_host"
+  name         = "tf_host"
   variables = jsonencode(
     {
-      "foo": "bar"
+      "foo" : "bar"
     }
   )
   groups = [2, 3, 4]
@@ -39,10 +39,10 @@ resource "aap_host" "my_host" {
 
 resource "aap_group" "my_group" {
   inventory_id = aap_inventory.my_inventory.id
-  name = "tf_group" 
+  name         = "tf_group"
   variables = jsonencode(
     {
-      "foo": "bar"
+      "foo" : "bar"
     }
   )
 }

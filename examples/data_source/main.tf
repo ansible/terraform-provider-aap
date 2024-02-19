@@ -7,14 +7,14 @@ terraform {
 }
 
 provider "aap" {
-  host     = "https://localhost:8043"
-  username = "ansible"
-  password = "test123!"
+  host                 = "https://localhost:8043"
+  username             = "ansible"
+  password             = "test123!"
   insecure_skip_verify = true
 }
 
 variable "state_id" {
-  type = number
+  type        = number
   description = "The id of the state to request"
 }
 

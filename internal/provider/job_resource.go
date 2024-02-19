@@ -90,10 +90,11 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"job_template_id": schema.Int64Attribute{
-				Required: true,
-                                Description: "Id of the job template.",
+				Required:    true,
+				Description: "Id of the job template.",
 			},
 			"inventory_id": schema.Int64Attribute{
+<<<<<<< HEAD
 				Optional: true,
 				Computed: true,
 				PlanModifiers: []planmodifier.Int64{
@@ -101,23 +102,33 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				},
 				Description: "Identifier for the inventory where job should be created in. " +
 					"If not provided, the job will be created in the default inventory.",
+=======
+				Optional:    true,
+				Description: "Inventory Id",
+>>>>>>> 338f641 (formatted)
 			},
 			"job_type": schema.StringAttribute{
-				Computed: true,
-                                Description: "Job type",
+				Computed:    true,
+				Description: "Job type",
 			},
+<<<<<<< HEAD
 			"url": schema.StringAttribute{
 				Computed: true,
                                 Description: "URL of the job template",
+=======
+			"job_url": schema.StringAttribute{
+				Computed:    true,
+				Description: "URL of the job template",
+>>>>>>> 338f641 (formatted)
 			},
 			"status": schema.StringAttribute{
-				Computed: true,
-                                Description: "Status of the job",
+				Computed:    true,
+				Description: "Status of the job",
 			},
 			"extra_vars": schema.StringAttribute{
-				Optional:   true,
-				CustomType: jsontypes.NormalizedType{},
-                                Description: "Extra Variables",
+				Optional:    true,
+				CustomType:  jsontypes.NormalizedType{},
+				Description: "Extra Variables",
 			},
 			"triggers": schema.MapAttribute{
 				Optional:    true,

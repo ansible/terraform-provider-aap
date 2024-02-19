@@ -7,16 +7,16 @@ terraform {
 }
 
 provider "aap" {
-  host     = "https://controller.xxx.xyz/"
-  username = "xxxx"
-  password = "xxxx"
+  host                 = "https://controller.xxx.xyz/"
+  username             = "xxxx"
+  password             = "xxxx"
   insecure_skip_verify = true
 }
 
 resource "aap_group" "sample" {
   inventory_id = 1
-  name = "tf_group" 
-  variables = jsonencode({"ansible_network_os": "ios"})
+  name         = "tf_group"
+  variables    = jsonencode({ "ansible_network_os" : "ios" })
 }
 
 output "group" {
