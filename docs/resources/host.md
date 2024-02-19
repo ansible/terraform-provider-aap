@@ -17,17 +17,17 @@ description: |-
 
 ### Required
 
-- `inventory_id` (Number)
-- `name` (String)
+- `inventory_id` (Number) Inventory id
+- `name` (String) Name of the host
 
 ### Optional
 
-- `description` (String)
-- `enabled` (Boolean)
+- `description` (String) Description for the host
+- `enabled` (Boolean) Denotes if the host is online and is available
 - `groups` (Set of Number) The list of groups to assosicate with a host.
-- `variables` (String)
+- `variables` (String) Variables for the host configuration
 
 ### Read-Only
 
-- `host_url` (String)
-- `id` (Number) The ID of this resource.
+- `host_url` (String) URL of the host
+- `id` (Number) Id of the host

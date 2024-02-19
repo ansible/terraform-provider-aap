@@ -17,15 +17,15 @@ description: |-
 
 ### Required
 
-- `name` (String)
+- `name` (String) Name of the inventory
 
 ### Optional
 
-- `description` (String)
+- `description` (String) Description for the inventory
 - `organization` (Number) Identifier for the organization the inventory should be created in. If not provided, the inventory will be created in the default organization.
-- `variables` (String)
+- `variables` (String) Inventory variables
 
 ### Read-Only
 
-- `id` (Number) The ID of this resource.
-- `url` (String)
+- `id` (Number) Inventory id
+- `url` (String) URL of the inventory

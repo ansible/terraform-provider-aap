@@ -17,15 +17,15 @@ description: |-
 
 ### Required
 
-- `inventory_id` (Number)
-- `name` (String)
+- `inventory_id` (Number) Inventory id
+- `name` (String) Name of the group
 
 ### Optional
 
-- `description` (String)
-- `variables` (String)
+- `description` (String) Description for the group
+- `variables` (String) Variables for the group configuration
 
 ### Read-Only
 
-- `group_url` (String)
-- `id` (Number) The ID of this resource.
+- `group_url` (String) URL for the group
+- `id` (Number) Group Id

@@ -1,3 +1,6 @@
+# This example creates an inventory named `My new inventory`
+# and adds a host `tf_host` and a group `tf_group` to it.
+#
 terraform {
   required_providers {
     aap = {

@@ -92,28 +92,34 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 		Attributes: map[string]schema.Attribute{
 			"inventory_id": schema.Int64Attribute{
 				Required: true,
+                                Description: "Inventory id",
 			},
 			"url": schema.StringAttribute{
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
+                                Description: "URL of the host",
 			},
 			"id": schema.Int64Attribute{
 				Computed: true,
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
+                                Description: "Id of the host",
 			},
 			"name": schema.StringAttribute{
 				Required: true,
+                                Description: "Name of the host",
 			},
 			"description": schema.StringAttribute{
 				Optional: true,
+                                Description: "Description for the host",
 			},
 			"variables": schema.StringAttribute{
 				Optional:   true,
 				CustomType: jsontypes.NormalizedType{},
+                                Description: "Variables for the host configuration",
 			},
 			"enabled": schema.BoolAttribute{
 				Optional: true,
@@ -122,6 +128,7 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				PlanModifiers: []planmodifier.Bool{
 					boolplanmodifier.UseStateForUnknown(),
 				},
+                                Description: "Denotes if the host is online and is available",
 			},
 			"groups": schema.SetAttribute{
 				ElementType: types.Int64Type,

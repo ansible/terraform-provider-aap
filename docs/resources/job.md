@@ -17,17 +17,17 @@ description: |-
 
 ### Required
 
-- `job_template_id` (Number)
+- `job_template_id` (Number) Id of the job template.
 
 ### Optional
 
-- `extra_vars` (String)
-- `inventory_id` (Number)
+- `extra_vars` (String) Extra Variables
+- `inventory_id` (Number) Inventory Id
 - `triggers` (Map of String) Map of arbitrary keys and values that, when changed, will trigger a creation of a new Job on AAP. Use 'terraform taint' if you want to force the creation of a new job without changing this value.
 
 ### Read-Only
 
 - `ignored_fields` (List of String) The list of properties set by the user but ignored on server side.
-- `job_type` (String)
-- `job_url` (String)
-- `status` (String)
+- `job_type` (String) Job type
+- `job_url` (String) URL of the job template
+- `status` (String) Status of the job
