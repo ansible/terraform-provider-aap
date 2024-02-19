@@ -201,7 +201,7 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 	requestData := bytes.NewReader(updateRequestBody)
 
-	// Update host in AAP
+	// Update group in AAP
 	updateResponseBody, diags := r.client.Update(data.URL.ValueString(), requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
