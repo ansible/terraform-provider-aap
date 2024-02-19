@@ -191,7 +191,7 @@ func testAccInventoryResource(name string) string {
 resource "aap_inventory" "test" {
   name = "%s"
   description = "A test inventory"
-  variables = "{\"foo\": \"bar\"}"
+  variables = "{\"abc\": \"def\"}"
 }`, name)
 }
 
