@@ -16,20 +16,40 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+// Group AAP API model
+type GroupAPIModel struct {
+	InventoryId int64  `json:"inventory"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	URL         string `json:"url,omitempty"`
+	Variables   string `json:"variables,omitempty"`
+	Id          int64  `json:"id,omitempty"`
+}
+
+// GroupResourceModel maps the group resource schema to a Go struct
+type GroupResourceModel struct {
+	InventoryId types.Int64          `tfsdk:"inventory_id"`
+	Name        types.String         `tfsdk:"name"`
+	Description types.String         `tfsdk:"description"`
+	URL         types.String         `tfsdk:"url"`
+	Variables   jsontypes.Normalized `tfsdk:"variables"`
+	Id          types.Int64          `tfsdk:"id"`
+}
+
 // Ensure the implementation satisfies the expected interfaces.
 var (
 	_ resource.Resource              = &GroupResource{}
 	_ resource.ResourceWithConfigure = &GroupResource{}
 )
 
-// NewGroupResource is a helper function to simplify the provider implementation.
-func NewGroupResource() resource.Resource {
-	return &GroupResource{}
-}
-
 // GroupResource is the resource implementation.
 type GroupResource struct {
 	client ProviderHTTPClient
+}
+
+// NewGroupResource is a helper function to simplify the provider implementation.
+func NewGroupResource() resource.Resource {
+	return &GroupResource{}
 }
 
 // Metadata returns the resource type name.
@@ -38,7 +58,7 @@ func (r *GroupResource) Metadata(_ context.Context, req resource.MetadataRequest
 }
 
 // Configure adds the provider configured client to the resource
-func (d *GroupResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *GroupResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -53,7 +73,7 @@ func (d *GroupResource) Configure(_ context.Context, req resource.ConfigureReque
 		return
 	}
 
-	d.client = client
+	r.client = client
 }
 
 // Schema defines the schema for the group resource.
@@ -69,7 +89,7 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			"description": schema.StringAttribute{
 				Optional: true,
 			},
-			"group_url": schema.StringAttribute{
+			"url": schema.StringAttribute{
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
@@ -87,26 +107,6 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			},
 		},
 	}
-}
-
-// Group AAP API model
-type GroupAPIModel struct {
-	InventoryId int64  `json:"inventory"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	URL         string `json:"url,omitempty"`
-	Variables   string `json:"variables,omitempty"`
-	Id          int64  `json:"id,omitempty"`
-}
-
-// GroupResourceModel maps the group resource schema to a Go struct
-type GroupResourceModel struct {
-	InventoryId types.Int64          `tfsdk:"inventory_id"`
-	Name        types.String         `tfsdk:"name"`
-	Description types.String         `tfsdk:"description"`
-	URL         types.String         `tfsdk:"group_url"`
-	Variables   jsontypes.Normalized `tfsdk:"variables"`
-	Id          types.Int64          `tfsdk:"id"`
 }
 
 // Create creates the group resource and sets the Terraform state on success.
