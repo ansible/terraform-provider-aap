@@ -36,16 +36,16 @@ type GroupResourceModel struct {
 	Id          types.Int64          `tfsdk:"id"`
 }
 
+// GroupResource is the resource implementation.
+type GroupResource struct {
+	client ProviderHTTPClient
+}
+
 // Ensure the implementation satisfies the expected interfaces.
 var (
 	_ resource.Resource              = &GroupResource{}
 	_ resource.ResourceWithConfigure = &GroupResource{}
 )
-
-// GroupResource is the resource implementation.
-type GroupResource struct {
-	client ProviderHTTPClient
-}
 
 // NewGroupResource is a helper function to simplify the provider implementation.
 func NewGroupResource() resource.Resource {
