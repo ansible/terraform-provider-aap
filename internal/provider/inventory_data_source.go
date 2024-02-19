@@ -38,29 +38,29 @@ func (d *InventoryDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
-				Required: true,
-                                Description: "Inventory id",
+				Required:    true,
+				Description: "Inventory id",
 			},
 			"organization": schema.Int64Attribute{
 				Computed:    true,
 				Description: "Identifier for the organization to which the inventory belongs",
 			},
 			"url": schema.StringAttribute{
-				Computed: true,
-                                Description: "Url of the inventory",
+				Computed:    true,
+				Description: "Url of the inventory",
 			},
 			"name": schema.StringAttribute{
-				Computed: true,
-                                Description: "Name of the inventory",
+				Computed:    true,
+				Description: "Name of the inventory",
 			},
 			"description": schema.StringAttribute{
-				Computed: true,
-                                Description: "Description of the inventory",
+				Computed:    true,
+				Description: "Description of the inventory",
 			},
 			"variables": schema.StringAttribute{
-				Computed:   true,
-				CustomType: jsontypes.NormalizedType{},
-                                Description: "Variables of the inventory",
+				Computed:    true,
+				CustomType:  jsontypes.NormalizedType{},
+				Description: "Variables of the inventory",
 			},
 		},
 	}
