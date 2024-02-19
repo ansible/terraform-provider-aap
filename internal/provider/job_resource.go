@@ -17,20 +17,47 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+// Job AAP API model
+type JobAPIModel struct {
+	TemplateID    int64                  `json:"job_template,omitempty"`
+	Type          string                 `json:"job_type,omitempty"`
+	URL           string                 `json:"url,omitempty"`
+	Status        string                 `json:"status,omitempty"`
+	Inventory     int64                  `json:"inventory,omitempty"`
+	ExtraVars     string                 `json:"extra_vars,omitempty"`
+	IgnoredFields map[string]interface{} `json:"ignored_fields,omitempty"`
+}
+
+// JobResourceModel maps the resource schema data.
+type JobResourceModel struct {
+	TemplateID    types.Int64          `tfsdk:"job_template_id"`
+	Type          types.String         `tfsdk:"job_type"`
+	URL           types.String         `tfsdk:"url"`
+	Status        types.String         `tfsdk:"status"`
+	InventoryID   types.Int64          `tfsdk:"inventory_id"`
+	ExtraVars     jsontypes.Normalized `tfsdk:"extra_vars"`
+	IgnoredFields types.List           `tfsdk:"ignored_fields"`
+	Triggers      types.Map            `tfsdk:"triggers"`
+}
+
+// JobResource is the resource implementation.
+type JobResource struct {
+	client ProviderHTTPClient
+}
+
 // Ensure the implementation satisfies the expected interfaces.
 var (
 	_ resource.Resource              = &JobResource{}
 	_ resource.ResourceWithConfigure = &JobResource{}
 )
 
+var keyMapping = map[string]string{
+	"inventory": "inventory",
+}
+
 // NewJobResource is a helper function to simplify the provider implementation.
 func NewJobResource() resource.Resource {
 	return &JobResource{}
-}
-
-// JobResource is the resource implementation.
-type JobResource struct {
-	client ProviderHTTPClient
 }
 
 // Metadata returns the resource type name.
@@ -39,7 +66,7 @@ func (r *JobResource) Metadata(_ context.Context, req resource.MetadataRequest, 
 }
 
 // Configure adds the provider configured client to the data source.
-func (d *JobResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *JobResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	// Prevent panic if the provider has not been configured.
 	if req.ProviderData == nil {
 		return
@@ -55,11 +82,11 @@ func (d *JobResource) Configure(_ context.Context, req resource.ConfigureRequest
 		return
 	}
 
-	d.client = client
+	r.client = client
 }
 
 // Schema defines the schema for the  jobresource.
-func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"job_template_id": schema.Int64Attribute{
@@ -77,7 +104,7 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"job_type": schema.StringAttribute{
 				Computed: true,
 			},
-			"job_url": schema.StringAttribute{
+			"url": schema.StringAttribute{
 				Computed: true,
 			},
 			"status": schema.StringAttribute{
@@ -103,37 +130,6 @@ func (d *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 	}
 }
 
-// Job AAP API model
-type JobAPIModel struct {
-	TemplateID    int64                  `json:"job_template,omitempty"`
-	Type          string                 `json:"job_type,omitempty"`
-	URL           string                 `json:"url,omitempty"`
-	Status        string                 `json:"status,omitempty"`
-	Inventory     int64                  `json:"inventory,omitempty"`
-	ExtraVars     string                 `json:"extra_vars,omitempty"`
-	IgnoredFields map[string]interface{} `json:"ignored_fields,omitempty"`
-}
-
-// JobResourceModel maps the resource schema data.
-type JobResourceModel struct {
-	TemplateID    types.Int64          `tfsdk:"job_template_id"`
-	Type          types.String         `tfsdk:"job_type"`
-	URL           types.String         `tfsdk:"job_url"`
-	Status        types.String         `tfsdk:"status"`
-	InventoryID   types.Int64          `tfsdk:"inventory_id"`
-	ExtraVars     jsontypes.Normalized `tfsdk:"extra_vars"`
-	IgnoredFields types.List           `tfsdk:"ignored_fields"`
-	Triggers      types.Map            `tfsdk:"triggers"`
-}
-
-var keyMapping = map[string]string{
-	"inventory": "inventory",
-}
-
-func (d *JobResourceModel) GetTemplateID() string {
-	return d.TemplateID.String()
-}
-
 func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data JobResourceModel
 
@@ -143,7 +139,7 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	resp.Diagnostics.Append(r.CreateJob(&data)...)
+	resp.Diagnostics.Append(r.LaunchJob(&data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -153,34 +149,6 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	if resp.Diagnostics.HasError() {
 		return
 	}
-}
-
-func (r *JobResource) CreateJob(data *JobResourceModel) diag.Diagnostics {
-	// Create new Job from job template
-	var diags diag.Diagnostics
-
-	// Create request body from job data
-	requestBody, diagCreateReq := data.CreateRequestBody()
-	diags.Append(diagCreateReq...)
-	if diags.HasError() {
-		return diags
-	}
-
-	requestData := bytes.NewReader(requestBody)
-	var postURL = "/api/v2/job_templates/" + data.GetTemplateID() + "/launch/"
-	resp, body, err := r.client.doRequest(http.MethodPost, postURL, requestData)
-	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
-	if diags.HasError() {
-		return diags
-	}
-
-	// Save new job data into job resource model
-	diags.Append(data.ParseHttpResponse(body)...)
-	if diags.HasError() {
-		return diags
-	}
-
-	return diags
 }
 
 func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -224,7 +192,7 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	}
 
 	// Create new Job from job template
-	resp.Diagnostics.Append(r.CreateJob(&data)...)
+	resp.Diagnostics.Append(r.LaunchJob(&data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -269,25 +237,6 @@ func (r *JobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	return jsonBody, diags
 }
 
-func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]interface{}) (diags diag.Diagnostics) {
-	r.IgnoredFields = types.ListNull(types.StringType)
-	var keysList = []attr.Value{}
-
-	for k := range ignoredFields {
-		key := k
-		if v, ok := keyMapping[k]; ok {
-			key = v
-		}
-		keysList = append(keysList, types.StringValue(key))
-	}
-
-	if len(keysList) > 0 {
-		r.IgnoredFields, _ = types.ListValue(types.StringType, keysList)
-	}
-
-	return diags
-}
-
 // ParseHttpResponse updates the job resource data from an AAP API response
 func (r *JobResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
@@ -308,4 +257,55 @@ func (r *JobResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	r.InventoryID = types.Int64Value(resultApiJob.Inventory)
 	diags = r.ParseIgnoredFields(resultApiJob.IgnoredFields)
 	return diags
+}
+
+func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]interface{}) (diags diag.Diagnostics) {
+	r.IgnoredFields = types.ListNull(types.StringType)
+	var keysList = []attr.Value{}
+
+	for k := range ignoredFields {
+		key := k
+		if v, ok := keyMapping[k]; ok {
+			key = v
+		}
+		keysList = append(keysList, types.StringValue(key))
+	}
+
+	if len(keysList) > 0 {
+		r.IgnoredFields, _ = types.ListValue(types.StringType, keysList)
+	}
+
+	return diags
+}
+
+func (r *JobResource) LaunchJob(data *JobResourceModel) diag.Diagnostics {
+	// Create new Job from job template
+	var diags diag.Diagnostics
+
+	// Create request body from job data
+	requestBody, diagCreateReq := data.CreateRequestBody()
+	diags.Append(diagCreateReq...)
+	if diags.HasError() {
+		return diags
+	}
+
+	requestData := bytes.NewReader(requestBody)
+	var postURL = "/api/v2/job_templates/" + data.GetTemplateID() + "/launch/"
+	resp, body, err := r.client.doRequest(http.MethodPost, postURL, requestData)
+	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
+	if diags.HasError() {
+		return diags
+	}
+
+	// Save new job data into job resource model
+	diags.Append(data.ParseHttpResponse(body)...)
+	if diags.HasError() {
+		return diags
+	}
+
+	return diags
+}
+
+func (r *JobResourceModel) GetTemplateID() string {
+	return r.TemplateID.String()
 }
