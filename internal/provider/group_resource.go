@@ -114,13 +114,13 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 	var data GroupResourceModel
 	var diags diag.Diagnostics
 
-	// Read Terraform plan data into host resource model
+	// Read Terraform plan data into group resource model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Create request body from host data
+	// Create request body from group data
 	createRequestBody, diags := data.CreateRequestBody()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
