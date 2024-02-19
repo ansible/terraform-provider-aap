@@ -49,14 +49,12 @@ func (d *InventoryDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 			},
 			"name": schema.StringAttribute{
 				Computed: true,
-				Optional: true,
 			},
 			"description": schema.StringAttribute{
 				Computed: true,
-				Optional: true,
 			},
 			"variables": schema.StringAttribute{
-				Optional:   true,
+				Computed:   true,
 				CustomType: jsontypes.NormalizedType{},
 			},
 		},
