@@ -94,7 +94,6 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Description: "Id of the job template.",
 			},
 			"inventory_id": schema.Int64Attribute{
-<<<<<<< HEAD
 				Optional: true,
 				Computed: true,
 				PlanModifiers: []planmodifier.Int64{
@@ -102,24 +101,14 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				},
 				Description: "Identifier for the inventory where job should be created in. " +
 					"If not provided, the job will be created in the default inventory.",
-=======
-				Optional:    true,
-				Description: "Inventory Id",
->>>>>>> 338f641 (formatted)
 			},
 			"job_type": schema.StringAttribute{
 				Computed:    true,
 				Description: "Job type",
 			},
-<<<<<<< HEAD
 			"url": schema.StringAttribute{
-				Computed: true,
-                                Description: "URL of the job template",
-=======
-			"job_url": schema.StringAttribute{
 				Computed:    true,
 				Description: "URL of the job template",
->>>>>>> 338f641 (formatted)
 			},
 			"status": schema.StringAttribute{
 				Computed:    true,

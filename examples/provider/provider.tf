@@ -26,17 +26,6 @@ resource "aap_inventory" "my_inventory" {
   )
 }
 
-resource "aap_host" "my_host" {
-  inventory_id = aap_inventory.my_inventory.id
-  name         = "tf_host"
-  variables = jsonencode(
-    {
-      "foo" : "bar"
-    }
-  )
-  groups = [2, 3, 4]
-}
-
 resource "aap_group" "my_group" {
   inventory_id = aap_inventory.my_inventory.id
   name         = "tf_group"
@@ -45,4 +34,15 @@ resource "aap_group" "my_group" {
       "foo" : "bar"
     }
   )
+}
+
+resource "aap_host" "my_host" {
+  inventory_id = aap_inventory.my_inventory.id
+  name         = "tf_host"
+  variables = jsonencode(
+    {
+      "foo" : "bar"
+    }
+  )
+  groups = [aap_group.my_group.id]
 }
