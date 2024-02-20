@@ -101,26 +101,26 @@ func TestAccInventoryDataSource(t *testing.T) {
 	var inventory InventoryAPIModel
 	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	updatedName := "Inventory " + randomName
-	updatedDescription := "Test inventory"
-	updatedVariables := "{\"foo\": \"bar\"}"
+	updatedDescription := "A test inventory"
+	updatedVariables := "{\"abc\": \"def\"}"
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Create and Read testing
+			// Step 1: Create an inventory using the Inventory resource
 			{
-				Config: testAccInventoryDataSourceId(12),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckInventoryDataSourceExists("aap_inventory.testdata", &inventory),
-					testAccCheckInventoryDataSourceValues(&inventory, "", "", ""),
-				),
-			},
-			// Update and Read testing
-			{
-				Config: testAccInventoryResource(updatedName),
+				Config: testAccInventoryDataSource(randomName),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckInventoryDataSourceExists("aap_inventory.test", &inventory),
-					testAccCheckInventoryDataSourceValues(&inventory, updatedName, updatedDescription, updatedVariables),
+					testAccCheckInventoryDataSourceValues(&inventory, randomName, updatedDescription, updatedVariables),
+				),
+			},
+			// Step 2: Read the inventory using the Inventory Data Source
+			{
+				Config: testAccInventoryDataSource(randomName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+
 					resource.TestCheckResourceAttr("aap_inventory.test", "name", updatedName),
 					resource.TestCheckResourceAttr("aap_inventory.test", "organization", "1"),
 					resource.TestCheckResourceAttr("aap_inventory.test", "description", updatedDescription),
@@ -152,8 +152,8 @@ func testAccCheckInventoryDataSourceExists(name string, inventory *InventoryAPIM
 			return err
 		}
 
-		if inventory.Id != 12 {
-			return fmt.Errorf("inventory expected : 12 Found: (%d) ", inventory.Id)
+		if inventory.Id == 0 {
+			return fmt.Errorf("inventory (%s) not found in AAP", inventoryResource.Primary.ID)
 		}
 
 		return nil
@@ -161,10 +161,10 @@ func testAccCheckInventoryDataSourceExists(name string, inventory *InventoryAPIM
 }
 
 // testAccCheckInventoryDataSourcesValues verifies that the provided inventory retrieved from AAP contains the expected values.
-func testAccCheckInventoryDataSourceValues(inventory *InventoryAPIModel, name string, description string, variables string) resource.TestCheckFunc {
+func testAccCheckInventoryDataSourceValues(inventory *InventoryAPIModel, expectedName, expectedDescription, expectedVariables string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		if inventory.Id != 12 {
-			return fmt.Errorf("bad inventory ID in AAP, expected 12, got: %dv", inventory.Id)
+		if inventory.Id == 0 {
+			return fmt.Errorf("bad inventory ID in AAP, expected a positive int64, got: %dv", inventory.Id)
 		}
 		if inventory.Organization == 0 {
 			return fmt.Errorf("bad inventory organization in AAP, expected a positive int64, got: %d", inventory.Organization)
@@ -172,33 +172,31 @@ func testAccCheckInventoryDataSourceValues(inventory *InventoryAPIModel, name st
 		if inventory.Url == "" {
 			return fmt.Errorf("bad inventory URL in AAP, expected a URL path, got: %s", inventory.Url)
 		}
-		if inventory.Name != name {
-			return fmt.Errorf("bad inventory name in AAP, expected \"%s\", got: %s", name, inventory.Name)
+		if inventory.Name != expectedName {
+			return fmt.Errorf("bad inventory name in AAP, expected \"%s\", got: %s", expectedName, inventory.Name)
 		}
-		if inventory.Description != description {
-			return fmt.Errorf("bad inventory description in AAP, expected \"%s\", got: %s", description, inventory.Description)
+		if inventory.Description != expectedDescription {
+			return fmt.Errorf("bad inventory description in AAP, expected \"%s\", got: %s", expectedDescription, inventory.Description)
 		}
-		if inventory.Variables != variables {
-			return fmt.Errorf("bad inventory variables in AAP, expected \"%s\", got: %s", variables, inventory.Variables)
+		if inventory.Variables != expectedVariables {
+			return fmt.Errorf("bad inventory variables in AAP, expected \"%s\", got: %s", expectedVariables, inventory.Variables)
 		}
 		return nil
 	}
 }
 
-// testAccInventoryResource returns a configuration for an AAP Inventory with the provided name and all options.
-func testAccInventoryResource(name string) string {
+// testAccInventoryDataSource configures the Inventory Data Source for testing
+func testAccInventoryDataSource(name string) string {
 	return fmt.Sprintf(`
 resource "aap_inventory" "test" {
-  name = "%s"
+  name        = "%s"
+  organization = 1
   description = "A test inventory"
-  variables = "{\"abc\": \"def\"}"
-}`, name)
+  variables   = "{\"abc\": \"def\"}"
 }
 
-// testAccInventoryDataSourceId returns a configuration for an AAP Inventory with the provided id.
-func testAccInventoryDataSourceId(id int64) string {
-	return fmt.Sprintf(`
-data "aap_inventory" "testdata" {
-  id = "%d"
-}`, id)
+data "aap_inventory" "test" {
+  id = aap_inventory.test.id
+}
+`, name)
 }
