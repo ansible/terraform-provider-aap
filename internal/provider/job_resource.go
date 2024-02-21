@@ -114,7 +114,8 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Description: "Status of the job",
 			},
 			"extra_vars": schema.StringAttribute{
-				Optional: true,
+				Description: "Extra Variables",
+				Optional:    true,
 			},
 			"triggers": schema.MapAttribute{
 				Optional:    true,

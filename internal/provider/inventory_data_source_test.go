@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	fwdatasource "github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -60,7 +59,7 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 				Url:          types.StringValue("/inventories/1/"),
 				Name:         types.StringNull(),
 				Description:  types.StringNull(),
-				Variables:    jsontypes.NewNormalizedNull(),
+				Variables:    types.StringNull(),
 			},
 			errors: diag.Diagnostics{},
 		},
@@ -75,7 +74,7 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 				Url:          types.StringValue("/inventories/1/"),
 				Name:         types.StringValue("my inventory"),
 				Description:  types.StringValue("My Test Inventory"),
-				Variables:    jsontypes.NewNormalizedValue("{\"foo\":\"bar\"}"),
+				Variables:    types.StringValue("{\"foo\":\"bar\"}"),
 			},
 			errors: diag.Diagnostics{},
 		},

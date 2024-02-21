@@ -91,7 +91,8 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Description: "Description for the inventory",
 			},
 			"variables": schema.StringAttribute{
-				Optional: true,
+				Description: "Inventory variables",
+				Optional:    true,
 			},
 		},
 	}

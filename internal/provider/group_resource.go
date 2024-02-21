@@ -106,7 +106,8 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Description: "Group Id",
 			},
 			"variables": schema.StringAttribute{
-				Optional: true,
+				Description: "Variables for the group configuration",
+				Optional:    true,
 			},
 		},
 	}

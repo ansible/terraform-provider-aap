@@ -116,7 +116,8 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "Description for the host",
 			},
 			"variables": schema.StringAttribute{
-				Optional: true,
+				Description: "Variables for the host configuration",
+				Optional:    true,
 			},
 			"enabled": schema.BoolAttribute{
 				Optional: true,
