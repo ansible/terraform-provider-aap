@@ -23,6 +23,6 @@ gofmt:
 	gofmt -s -w internal/provider
 
 generatedocs:
-	@echo "==> Formats examples and generates docs..."
-	terraform fmt -recursive ./examples/ && tfplugindocs generate
-
+	@echo "==> Formatting examples and generating docs..."
+	terraform fmt -recursive ./examples/
+	go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate
