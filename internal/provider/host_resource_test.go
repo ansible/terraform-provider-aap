@@ -253,8 +253,10 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 	}
 }
 
+// Acceptance tests
+
 func testAccHostResourcePreCheck(t *testing.T) {
-	// ensure provider requirements
+	// Ensure provider requirements
 	testAccPreCheck(t)
 
 	requiredAAPHostEnvVars := []string{

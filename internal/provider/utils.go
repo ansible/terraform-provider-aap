@@ -8,8 +8,10 @@ import (
 	"path"
 	"slices"
 
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 func IsValueProvided(value attr.Value) bool {
@@ -54,4 +56,20 @@ func getURL(base string, paths ...string) (string, diag.Diagnostics) {
 	u.Path = path.Join(append([]string{u.Path}, paths...)...)
 
 	return u.String(), diags
+}
+
+func ParseStringValue(description string) types.String {
+	if description != "" {
+		return types.StringValue(description)
+	} else {
+		return types.StringNull()
+	}
+}
+
+func ParseNormalizedValue(variables string) jsontypes.Normalized {
+	if variables != "" {
+		return jsontypes.NewNormalizedValue(variables)
+	} else {
+		return jsontypes.NewNormalizedNull()
+	}
 }
