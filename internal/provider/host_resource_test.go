@@ -12,7 +12,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
@@ -131,7 +130,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("test host"),
 				Description: types.StringUnknown(),
 				URL:         types.StringUnknown(),
-				Variables:   jsontypes.NewNormalizedUnknown(),
+				Variables:   types.StringUnknown(),
 				Enabled:     basetypes.NewBoolValue(false),
 				InventoryId: types.Int64Value(0),
 			},
@@ -143,7 +142,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("test host"),
 				Description: types.StringNull(),
 				URL:         types.StringNull(),
-				Variables:   jsontypes.NewNormalizedNull(),
+				Variables:   types.StringNull(),
 				Enabled:     basetypes.NewBoolValue(false),
 				InventoryId: types.Int64Value(0),
 				Groups:      types.SetNull(types.Int64Type),
@@ -157,7 +156,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("host1"),
 				Description: types.StringNull(),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
-				Variables:   jsontypes.NewNormalizedValue(hostVariable),
+				Variables:   types.StringValue(hostVariable),
 			},
 			expected: []byte(
 				`{"inventory":1,"name":"host1","variables":"{\"foo\":\"bar\"}","enabled":false}`,
@@ -170,7 +169,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("host1"),
 				Description: types.StringValue("A test host"),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
-				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\"}"),
+				Variables:   types.StringValue("{\"foo\":\"bar\"}"),
 				Enabled:     basetypes.NewBoolValue(false),
 				Groups:      types.SetValueMust(types.Int64Type, []attr.Value{types.Int64Value(1), types.Int64Value(2)}),
 			},
@@ -234,7 +233,7 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 				Name:        types.StringValue("host1"),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
 				Description: types.StringValue("A basic test host"),
-				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
+				Variables:   types.StringValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
 				Enabled:     basetypes.NewBoolValue(true),
 			},
 			errors: diag.Diagnostics{},
