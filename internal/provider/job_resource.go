@@ -30,14 +30,14 @@ type JobAPIModel struct {
 
 // JobResourceModel maps the resource schema data.
 type JobResourceModel struct {
-	TemplateID    types.Int64          `tfsdk:"job_template_id"`
-	Type          types.String         `tfsdk:"job_type"`
-	URL           types.String         `tfsdk:"url"`
-	Status        types.String         `tfsdk:"status"`
-	InventoryID   types.Int64          `tfsdk:"inventory_id"`
-	ExtraVars     jsontypes.Normalized `tfsdk:"extra_vars"`
-	IgnoredFields types.List           `tfsdk:"ignored_fields"`
-	Triggers      types.Map            `tfsdk:"triggers"`
+	TemplateID    types.Int64  `tfsdk:"job_template_id"`
+	Type          types.String `tfsdk:"job_type"`
+	URL           types.String `tfsdk:"url"`
+	Status        types.String `tfsdk:"status"`
+	InventoryID   types.Int64  `tfsdk:"inventory_id"`
+	ExtraVars     types.String `tfsdk:"extra_vars"`
+	IgnoredFields types.List   `tfsdk:"ignored_fields"`
+	Triggers      types.Map    `tfsdk:"triggers"`
 }
 
 // JobResource is the resource implementation.
