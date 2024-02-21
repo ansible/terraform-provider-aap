@@ -21,3 +21,8 @@ testacc:
 gofmt:
 	@echo "==> Format code using gofmt..."
 	gofmt -s -w internal/provider
+
+generatedocs:
+	@echo "==> Formats examples and generates docs..."
+	terraform fmt -recursive ./examples/ && tfplugindocs generate
+

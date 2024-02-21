@@ -22,12 +22,12 @@ description: |-
 ### Optional
 
 - `extra_vars` (String) Extra Variables
-- `inventory_id` (Number) Inventory Id
+- `inventory_id` (Number) Identifier for the inventory where job should be created in. If not provided, the job will be created in the default inventory.
 - `triggers` (Map of String) Map of arbitrary keys and values that, when changed, will trigger a creation of a new Job on AAP. Use 'terraform taint' if you want to force the creation of a new job without changing this value.
 
 ### Read-Only
 
 - `ignored_fields` (List of String) The list of properties set by the user but ignored on server side.
 - `job_type` (String) Job type
-- `job_url` (String) URL of the job template
 - `status` (String) Status of the job
+- `url` (String) URL of the job template
