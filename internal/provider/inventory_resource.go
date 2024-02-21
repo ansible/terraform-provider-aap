@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -92,9 +91,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Description: "Description for the inventory",
 			},
 			"variables": schema.StringAttribute{
-				Optional:    true,
-				CustomType:  jsontypes.NormalizedType{},
-				Description: "Inventory variables",
+				Optional: true,
 			},
 		},
 	}
@@ -240,12 +237,12 @@ func (r *InventoryResource) Delete(ctx context.Context, req resource.DeleteReque
 
 // InventoryResourceModel maps the inventory resource schema to a Go struct.
 type inventoryResourceModel struct {
-	Id           types.Int64          `tfsdk:"id"`
-	Organization types.Int64          `tfsdk:"organization"`
-	Url          types.String         `tfsdk:"url"`
-	Name         types.String         `tfsdk:"name"`
-	Description  types.String         `tfsdk:"description"`
-	Variables    jsontypes.Normalized `tfsdk:"variables"`
+	Id           types.Int64  `tfsdk:"id"`
+	Organization types.Int64  `tfsdk:"organization"`
+	Url          types.String `tfsdk:"url"`
+	Name         types.String `tfsdk:"name"`
+	Description  types.String `tfsdk:"description"`
+	Variables    types.String `tfsdk:"variables"`
 }
 
 // generateRequestBody creates a JSON encoded request body from the inventory resource data.
@@ -298,7 +295,7 @@ func (r *inventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics
 	r.Url = types.StringValue(apiInventory.Url)
 	r.Name = types.StringValue(apiInventory.Name)
 	r.Description = ParseStringValue(apiInventory.Description)
-	r.Variables = ParseNormalizedValue(apiInventory.Variables)
+	r.Variables = ParseStringValue(apiInventory.Variables)
 
 	return parseResponseDiags
 }

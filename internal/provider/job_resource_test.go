@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
@@ -50,7 +49,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "unknown values",
 			input: JobResourceModel{
-				ExtraVars:   jsontypes.NewNormalizedNull(),
+				ExtraVars:   types.StringUnknown(),
 				InventoryID: basetypes.NewInt64Unknown(),
 				TemplateID:  types.Int64Value(1),
 			},
@@ -59,7 +58,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "null values",
 			input: JobResourceModel{
-				ExtraVars:   jsontypes.NewNormalizedNull(),
+				ExtraVars:   types.StringNull(),
 				InventoryID: basetypes.NewInt64Null(),
 				TemplateID:  types.Int64Value(1),
 			},
@@ -68,7 +67,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "extra vars only",
 			input: JobResourceModel{
-				ExtraVars:   jsontypes.NewNormalizedValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
+				ExtraVars:   types.StringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Null(),
 			},
 			expected: []byte(`{"inventory":1,"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
@@ -76,7 +75,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "inventory vars only",
 			input: JobResourceModel{
-				ExtraVars:   jsontypes.NewNormalizedNull(),
+				ExtraVars:   types.StringNull(),
 				InventoryID: basetypes.NewInt64Value(201),
 			},
 			expected: []byte(`{"inventory": 201}`),
@@ -84,7 +83,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "combined",
 			input: JobResourceModel{
-				ExtraVars:   jsontypes.NewNormalizedValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
+				ExtraVars:   types.StringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Value(3),
 			},
 			expected: []byte(`{"inventory":3,"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
@@ -131,7 +130,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 func TestJobResourceParseHttpResponse(t *testing.T) {
 	templateID := basetypes.NewInt64Value(1)
 	inventoryID := basetypes.NewInt64Value(2)
-	extraVars := jsontypes.NewNormalizedNull()
+	extraVars := types.StringNull()
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -115,9 +114,7 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Description: "Status of the job",
 			},
 			"extra_vars": schema.StringAttribute{
-				Optional:    true,
-				CustomType:  jsontypes.NormalizedType{},
-				Description: "Extra Variables",
+				Optional: true,
 			},
 			"triggers": schema.MapAttribute{
 				Optional:    true,
