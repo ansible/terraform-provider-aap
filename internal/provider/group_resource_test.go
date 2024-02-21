@@ -12,7 +12,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -55,7 +54,7 @@ func TestGroupResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("test group"),
 				Description: types.StringUnknown(),
 				URL:         types.StringUnknown(),
-				Variables:   jsontypes.NewNormalizedUnknown(),
+				Variables:   types.StringUnknown(),
 				InventoryId: types.Int64Value(0),
 			},
 			expected: []byte(`{"inventory":0,"name":"test group"}`),
@@ -66,7 +65,7 @@ func TestGroupResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("test group"),
 				Description: types.StringNull(),
 				URL:         types.StringNull(),
-				Variables:   jsontypes.NewNormalizedNull(),
+				Variables:   types.StringNull(),
 				InventoryId: types.Int64Value(0),
 			},
 			expected: []byte(`{"inventory":0,"name":"test group"}`),
@@ -78,7 +77,7 @@ func TestGroupResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("group1"),
 				Description: types.StringNull(),
 				URL:         types.StringValue("/api/v2/groups/1/"),
-				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\"}"),
+				Variables:   types.StringValue("{\"foo\":\"bar\"}"),
 			},
 			expected: []byte(
 				`{"inventory":1,"name":"group1","variables":"{\"foo\":\"bar\"}"}`,
@@ -91,7 +90,7 @@ func TestGroupResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("group1"),
 				Description: types.StringValue("A test group"),
 				URL:         types.StringValue("/api/v2/groups/1/"),
-				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\"}"),
+				Variables:   types.StringValue("{\"foo\":\"bar\"}"),
 			},
 			expected: []byte(
 				`{"inventory":1,"name":"group1","description":"A test group","variables":"{\"foo\":\"bar\"}"}`,
@@ -150,7 +149,7 @@ func TestGroupResourceParseHttpResponse(t *testing.T) {
 				Name:        types.StringValue("group1"),
 				URL:         types.StringValue("/api/v2/groups/1/"),
 				Description: types.StringValue("A basic test group"),
-				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
+				Variables:   types.StringValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
 			},
 			errors: diag.Diagnostics{},
 		},

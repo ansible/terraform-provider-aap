@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -28,12 +27,12 @@ type GroupAPIModel struct {
 
 // GroupResourceModel maps the group resource schema to a Go struct
 type GroupResourceModel struct {
-	InventoryId types.Int64          `tfsdk:"inventory_id"`
-	Name        types.String         `tfsdk:"name"`
-	Description types.String         `tfsdk:"description"`
-	URL         types.String         `tfsdk:"url"`
-	Variables   jsontypes.Normalized `tfsdk:"variables"`
-	Id          types.Int64          `tfsdk:"id"`
+	InventoryId types.Int64  `tfsdk:"inventory_id"`
+	Name        types.String `tfsdk:"name"`
+	Description types.String `tfsdk:"description"`
+	URL         types.String `tfsdk:"url"`
+	Variables   types.String `tfsdk:"variables"`
+	Id          types.Int64  `tfsdk:"id"`
 }
 
 // GroupResource is the resource implementation.
@@ -107,9 +106,7 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Description: "Group Id",
 			},
 			"variables": schema.StringAttribute{
-				Optional:    true,
-				CustomType:  jsontypes.NormalizedType{},
-				Description: "Variables for the group configuration",
+				Optional: true,
 			},
 		},
 	}
@@ -289,7 +286,7 @@ func (r *GroupResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	r.Id = types.Int64Value(resultApiGroup.Id)
 	r.Name = types.StringValue(resultApiGroup.Name)
 	r.Description = ParseStringValue(resultApiGroup.Description)
-	r.Variables = ParseNormalizedValue(resultApiGroup.Variables)
+	r.Variables = ParseStringValue(resultApiGroup.Variables)
 
 	return diags
 }
