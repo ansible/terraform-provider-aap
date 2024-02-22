@@ -128,7 +128,7 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				PlanModifiers: []planmodifier.Bool{
 					boolplanmodifier.UseStateForUnknown(),
 				},
-				Description: "Denotes if the host is online and is available or not",
+				Description: "Denotes if the host is online and is available",
 			},
 			"groups": schema.SetAttribute{
 				ElementType: types.Int64Type,
