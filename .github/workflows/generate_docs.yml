@@ -33,6 +33,6 @@ jobs:
           if git diff --exit-code; then
             echo "Docs generation successful, no changes found."
           else
-            echo "Error: Uncommitted changes found. Please commit or discard changes before generating docs."
+            echo "Error: Uncommitted changes found. Please run 'make generatedocs' and commit the changes."
             exit 1
           fi
