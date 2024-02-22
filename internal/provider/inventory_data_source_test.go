@@ -2,25 +2,23 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
-	fwresource "github.com/hashicorp/terraform-plugin-framework/datasource"
+	fwdatasource "github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
-	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestInventoryDataSourceSchema(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	schemaRequest := fwresource.SchemaRequest{}
-	schemaResponse := &fwresource.SchemaResponse{}
+	schemaRequest := fwdatasource.SchemaRequest{}
+	schemaResponse := &fwdatasource.SchemaResponse{}
 
 	// Instantiate the InventoryDataSource and call its Schema method
 	NewInventoryDataSource().Schema(ctx, schemaRequest, schemaResponse)
@@ -100,89 +98,28 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 func TestAccInventoryDataSource(t *testing.T) {
 	var inventory InventoryAPIModel
 	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
-	updatedName := "Inventory " + randomName
-	updatedDescription := "A test inventory"
-	updatedVariables := "{\"abc\": \"def\"}"
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Step 1: Create an inventory using the Inventory resource
+			// Step 1: Create an inventory and Read
 			{
 				Config: testAccInventoryDataSource(randomName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckInventoryDataSourceExists("aap_inventory.test", &inventory),
-					testAccCheckInventoryDataSourceValues(&inventory, randomName, updatedDescription, updatedVariables),
-				),
-			},
-			// Step 2: Read the inventory using the Inventory Data Source
-			{
-				Config: testAccInventoryDataSource(randomName),
-				Check: resource.ComposeAggregateTestCheckFunc(
-
-					resource.TestCheckResourceAttr("aap_inventory.test", "name", updatedName),
-					resource.TestCheckResourceAttr("aap_inventory.test", "organization", "1"),
-					resource.TestCheckResourceAttr("aap_inventory.test", "description", updatedDescription),
-					resource.TestCheckResourceAttr("aap_inventory.test", "variables", updatedVariables),
-					resource.TestCheckResourceAttrSet("aap_inventory.test", "id"),
-					resource.TestCheckResourceAttrSet("aap_inventory.test", "url"),
+					// Check the existence of the created inventory and store its values in the inventory model
+					testAccCheckInventoryResourceExists("aap_inventory.test", &inventory),
+					// Verify the data source values against the stored resource values
+					resource.TestCheckResourceAttrPtr("data.aap_inventory.test", "name", &inventory.Name),
+					resource.TestCheckResourceAttr("data.aap_inventory.test", "organization", "1"),
+					resource.TestCheckResourceAttrPtr("data.aap_inventory.test", "description", &inventory.Description),
+					resource.TestCheckResourceAttrPtr("data.aap_inventory.test", "variables", &inventory.Variables),
+					resource.TestCheckResourceAttrPtr("data.aap_inventory.test", "url", &inventory.Url),
 				),
 			},
 		},
 		CheckDestroy: testAccCheckInventoryResourceDestroy,
 	})
-}
-
-// testAccCheckInventoryDataSourceExists queries the AAP API and retrieves the matching inventory.
-func testAccCheckInventoryDataSourceExists(name string, inventory *InventoryAPIModel) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		inventoryResource, ok := s.RootModule().Resources[name]
-		if !ok {
-			return fmt.Errorf("inventory (%s) not found in state", name)
-		}
-
-		inventoryDataResponseBody, err := testGetResource(inventoryResource.Primary.Attributes["id"])
-		if err != nil {
-			return err
-		}
-
-		err = json.Unmarshal(inventoryDataResponseBody, &inventory)
-		if err != nil {
-			return err
-		}
-
-		if inventory.Id == 0 {
-			return fmt.Errorf("inventory (%s) not found in AAP", inventoryResource.Primary.ID)
-		}
-
-		return nil
-	}
-}
-
-// testAccCheckInventoryDataSourcesValues verifies that the provided inventory retrieved from AAP contains the expected values.
-func testAccCheckInventoryDataSourceValues(inventory *InventoryAPIModel, expectedName, expectedDescription, expectedVariables string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		if inventory.Id == 0 {
-			return fmt.Errorf("bad inventory ID in AAP, expected a positive int64, got: %dv", inventory.Id)
-		}
-		if inventory.Organization == 0 {
-			return fmt.Errorf("bad inventory organization in AAP, expected a positive int64, got: %d", inventory.Organization)
-		}
-		if inventory.Url == "" {
-			return fmt.Errorf("bad inventory URL in AAP, expected a URL path, got: %s", inventory.Url)
-		}
-		if inventory.Name != expectedName {
-			return fmt.Errorf("bad inventory name in AAP, expected \"%s\", got: %s", expectedName, inventory.Name)
-		}
-		if inventory.Description != expectedDescription {
-			return fmt.Errorf("bad inventory description in AAP, expected \"%s\", got: %s", expectedDescription, inventory.Description)
-		}
-		if inventory.Variables != expectedVariables {
-			return fmt.Errorf("bad inventory variables in AAP, expected \"%s\", got: %s", expectedVariables, inventory.Variables)
-		}
-		return nil
-	}
 }
 
 // testAccInventoryDataSource configures the Inventory Data Source for testing

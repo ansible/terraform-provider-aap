@@ -341,7 +341,7 @@ resource "aap_host" "test" {
   name = "%s"
   inventory_id = %s
   description = "A test host"
-  variables = "{\"foo\": \"bar\"}"
+  variables = "{\"foo\":\"bar\"}"
   enabled = true
   groups = [%s]
 }`, name, inventoryId, groupId)
