@@ -29,5 +29,5 @@ description: |-
 
 ### Read-Only
 
-- `host_url` (String) URL of the host
 - `id` (Number) Id of the host
+- `url` (String) URL of the host

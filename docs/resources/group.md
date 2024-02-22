@@ -27,5 +27,5 @@ description: |-
 
 ### Read-Only
 
-- `group_url` (String) URL for the group
 - `id` (Number) Group Id
+- `url` (String) URL for the group
