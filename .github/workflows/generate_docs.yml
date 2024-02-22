@@ -28,8 +28,11 @@ jobs:
       - name: Generate documentation
         run: make generatedocs
 
-      - name: Use GITHUB_TOKEN to commit changes
+      - name: Check for doc changes
         run: |
-          git diff --exit-code || (echo "Generated docs have changed, committing the changes." && git config user.name "${{ github.repository_owner }}" && git -c "user.name=${{ github.actor }}" -c "user.email=${{ github.actor }}@users.noreply.github.com" commit -am "Update generated docs (${GITHUB_SHA})" && git push origin HEAD:${{ github.head_ref }})
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if git diff --exit-code; then
+            echo "Docs generation successful, no changes found."
+          else
+            echo "Error: Uncommitted changes found. Please commit or discard changes before generating docs."
+            exit 1
+          fi
