@@ -28,8 +28,14 @@ jobs:
       - name: Generate documentation
         run: make generatedocs
 
+      - name: Extract branch name
+        run: echo "PR branch is ${GITHUB_REF##*/}"
+        id: extract-branch
+        env:
+          GITHUB_REF: ${{ github.event.pull_request.head.ref }}
+
       - name: Use GITHUB_TOKEN to commit changes
         run: |
-          git diff --exit-code || (echo "Generated docs have changed, committing the changes." && git config user.name "${{ github.repository_owner }}" && git commit -am "Update generated docs (${GITHUB_SHA})" && git push)
+          git diff --exit-code || (echo "Generated docs have changed, committing the changes." && git config user.name "${{ github.repository_owner }}" && git commit -am "Update generated docs (${GITHUB_SHA})" && git push origin HEAD:${{ steps.extract-branch.outputs.branch }})
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
