@@ -27,3 +27,9 @@ jobs:
 
       - name: Generate documentation
         run: make generatedocs
+
+      - name: Use GITHUB_TOKEN to commit changes
+        run: |
+          git diff --exit-code || (echo "Generated docs have changed, committing the changes." && git config user.name "${{ github.repository_owner }}" && git commit -am "Update generated docs (${GITHUB_SHA})" && git push)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
