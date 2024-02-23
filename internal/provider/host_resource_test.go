@@ -23,6 +23,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
+const hostVariable = "{\"foo\":\"bar\"}"
+
 func slicesEqual(slice1, slice2 []int64) bool {
 	if len(slice1) != len(slice2) {
 		return false
@@ -155,7 +157,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("host1"),
 				Description: types.StringNull(),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
-				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\"}"),
+				Variables:   jsontypes.NewNormalizedValue(hostVariable),
 			},
 			expected: []byte(
 				`{"inventory":1,"name":"host1","variables":"{\"foo\":\"bar\"}","enabled":false}`,
@@ -276,7 +278,7 @@ func TestAccHostResource(t *testing.T) {
 	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	updatedName := "updated " + randomName
 	updatedDescription := "A test host"
-	updatedVariables := "{\"foo\": \"bar\"}"
+	updatedVariables := hostVariable
 
 	groupId := os.Getenv("AAP_TEST_GROUP_ID")
 	inventoryId := os.Getenv("AAP_TEST_INVENTORY_ID")
@@ -339,7 +341,7 @@ resource "aap_host" "test" {
   name = "%s"
   inventory_id = %s
   description = "A test host"
-  variables = "{\"foo\": \"bar\"}"
+  variables = "{\"foo\":\"bar\"}"
   enabled = true
   groups = [%s]
 }`, name, inventoryId, groupId)

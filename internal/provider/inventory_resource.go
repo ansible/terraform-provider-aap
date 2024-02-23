@@ -259,7 +259,7 @@ func (r *inventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics
 	} else {
 		organizationId = r.Organization.ValueInt64()
 	}
-	inventory := inventoryAPIModel{
+	inventory := InventoryAPIModel{
 		Organization: organizationId,
 		Name:         r.Name.ValueString(),
 		Description:  r.Description.ValueString(),
@@ -285,7 +285,7 @@ func (r *inventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics
 	var parseResponseDiags diag.Diagnostics
 
 	// Unmarshal the JSON response
-	var apiInventory inventoryAPIModel
+	var apiInventory InventoryAPIModel
 	err := json.Unmarshal(body, &apiInventory)
 	if err != nil {
 		parseResponseDiags.AddError("Error parsing JSON response from AAP", err.Error())
@@ -304,7 +304,7 @@ func (r *inventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics
 }
 
 // Inventory AAP API model
-type inventoryAPIModel struct {
+type InventoryAPIModel struct {
 	Id           int64  `json:"id,omitempty"`
 	Organization int64  `json:"organization"`
 	Url          string `json:"url,omitempty"`

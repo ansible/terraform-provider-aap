@@ -1,269 +1,139 @@
 package provider
 
 import (
-	"reflect"
+	"context"
+	"fmt"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	fwdatasource "github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-func TestAddHost(t *testing.T) {
-	testTable := []struct {
+func TestInventoryDataSourceSchema(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	schemaRequest := fwdatasource.SchemaRequest{}
+	schemaResponse := &fwdatasource.SchemaResponse{}
+
+	// Instantiate the InventoryDataSource and call its Schema method
+	NewInventoryDataSource().Schema(ctx, schemaRequest, schemaResponse)
+
+	if schemaResponse.Diagnostics.HasError() {
+		t.Fatalf("Schema method diagnostics: %+v", schemaResponse.Diagnostics)
+	}
+
+	// Validate the schema
+	diagnostics := schemaResponse.Schema.ValidateImplementation(ctx)
+
+	if diagnostics.HasError() {
+		t.Fatalf("Schema validation diagnostics: %+v", diagnostics)
+	}
+}
+
+func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
+	jsonError := diag.Diagnostics{}
+	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
+
+	var testTable = []struct {
 		name     string
-		state    inventoryDataSourceModel
-		expected inventoryDataSourceModel
+		input    []byte
+		expected InventoryDataSourceModel
+		errors   diag.Diagnostics
 	}{
 		{
-			name: "add new host",
-			state: inventoryDataSourceModel{
-				ID:     basetypes.NewInt64Value(1),
-				Groups: map[string]groupDataSourceModel{},
-				Hosts:  map[string]hostDataSourceModel{},
-			},
-			expected: inventoryDataSourceModel{
-				ID: basetypes.NewInt64Value(1),
-				Groups: map[string]groupDataSourceModel{
-					"db": {
-						Hosts:    []string{"sql"},
-						Children: []string{},
-					},
-				},
-				Hosts: map[string]hostDataSourceModel{},
-			},
+			name:     "JSON error",
+			input:    []byte("Not valid JSON"),
+			expected: InventoryDataSourceModel{},
+			errors:   jsonError,
 		},
 		{
-			name: "add existing host into another group",
-			state: inventoryDataSourceModel{
-				ID: basetypes.NewInt64Value(1),
-				Groups: map[string]groupDataSourceModel{
-					"running": {
-						Hosts:    []string{"sql"},
-						Children: []string{},
-					},
-				},
-				Hosts: map[string]hostDataSourceModel{},
+			name:  "missing values",
+			input: []byte(`{"id":1,"organization":2,"url":"/inventories/1/"}`),
+			expected: InventoryDataSourceModel{
+				Id:           types.Int64Value(1),
+				Organization: types.Int64Value(2),
+				Url:          types.StringValue("/inventories/1/"),
+				Name:         types.StringNull(),
+				Description:  types.StringNull(),
+				Variables:    jsontypes.NewNormalizedNull(),
 			},
-			expected: inventoryDataSourceModel{
-				ID: basetypes.NewInt64Value(1),
-				Groups: map[string]groupDataSourceModel{
-					"running": {
-						Hosts:    []string{"sql"},
-						Children: []string{},
-					},
-					"db": {
-						Hosts:    []string{"sql"},
-						Children: []string{},
-					},
-				},
-				Hosts: map[string]hostDataSourceModel{},
-			},
+			errors: diag.Diagnostics{},
 		},
 		{
-			name: "add duplicate host name into group",
-			state: inventoryDataSourceModel{
-				ID: basetypes.NewInt64Value(1),
-				Groups: map[string]groupDataSourceModel{
-					"db": {
-						Hosts:    []string{"sql"},
-						Children: []string{},
-					},
-				},
-				Hosts: map[string]hostDataSourceModel{},
+			name: "all values",
+			input: []byte(
+				`{"id":1,"organization":2,"url":"/inventories/1/","name":"my inventory","description":"My Test Inventory","variables":"{\"foo\":\"bar\"}"}`,
+			),
+			expected: InventoryDataSourceModel{
+				Id:           types.Int64Value(1),
+				Organization: types.Int64Value(2),
+				Url:          types.StringValue("/inventories/1/"),
+				Name:         types.StringValue("my inventory"),
+				Description:  types.StringValue("My Test Inventory"),
+				Variables:    jsontypes.NewNormalizedValue("{\"foo\":\"bar\"}"),
 			},
-			expected: inventoryDataSourceModel{
-				ID: basetypes.NewInt64Value(1),
-				Groups: map[string]groupDataSourceModel{
-					"db": {
-						Hosts:    []string{"sql"},
-						Children: []string{},
-					},
-				},
-				Hosts: map[string]hostDataSourceModel{},
-			},
+			errors: diag.Diagnostics{},
 		},
 	}
-	for _, tc := range testTable {
-		t.Run(tc.name, func(t *testing.T) {
-			tc.state.addHost("db", "sql")
-			if !reflect.DeepEqual(tc.state, tc.expected) {
-				t.Errorf("expected (%v)", tc.expected)
-				t.Errorf("result   (%v)", tc.state)
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			resource := InventoryDataSourceModel{}
+			diags := resource.ParseHttpResponse(test.input)
+			if !test.errors.Equal(diags) {
+				t.Errorf("Expected error diagnostics (%s), Received (%s)", test.errors, diags)
+			}
+			if test.expected != resource {
+				t.Errorf("Expected (%s) not equal to actual (%s)", test.expected, resource)
 			}
 		})
 	}
 }
 
-func TestAddHostVariable(t *testing.T) {
-	testTable := []struct {
-		name     string
-		state    inventoryDataSourceModel
-		expected inventoryDataSourceModel
-	}{
-		{
-			name: "add new host var",
-			state: inventoryDataSourceModel{
-				ID:     basetypes.NewInt64Value(1),
-				Groups: map[string]groupDataSourceModel{},
-				Hosts:  map[string]hostDataSourceModel{},
-			},
-			expected: inventoryDataSourceModel{
-				ID:     basetypes.NewInt64Value(1),
-				Groups: map[string]groupDataSourceModel{},
-				Hosts: map[string]hostDataSourceModel{
-					"test": {
-						HostVars: map[string]string{
-							"some_var": "some_var_value",
-						},
-					},
-				},
+func TestAccInventoryDataSource(t *testing.T) {
+	var inventory InventoryAPIModel
+	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Step 1: Create an inventory and Read
+			{
+				Config: testAccInventoryDataSource(randomName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					// Check the existence of the created inventory and store its values in the inventory model
+					testAccCheckInventoryResourceExists("aap_inventory.test", &inventory),
+					// Verify the data source values against the stored resource values
+					resource.TestCheckResourceAttrPtr("data.aap_inventory.test", "name", &inventory.Name),
+					resource.TestCheckResourceAttr("data.aap_inventory.test", "organization", "1"),
+					resource.TestCheckResourceAttrPtr("data.aap_inventory.test", "description", &inventory.Description),
+					resource.TestCheckResourceAttrPtr("data.aap_inventory.test", "variables", &inventory.Variables),
+					resource.TestCheckResourceAttrPtr("data.aap_inventory.test", "url", &inventory.Url),
+				),
 			},
 		},
-		{
-			name: "add new var into existing host var",
-			state: inventoryDataSourceModel{
-				ID:     basetypes.NewInt64Value(1),
-				Groups: map[string]groupDataSourceModel{},
-				Hosts: map[string]hostDataSourceModel{
-					"test": {
-						HostVars: map[string]string{
-							"another_var": "another_var_value",
-						},
-					},
-				},
-			},
-			expected: inventoryDataSourceModel{
-				ID:     basetypes.NewInt64Value(1),
-				Groups: map[string]groupDataSourceModel{},
-				Hosts: map[string]hostDataSourceModel{
-					"test": {
-						HostVars: map[string]string{
-							"another_var": "another_var_value",
-							"some_var":    "some_var_value",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "override host variable",
-			state: inventoryDataSourceModel{
-				ID:     basetypes.NewInt64Value(1),
-				Groups: map[string]groupDataSourceModel{},
-				Hosts: map[string]hostDataSourceModel{
-					"test": {
-						HostVars: map[string]string{
-							"some_var": "some_initial_var_value",
-						},
-					},
-				},
-			},
-			expected: inventoryDataSourceModel{
-				ID:     basetypes.NewInt64Value(1),
-				Groups: map[string]groupDataSourceModel{},
-				Hosts: map[string]hostDataSourceModel{
-					"test": {
-						HostVars: map[string]string{
-							"some_var": "some_var_value",
-						},
-					},
-				},
-			},
-		},
-	}
-	for _, tc := range testTable {
-		t.Run(tc.name, func(t *testing.T) {
-			tc.state.addHostVariable("test", "some_var", "some_var_value")
-			if !reflect.DeepEqual(tc.state, tc.expected) {
-				t.Errorf("expected (%v)", tc.expected)
-				t.Errorf("result   (%v)", tc.state)
-			}
-		})
-	}
+		CheckDestroy: testAccCheckInventoryResourceDestroy,
+	})
 }
 
-func TestMapHosts(t *testing.T) {
-	testTable := []struct {
-		name     string
-		hosts    []ansibleHost
-		state    inventoryDataSourceModel
-		expected inventoryDataSourceModel
-	}{
-		{
-			name: "case 1",
-			hosts: []ansibleHost{
-				{
-					Name:   "web",
-					Groups: []string{"deployer", "front"},
-					Variables: map[string]string{
-						"framework": "django",
-					},
-				},
-				{
-					Name:   "db",
-					Groups: []string{"deployer", "database"},
-					Variables: map[string]string{
-						"server":  "postgresql",
-						"version": "14.0.0",
-					},
-				},
-				{
-					Name:      "ansible",
-					Groups:    []string{},
-					Variables: map[string]string{},
-				},
-			},
-			state: inventoryDataSourceModel{
-				ID:     basetypes.NewInt64Value(1),
-				Groups: nil,
-				Hosts:  nil,
-			},
-			expected: inventoryDataSourceModel{
-				ID: basetypes.NewInt64Value(1),
-				Groups: map[string]groupDataSourceModel{
-					"deployer": {
-						Hosts:    []string{"web", "db"},
-						Children: []string{},
-					},
-					"front": {
-						Hosts:    []string{"web"},
-						Children: []string{},
-					},
-					"database": {
-						Hosts:    []string{"db"},
-						Children: []string{},
-					},
-					"ungrouped": {
-						Hosts:    []string{"ansible"},
-						Children: []string{},
-					},
-					"all": {
-						Hosts:    []string{},
-						Children: []string{"deployer", "front", "database", "ungrouped"},
-					},
-				},
-				Hosts: map[string]hostDataSourceModel{
-					"db": {
-						HostVars: map[string]string{
-							"server":  "postgresql",
-							"version": "14.0.0",
-						},
-					},
-					"web": {
-						HostVars: map[string]string{
-							"framework": "django",
-						},
-					},
-				},
-			},
-		},
-	}
-	for _, tc := range testTable {
-		t.Run(tc.name, func(t *testing.T) {
-			tc.state.mapHosts(tc.hosts)
-			if !reflect.DeepEqual(tc.state, tc.expected) {
-				t.Errorf("expected (%v)", tc.expected)
-				t.Errorf("result   (%v)", tc.state)
-			}
-		})
-	}
+// testAccInventoryDataSource configures the Inventory Data Source for testing
+func testAccInventoryDataSource(name string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+  name        = "%s"
+  organization = 1
+  description = "A test inventory"
+  variables   = "{\"abc\": \"def\"}"
+}
+
+data "aap_inventory" "test" {
+  id = aap_inventory.test.id
+}
+`, name)
 }

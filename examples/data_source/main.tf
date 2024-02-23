@@ -13,20 +13,15 @@ provider "aap" {
   insecure_skip_verify = true
 }
 
-variable "state_id" {
+variable "inventory_id" {
   type        = number
-  description = "The id of the state to request"
+  description = "The inventory id"
 }
 
 data "aap_inventory" "sample" {
-  path = var.state_id
+  id = var.inventory_id
 }
 
-output "inventory_hosts" {
-  value = data.aap_inventory.sample.hosts
+output "inventory_details" {
+  value = data.aap_inventory.sample
 }
-
-output "inventory_groups" {
-  value = data.aap_inventory.sample.groups
-}
-
