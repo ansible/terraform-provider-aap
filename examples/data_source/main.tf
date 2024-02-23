@@ -14,8 +14,8 @@ provider "aap" {
 }
 
 variable "inventory_id" {
-   type = number
-   description = "The inventory id"
+  type        = number
+  description = "The inventory id"
 }
 
 data "aap_inventory" "sample" {
