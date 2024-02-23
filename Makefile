@@ -21,3 +21,8 @@ testacc:
 gofmt:
 	@echo "==> Format code using gofmt..."
 	gofmt -s -w internal/provider
+
+generatedocs:
+	@echo "==> Formatting examples and generating docs..."
+	terraform fmt -recursive ./examples/
+	go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate

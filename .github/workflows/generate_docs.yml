@@ -1,0 +1,38 @@
+name: Generate Terraform Plugin Documentation
+
+on:
+  pull_request:
+    branches:
+      - main
+      - stable-*
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.x
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Install tfplugindocs
+        run: go get github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Generate documentation
+        run: make generatedocs
+
+      - name: Check for doc changes
+        run: |
+          if git diff --exit-code; then
+            echo "Docs generation successful, no changes found."
+          else
+            echo "Error: Uncommitted changes found. Please run 'make generatedocs' and commit the changes."
+            exit 1
+          fi

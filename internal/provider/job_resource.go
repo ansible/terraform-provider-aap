@@ -90,7 +90,8 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"job_template_id": schema.Int64Attribute{
-				Required: true,
+				Required:    true,
+				Description: "Id of the job template.",
 			},
 			"inventory_id": schema.Int64Attribute{
 				Optional: true,
@@ -102,17 +103,21 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 					"If not provided, the job will be created in the default inventory.",
 			},
 			"job_type": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "Job type",
 			},
 			"url": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "URL of the job template",
 			},
 			"status": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "Status of the job",
 			},
 			"extra_vars": schema.StringAttribute{
-				Optional:   true,
-				CustomType: jsontypes.NormalizedType{},
+				Optional:    true,
+				CustomType:  jsontypes.NormalizedType{},
+				Description: "Extra Variables",
 			},
 			"triggers": schema.MapAttribute{
 				Optional:    true,

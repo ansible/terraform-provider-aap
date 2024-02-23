@@ -1,6 +1,6 @@
 # Terraform Provider for Ansible Automation Platform (AAP)
 
-The AAP Provider allows Terraform to manage AAP resources.
+The AAP Provider allows Terraform to manage AAP resources. It provides a means of executing automation jobs on infrastructure provisioned by Terraform, leveraging the AAP API to manage inventories and launch jobs.
 
 
 ## Requirements
@@ -77,7 +77,7 @@ The [examples](./examples/) subdirectory contains usage examples for this provid
 
 To release a new version of the provider:
 
-1. Run `tfplugindocs generate` to regenerate docs [tfplugindocs installation guide](https://github.com/hashicorp/terraform-plugin-docs?tab=readme-ov-file#installation).
+1. Run `make generatedocs` to format the example files and regenerate docs using terraform-plugin-docs [tfplugindocs installation guide](https://github.com/hashicorp/terraform-plugin-docs?tab=readme-ov-file#installation).
 2. Commit changes
 3. Push a new tag (this should trigger an automated release process to the Terraform Registry)
 4. Verify the new version is published at https://registry.terraform.io/providers/ansible/aap/latest

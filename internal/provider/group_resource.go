@@ -81,29 +81,35 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"inventory_id": schema.Int64Attribute{
-				Required: true,
+				Required:    true,
+				Description: "Inventory id",
 			},
 			"name": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "Name of the group",
 			},
 			"description": schema.StringAttribute{
-				Optional: true,
+				Optional:    true,
+				Description: "Description for the group",
 			},
 			"url": schema.StringAttribute{
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
+				Description: "URL for the group",
 			},
 			"id": schema.Int64Attribute{
 				Computed: true,
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
+				Description: "Group Id",
 			},
 			"variables": schema.StringAttribute{
-				Optional:   true,
-				CustomType: jsontypes.NormalizedType{},
+				Optional:    true,
+				CustomType:  jsontypes.NormalizedType{},
+				Description: "Variables for the group configuration",
 			},
 		},
 	}
