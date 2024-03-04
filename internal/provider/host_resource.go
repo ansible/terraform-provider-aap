@@ -116,7 +116,7 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "Description for the host",
 			},
 			"variables": schema.StringAttribute{
-				Description: "Variables for the host configuration",
+				Description: "Variables for the host configuration. Must be provided as either a JSON or YAML string.",
 				Optional:    true,
 			},
 			"enabled": schema.BoolAttribute{

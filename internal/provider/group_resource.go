@@ -106,7 +106,7 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Description: "Group Id",
 			},
 			"variables": schema.StringAttribute{
-				Description: "Variables for the group configuration",
+				Description: "Variables for the group configuration. Must be provided as either a JSON or YAML string.",
 				Optional:    true,
 			},
 		},

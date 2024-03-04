@@ -91,7 +91,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Description: "Description for the inventory",
 			},
 			"variables": schema.StringAttribute{
-				Description: "Inventory variables",
+				Description: "Inventory variables. Must be provided as either a JSON or YAML string.",
 				Optional:    true,
 			},
 		},

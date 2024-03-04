@@ -58,7 +58,7 @@ func (d *InventoryDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 			},
 			"variables": schema.StringAttribute{
 				Computed:    true,
-				Description: "Variables of the inventory",
+				Description: "Variables of the inventory. Must be provided as either a JSON or YAML string.",
 			},
 		},
 	}

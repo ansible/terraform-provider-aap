@@ -13,16 +13,48 @@ provider "aap" {
   insecure_skip_verify = true
 }
 
-resource "aap_inventory" "my_inventory" {
-  name        = "My new inventory"
+resource "aap_inventory" "sample_foo" {
+  name        = "My new inventory foo"
   description = "A new inventory for testing"
-  variables = jsonencode(
+  variables   = jsonencode(
     {
       "foo" : "bar"
     }
   )
 }
 
-output "inventory" {
-  value = aap_inventory.my_inventory
+locals {
+  values_variables = <<EOT
+exampleVariables:
+  - name: "bar"
+    namespace: "bar-namespace"
+    type: 0
+EOT
+}
+
+resource "aap_inventory" "sample_bar" {
+  name        = "My new inventory bar"
+  description = "A new inventory for testing"
+  variables   = jsonencode(yamldecode(local.values_extra_vars))
+}
+
+resource "aap_inventory" "sample_baz" {
+  name        = "My new inventory baz"
+  description = "A new inventory for testing"
+  variables   = jsonencode({
+    foo = "bar"
+    # Add other variables as needed
+  })
+}
+
+output "inventory_foo" {
+  value = aap_inventory.sample_foo
+}
+
+output "inventory_bar" {
+  value = aap_inventory.sample_bar
+}
+
+output "inventory_baz" {
+  value = aap_inventory.sample_baz
 }
