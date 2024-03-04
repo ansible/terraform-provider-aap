@@ -21,7 +21,7 @@ description: |-
 
 ### Optional
 
-- `extra_vars` (String) Extra Variables
+- `extra_vars` (String) Extra Variables. Must be provided as either a JSON or YAML string.
 - `inventory_id` (Number) Identifier for the inventory where job should be created in. If not provided, the job will be created in the default inventory.
 - `triggers` (Map of String) Map of arbitrary keys and values that, when changed, will trigger a creation of a new Job on AAP. Use 'terraform taint' if you want to force the creation of a new job without changing this value.
 

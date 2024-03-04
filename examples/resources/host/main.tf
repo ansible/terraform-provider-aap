@@ -36,13 +36,13 @@ EOT
 resource "aap_host" "sample_bar" {
   inventory_id = 1
   name         = "tf_host_bar"
-  variables = jsonencode(yamldecode(local.values_variables))
+  variables    = jsonencode(yamldecode(local.values_variables))
 }
 
 resource "aap_host" "sample_baz" {
   inventory_id = 1
   name         = "tf_host_baz"
-  variables    = jsonencode({
+  variables = jsonencode({
     foo = "bar"
     # Add other variables as needed
   })

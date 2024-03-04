@@ -25,4 +25,4 @@ description: |-
 - `name` (String) Name of the inventory
 - `organization` (Number) Identifier for the organization to which the inventory belongs
 - `url` (String) Url of the inventory
-- `variables` (String) Variables of the inventory
+- `variables` (String) Variables of the inventory. Must be provided as either a JSON or YAML string.

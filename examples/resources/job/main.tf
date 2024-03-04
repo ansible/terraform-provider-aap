@@ -14,9 +14,9 @@ provider "aap" {
 }
 
 resource "aap_job" "sample_foo" {
-  job_template_id = 7
+  job_template_id = 9
   inventory_id    = 2
-  extra_vars      = jsonencode({"resource_state" : "absent"})
+  extra_vars      = jsonencode({ "resource_state" : "absent" })
   triggers = {
     "execution_environment_id" : "3"
   }
@@ -40,7 +40,7 @@ resource "aap_job" "sample_bar" {
 resource "aap_job" "sample_baz" {
   job_template_id = 9
   inventory_id    = 2
-  extra_vars      = jsonencode({
+  extra_vars = jsonencode({
     execution_environment_id = "3"
     # Add other variables as needed
   })

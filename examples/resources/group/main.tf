@@ -16,7 +16,7 @@ provider "aap" {
 resource "aap_group" "sample_foo" {
   inventory_id = 1
   name         = "tf_group_foo"
-  variables    = jsonencode({"ansible_network_os" : "ios"})
+  variables    = jsonencode({ "ansible_network_os" : "ios" })
 }
 
 locals {
@@ -37,7 +37,7 @@ resource "aap_group" "sample_bar" {
 resource "aap_group" "sample_baz" {
   inventory_id = 1
   name         = "tf_group_baz"
-  variables    = jsonencode({
+  variables = jsonencode({
     ansible_network_os = "ios"
     # Add other variables as needed
   })

@@ -16,7 +16,7 @@ provider "aap" {
 resource "aap_inventory" "sample_foo" {
   name        = "My new inventory foo"
   description = "A new inventory for testing"
-  variables   = jsonencode(
+  variables = jsonencode(
     {
       "foo" : "bar"
     }
@@ -41,7 +41,7 @@ resource "aap_inventory" "sample_bar" {
 resource "aap_inventory" "sample_baz" {
   name        = "My new inventory baz"
   description = "A new inventory for testing"
-  variables   = jsonencode({
+  variables = jsonencode({
     foo = "bar"
     # Add other variables as needed
   })
