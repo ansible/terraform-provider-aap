@@ -8,8 +8,8 @@ terraform {
 
 provider "aap" {
   host                 = "https://localhost:8043"
-  username             = "test"
-  password             = "test"
+  username             = "ansible"
+  password             = "test123!"
   insecure_skip_verify = true
 }
 
@@ -48,6 +48,18 @@ resource "aap_host" "sample_baz" {
   })
 }
 
+resource "aap_host" "sample_abc" {
+  inventory_id = 1
+  name         = "tf_host_abc"
+  variables    = yamlencode({ "os" : "Linux", "automation" : "ansible" })
+}
+
+resource "aap_host" "sample_xyz" {
+  inventory_id = 1
+  name         = "tf_host_xyz"
+  variables    = "os: Linux\nautomation: ansible-devel"
+}
+
 output "host_foo" {
   value = aap_host.sample_foo
 }
@@ -58,4 +70,11 @@ output "host_bar" {
 
 output "host_baz" {
   value = aap_host.sample_baz
+}
+
+output "host_abc" {
+  value = aap_host.sample_abc
+}
+output "host_xyz" {
+  value = aap_host.sample_xyz
 }

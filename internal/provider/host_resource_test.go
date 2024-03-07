@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
@@ -130,7 +131,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("test host"),
 				Description: types.StringUnknown(),
 				URL:         types.StringUnknown(),
-				Variables:   types.StringUnknown(),
+				Variables:   customtypes.NewCustomStringUnknown(),
 				Enabled:     basetypes.NewBoolValue(false),
 				InventoryId: types.Int64Value(0),
 			},
@@ -142,7 +143,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("test host"),
 				Description: types.StringNull(),
 				URL:         types.StringNull(),
-				Variables:   types.StringNull(),
+				Variables:   customtypes.NewCustomStringNull(),
 				Enabled:     basetypes.NewBoolValue(false),
 				InventoryId: types.Int64Value(0),
 				Groups:      types.SetNull(types.Int64Type),
@@ -156,7 +157,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("host1"),
 				Description: types.StringNull(),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
-				Variables:   types.StringValue(hostVariable),
+				Variables:   customtypes.NewCustomStringValue(hostVariable),
 			},
 			expected: []byte(
 				`{"inventory":1,"name":"host1","variables":"{\"foo\":\"bar\"}","enabled":false}`,
@@ -169,7 +170,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("host1"),
 				Description: types.StringValue("A test host"),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
-				Variables:   types.StringValue("{\"foo\":\"bar\"}"),
+				Variables:   customtypes.NewCustomStringValue("{\"foo\":\"bar\"}"),
 				Enabled:     basetypes.NewBoolValue(false),
 				Groups:      types.SetValueMust(types.Int64Type, []attr.Value{types.Int64Value(1), types.Int64Value(2)}),
 			},
@@ -233,7 +234,7 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 				Name:        types.StringValue("host1"),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
 				Description: types.StringValue("A basic test host"),
-				Variables:   types.StringValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
+				Variables:   customtypes.NewCustomStringValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
 				Enabled:     basetypes.NewBoolValue(true),
 			},
 			errors: diag.Diagnostics{},
@@ -289,7 +290,7 @@ func TestAccHostResource(t *testing.T) {
 			// Invalid variables testing
 			{
 				Config:      testAccHostResourceBadVariables(updatedName, inventoryId),
-				ExpectError: regexp.MustCompile("A string value was provided that is not valid JSON string format"),
+				ExpectError: regexp.MustCompile("Input type `str` is not a dictionary"),
 			},
 			// Create and Read testing
 			{
@@ -300,7 +301,7 @@ func TestAccHostResource(t *testing.T) {
 					resource.TestCheckResourceAttr("aap_host.test", "name", randomName),
 					resource.TestCheckResourceAttr("aap_host.test", "inventory_id", inventoryId),
 					resource.TestCheckResourceAttr("aap_host.test", "enabled", "true"),
-					resource.TestMatchResourceAttr("aap_host.test", "host_url", regexp.MustCompile("^/api/v2/hosts/[0-9]*/$")),
+					resource.TestMatchResourceAttr("aap_host.test", "url", regexp.MustCompile("^/api/v2/hosts/[0-9]*/$")),
 					resource.TestCheckResourceAttrSet("aap_host.test", "id"),
 				),
 			},
@@ -315,7 +316,7 @@ func TestAccHostResource(t *testing.T) {
 					resource.TestCheckResourceAttr("aap_host.test", "description", updatedDescription),
 					resource.TestCheckResourceAttr("aap_host.test", "variables", updatedVariables),
 					resource.TestCheckResourceAttr("aap_host.test", "enabled", "true"),
-					resource.TestMatchResourceAttr("aap_host.test", "host_url", regexp.MustCompile("^/api/v2/hosts/[0-9]*/$")),
+					resource.TestMatchResourceAttr("aap_host.test", "url", regexp.MustCompile("^/api/v2/hosts/[0-9]*/$")),
 					resource.TestCheckResourceAttrSet("aap_host.test", "id"),
 				),
 			},
@@ -364,7 +365,7 @@ func testAccCheckHostResourceExists(name string, hostApiModel *HostAPIModel) res
 			return fmt.Errorf("host (%s) not found in state", name)
 		}
 
-		hostResponseBody, err := testGetResource(hostResource.Primary.Attributes["host_url"])
+		hostResponseBody, err := testGetResource(hostResource.Primary.Attributes["url"])
 		if err != nil {
 			return err
 		}

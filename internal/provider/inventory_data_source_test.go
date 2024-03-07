@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	fwdatasource "github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -59,7 +60,7 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 				Url:          types.StringValue("/inventories/1/"),
 				Name:         types.StringNull(),
 				Description:  types.StringNull(),
-				Variables:    types.StringNull(),
+				Variables:    customtypes.NewCustomStringNull(),
 			},
 			errors: diag.Diagnostics{},
 		},
@@ -74,7 +75,7 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 				Url:          types.StringValue("/inventories/1/"),
 				Name:         types.StringValue("my inventory"),
 				Description:  types.StringValue("My Test Inventory"),
-				Variables:    types.StringValue("{\"foo\":\"bar\"}"),
+				Variables:    customtypes.NewCustomStringValue("{\"foo\":\"bar\"}"),
 			},
 			errors: diag.Diagnostics{},
 		},

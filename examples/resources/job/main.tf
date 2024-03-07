@@ -46,6 +46,18 @@ resource "aap_job" "sample_baz" {
   })
 }
 
+resource "aap_job" "sample_abc" {
+  job_template_id = 9
+  inventory_id    = 2
+  extra_vars      = yamlencode({ "os" : "Linux", "automation" : "ansible" })
+}
+
+resource "aap_job" "sample_xyz" {
+  job_template_id = 9
+  inventory_id    = 2
+  extra_vars      = "os: Linux\nautomation: ansible-devel"
+}
+
 output "job_foo" {
   value = aap_job.sample_foo
 }
@@ -58,3 +70,10 @@ output "job_baz" {
   value = aap_job.sample_baz
 }
 
+output "job_abc" {
+  value = aap_job.sample_abc
+}
+
+output "job_xyz" {
+  value = aap_job.sample_xyz
+}

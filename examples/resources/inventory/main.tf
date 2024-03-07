@@ -35,7 +35,7 @@ EOT
 resource "aap_inventory" "sample_bar" {
   name        = "My new inventory bar"
   description = "A new inventory for testing"
-  variables   = jsonencode(yamldecode(local.values_extra_vars))
+  variables   = jsonencode(yamldecode(local.values_variables))
 }
 
 resource "aap_inventory" "sample_baz" {
@@ -45,6 +45,18 @@ resource "aap_inventory" "sample_baz" {
     foo = "bar"
     # Add other variables as needed
   })
+}
+
+resource "aap_inventory" "sample_abc" {
+  name        = "My new inventory abc"
+  description = "A new inventory for testing"
+  variables   = yamlencode({ "os" : "Linux", "automation" : "ansible" })
+}
+
+resource "aap_inventory" "sample_xyz" {
+  name        = "My new inventory xyz"
+  description = "A new inventory for testing"
+  variables   = "os: Linux\nautomation: ansible-devel"
 }
 
 output "inventory_foo" {
@@ -57,4 +69,12 @@ output "inventory_bar" {
 
 output "inventory_baz" {
   value = aap_inventory.sample_baz
+}
+
+output "inventory_abc" {
+  value = aap_inventory.sample_abc
+}
+
+output "inventory_xyz" {
+  value = aap_inventory.sample_xyz
 }

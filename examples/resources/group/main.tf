@@ -43,6 +43,18 @@ resource "aap_group" "sample_baz" {
   })
 }
 
+resource "aap_group" "sample_abc" {
+  inventory_id = 1
+  name         = "tf_group_abc"
+  variables    = yamlencode({ "os" : "Linux", "automation" : "ansible" })
+}
+
+resource "aap_group" "sample_xyz" {
+  inventory_id = 1
+  name         = "tf_group_xyz"
+  variables    = "Not valid JSON"
+}
+
 output "group_foo" {
   value = aap_group.sample_foo
 }
@@ -53,4 +65,12 @@ output "group_bar" {
 
 output "group_baz" {
   value = aap_group.sample_baz
+}
+
+output "group_abc" {
+  value = aap_group.sample_abc
+}
+
+output "group_xyz" {
+  value = aap_group.sample_xyz
 }

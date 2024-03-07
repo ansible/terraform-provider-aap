@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
@@ -49,7 +50,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "unknown values",
 			input: JobResourceModel{
-				ExtraVars:   types.StringUnknown(),
+				ExtraVars:   customtypes.NewCustomStringUnknown(),
 				InventoryID: basetypes.NewInt64Unknown(),
 				TemplateID:  types.Int64Value(1),
 			},
@@ -58,7 +59,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "null values",
 			input: JobResourceModel{
-				ExtraVars:   types.StringNull(),
+				ExtraVars:   customtypes.NewCustomStringNull(),
 				InventoryID: basetypes.NewInt64Null(),
 				TemplateID:  types.Int64Value(1),
 			},
@@ -67,7 +68,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "extra vars only",
 			input: JobResourceModel{
-				ExtraVars:   types.StringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
+				ExtraVars:   customtypes.NewCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Null(),
 			},
 			expected: []byte(`{"inventory":1,"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
@@ -75,7 +76,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "inventory vars only",
 			input: JobResourceModel{
-				ExtraVars:   types.StringNull(),
+				ExtraVars:   customtypes.NewCustomStringNull(),
 				InventoryID: basetypes.NewInt64Value(201),
 			},
 			expected: []byte(`{"inventory": 201}`),
@@ -83,7 +84,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "combined",
 			input: JobResourceModel{
-				ExtraVars:   types.StringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
+				ExtraVars:   customtypes.NewCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Value(3),
 			},
 			expected: []byte(`{"inventory":3,"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
@@ -130,7 +131,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 func TestJobResourceParseHttpResponse(t *testing.T) {
 	templateID := basetypes.NewInt64Value(1)
 	inventoryID := basetypes.NewInt64Value(2)
-	extraVars := types.StringNull()
+	extraVars := customtypes.NewCustomStringNull()
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
@@ -198,7 +199,7 @@ func getJobResourceFromStateFile(s *terraform.State) (map[string]interface{}, er
 		if rs.Type != "aap_job" {
 			continue
 		}
-		jobURL := rs.Primary.Attributes["job_url"]
+		jobURL := rs.Primary.Attributes["url"]
 		body, err := testGetResource(jobURL)
 		if err != nil {
 			return nil, err
@@ -223,7 +224,7 @@ func testAccCheckJobUpdate(urlBefore *string, shouldDiffer bool) func(s *terrafo
 			if rs.Type != "aap_job" {
 				continue
 			}
-			jobURL = rs.Primary.Attributes["job_url"]
+			jobURL = rs.Primary.Attributes["url"]
 		}
 		if len(jobURL) == 0 {
 			return fmt.Errorf("Job resource not found from state file")
@@ -272,7 +273,7 @@ func TestAccAAPJob_basic(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
 					testAccCheckJobExists,
 				),
 			},
@@ -296,7 +297,7 @@ func TestAccAAPJob_UpdateWithSameParameters(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
 					testAccCheckJobUpdate(&jobURLBefore, false),
 				),
 			},
@@ -305,7 +306,7 @@ func TestAccAAPJob_UpdateWithSameParameters(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
 					testAccCheckJobUpdate(&jobURLBefore, false),
 				),
 			},
@@ -329,7 +330,7 @@ func TestAccAAPJob_UpdateWithNewInventoryId(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
 					testAccCheckJobUpdate(&jobURLBefore, false),
 				),
 			},
@@ -338,7 +339,7 @@ func TestAccAAPJob_UpdateWithNewInventoryId(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
 					testAccCheckJobUpdate(&jobURLBefore, false),
 				),
 			},
@@ -362,7 +363,7 @@ func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
 					testAccCheckJobUpdate(&jobURLBefore, false),
 				),
 			},
@@ -371,7 +372,7 @@ func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "job_url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
 					testAccCheckJobUpdate(&jobURLBefore, true),
 				),
 			},
