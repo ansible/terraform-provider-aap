@@ -13,18 +13,18 @@ import (
 )
 
 var (
-	_ = basetypes.StringTypable(&CustomStringType{})
-	_ = xattr.TypeWithValidate(&CustomStringType{})
+	_ = basetypes.StringTypable(&AAPCustomStringType{})
+	_ = xattr.TypeWithValidate(&AAPCustomStringType{})
 )
 
-// CustomStringType implements a custom Terraform type.
-type CustomStringType struct {
+// AAPCustomStringType implements a custom Terraform type.
+type AAPCustomStringType struct {
 	basetypes.StringType
 }
 
 // / Equal returns true if the given type is equivalent.
-func (t CustomStringType) Equal(o attr.Type) bool {
-	other, ok := o.(CustomStringType)
+func (t AAPCustomStringType) Equal(o attr.Type) bool {
+	other, ok := o.(AAPCustomStringType)
 	if !ok {
 		return false
 	}
@@ -33,21 +33,21 @@ func (t CustomStringType) Equal(o attr.Type) bool {
 }
 
 // String returns a human readable string of the type name.
-func (t CustomStringType) String() string {
-	return "customtypes.CustomStringType"
+func (t AAPCustomStringType) String() string {
+	return "customtypes.AAPCustomStringType"
 }
 
 // / ValueFromString returns a StringValuable type given a StringValue.
-func (t CustomStringType) ValueFromString(_ context.Context, in basetypes.StringValue) (basetypes.StringValuable, diag.Diagnostics) {
-	value := CustomStringValue{
+func (t AAPCustomStringType) ValueFromString(_ context.Context, in basetypes.StringValue) (basetypes.StringValuable, diag.Diagnostics) {
+	value := AAPCustomStringValue{
 		StringValue: in,
 	}
 
 	return value, nil
 }
 
-// ValueFromTerraform converts a Terraform value to a CustomStringValue.
-func (t CustomStringType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
+// ValueFromTerraform converts a Terraform value to a AAPCustomStringValue.
+func (t AAPCustomStringType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
 	attrValue, err := t.StringType.ValueFromTerraform(ctx, in)
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error converting value from Terraform: %w", err)
@@ -67,12 +67,12 @@ func (t CustomStringType) ValueFromTerraform(ctx context.Context, in tftypes.Val
 }
 
 // ValueType returns an instance of the value.
-func (t CustomStringType) ValueType(_ context.Context) attr.Value {
-	return CustomStringValue{}
+func (t AAPCustomStringType) ValueType(_ context.Context) attr.Value {
+	return AAPCustomStringValue{}
 }
 
 // Validate implements type validation. This type requires the value provided to be a String value.
-func (t CustomStringType) Validate(_ context.Context, in tftypes.Value, path path.Path) diag.Diagnostics {
+func (t AAPCustomStringType) Validate(_ context.Context, in tftypes.Value, path path.Path) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	if in.Type() == nil {
@@ -83,7 +83,7 @@ func (t CustomStringType) Validate(_ context.Context, in tftypes.Value, path pat
 		err := fmt.Errorf("expected String value, received %T with value: %v", in, in)
 		diags.AddAttributeError(
 			path,
-			"CustomString Type Validation Error",
+			"AAPCustomString Type Validation Error",
 			"An unexpected error was encountered trying to validate an attribute value. This is always an error in the provider. "+
 				"Please report the following to the provider developer:\n\n"+err.Error(),
 		)
@@ -99,7 +99,7 @@ func (t CustomStringType) Validate(_ context.Context, in tftypes.Value, path pat
 	if err := in.As(&valueString); err != nil {
 		diags.AddAttributeError(
 			path,
-			"CustomString Type Validation Error",
+			"AAPCustomString Type Validation Error",
 			"An unexpected error was encountered trying to validate an attribute value. This is always an error in the provider. "+
 				"Please report the following to the provider developer:\n\n"+err.Error(),
 		)

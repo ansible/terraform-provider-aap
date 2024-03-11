@@ -75,10 +75,10 @@ func ParseNormalizedValue(variables string) jsontypes.Normalized {
 	}
 }
 
-func ParseCustomStringValue(variables string) customtypes.CustomStringValue {
+func ParseAAPCustomStringValue(variables string) customtypes.AAPCustomStringValue {
 	if variables != "" {
-		return customtypes.NewCustomStringValue(variables)
+		return customtypes.NewAAPCustomStringValue(variables)
 	} else {
-		return customtypes.NewCustomStringNull()
+		return customtypes.NewAAPCustomStringNull()
 	}
 }

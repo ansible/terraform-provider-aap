@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 )
 
-func TestCustomStringTypeValidate(t *testing.T) {
+func TestAAPCustomStringTypeValidate(t *testing.T) {
 	t.Parallel()
 
 	testCases := map[string]struct {
@@ -52,7 +52,7 @@ func TestCustomStringTypeValidate(t *testing.T) {
 			expectedDiags: diag.Diagnostics{
 				diag.NewAttributeErrorDiagnostic(
 					path.Root("test"),
-					"CustomString Type Validation Error",
+					"AAPCustomString Type Validation Error",
 					"An unexpected error was encountered trying to validate an attribute value. This is always "+
 						"an error in the provider. Please report the following to the provider developer:\n\n"+
 						"expected String value, received tftypes.Value with value: tftypes.Number<\"123\">",
@@ -65,7 +65,7 @@ func TestCustomStringTypeValidate(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			diags := customtypes.CustomStringType{}.Validate(context.Background(), testCase.in, path.Root("test"))
+			diags := customtypes.AAPCustomStringType{}.Validate(context.Background(), testCase.in, path.Root("test"))
 
 			if diff := cmp.Diff(diags, testCase.expectedDiags); diff != "" {
 				t.Errorf("Unexpected diagnostics (-got, +expected): %s", diff)
@@ -74,7 +74,7 @@ func TestCustomStringTypeValidate(t *testing.T) {
 	}
 }
 
-func TestCustomStringTypeValueFromTerraform(t *testing.T) {
+func TestAAPCustomStringTypeValueFromTerraform(t *testing.T) {
 	t.Parallel()
 
 	testCases := map[string]struct {
@@ -84,15 +84,15 @@ func TestCustomStringTypeValueFromTerraform(t *testing.T) {
 	}{
 		"true": {
 			in:          tftypes.NewValue(tftypes.String, `{"hello":"world"}`),
-			expectation: customtypes.NewCustomStringValue(`{"hello":"world"}`),
+			expectation: customtypes.NewAAPCustomStringValue(`{"hello":"world"}`),
 		},
 		"unknown": {
 			in:          tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
-			expectation: customtypes.NewCustomStringUnknown(),
+			expectation: customtypes.NewAAPCustomStringUnknown(),
 		},
 		"null": {
 			in:          tftypes.NewValue(tftypes.String, nil),
-			expectation: customtypes.NewCustomStringNull(),
+			expectation: customtypes.NewAAPCustomStringNull(),
 		},
 		"wrongType": {
 			in:          tftypes.NewValue(tftypes.Number, 123),
@@ -105,7 +105,7 @@ func TestCustomStringTypeValueFromTerraform(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
 
-			got, err := customtypes.CustomStringType{}.ValueFromTerraform(ctx, testCase.in)
+			got, err := customtypes.AAPCustomStringType{}.ValueFromTerraform(ctx, testCase.in)
 			if err != nil {
 				if testCase.expectedErr == "" {
 					t.Fatalf("Unexpected error: %s", err)

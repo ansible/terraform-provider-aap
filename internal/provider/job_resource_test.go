@@ -50,7 +50,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "unknown values",
 			input: JobResourceModel{
-				ExtraVars:   customtypes.NewCustomStringUnknown(),
+				ExtraVars:   customtypes.NewAAPCustomStringUnknown(),
 				InventoryID: basetypes.NewInt64Unknown(),
 				TemplateID:  types.Int64Value(1),
 			},
@@ -59,7 +59,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "null values",
 			input: JobResourceModel{
-				ExtraVars:   customtypes.NewCustomStringNull(),
+				ExtraVars:   customtypes.NewAAPCustomStringNull(),
 				InventoryID: basetypes.NewInt64Null(),
 				TemplateID:  types.Int64Value(1),
 			},
@@ -68,7 +68,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "extra vars only",
 			input: JobResourceModel{
-				ExtraVars:   customtypes.NewCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
+				ExtraVars:   customtypes.NewAAPCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Null(),
 			},
 			expected: []byte(`{"inventory":1,"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
@@ -76,7 +76,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "inventory vars only",
 			input: JobResourceModel{
-				ExtraVars:   customtypes.NewCustomStringNull(),
+				ExtraVars:   customtypes.NewAAPCustomStringNull(),
 				InventoryID: basetypes.NewInt64Value(201),
 			},
 			expected: []byte(`{"inventory": 201}`),
@@ -84,7 +84,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "combined",
 			input: JobResourceModel{
-				ExtraVars:   customtypes.NewCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
+				ExtraVars:   customtypes.NewAAPCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Value(3),
 			},
 			expected: []byte(`{"inventory":3,"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
@@ -131,7 +131,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 func TestJobResourceParseHttpResponse(t *testing.T) {
 	templateID := basetypes.NewInt64Value(1)
 	inventoryID := basetypes.NewInt64Value(2)
-	extraVars := customtypes.NewCustomStringNull()
+	extraVars := customtypes.NewAAPCustomStringNull()
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 

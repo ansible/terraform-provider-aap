@@ -59,7 +59,7 @@ func (d *InventoryDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 			},
 			"variables": schema.StringAttribute{
 				Computed:    true,
-				CustomType:  customtypes.CustomStringType{},
+				CustomType:  customtypes.AAPCustomStringType{},
 				Description: "Variables of the inventory. Must be provided as either a JSON or YAML string.",
 			},
 		},
@@ -117,12 +117,12 @@ func (d *InventoryDataSource) Configure(_ context.Context, req datasource.Config
 
 // inventoryDataSourceModel maps the data source schema data.
 type InventoryDataSourceModel struct {
-	Id           types.Int64                   `tfsdk:"id"`
-	Organization types.Int64                   `tfsdk:"organization"`
-	Url          types.String                  `tfsdk:"url"`
-	Name         types.String                  `tfsdk:"name"`
-	Description  types.String                  `tfsdk:"description"`
-	Variables    customtypes.CustomStringValue `tfsdk:"variables"`
+	Id           types.Int64                      `tfsdk:"id"`
+	Organization types.Int64                      `tfsdk:"organization"`
+	Url          types.String                     `tfsdk:"url"`
+	Name         types.String                     `tfsdk:"name"`
+	Description  types.String                     `tfsdk:"description"`
+	Variables    customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
 func (d *InventoryDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
@@ -142,7 +142,7 @@ func (d *InventoryDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnosti
 	d.Url = types.StringValue(apiInventory.Url)
 	d.Name = ParseStringValue(apiInventory.Name)
 	d.Description = ParseStringValue(apiInventory.Description)
-	d.Variables = ParseCustomStringValue(apiInventory.Variables)
+	d.Variables = ParseAAPCustomStringValue(apiInventory.Variables)
 
 	return diags
 }

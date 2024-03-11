@@ -37,14 +37,14 @@ type HostAPIModel struct {
 
 // HostResourceModel maps the host resource schema to a Go struct
 type HostResourceModel struct {
-	InventoryId types.Int64                   `tfsdk:"inventory_id"`
-	Name        types.String                  `tfsdk:"name"`
-	URL         types.String                  `tfsdk:"url"`
-	Description types.String                  `tfsdk:"description"`
-	Variables   customtypes.CustomStringValue `tfsdk:"variables"`
-	Groups      types.Set                     `tfsdk:"groups"`
-	Enabled     types.Bool                    `tfsdk:"enabled"`
-	Id          types.Int64                   `tfsdk:"id"`
+	InventoryId types.Int64                      `tfsdk:"inventory_id"`
+	Name        types.String                     `tfsdk:"name"`
+	URL         types.String                     `tfsdk:"url"`
+	Description types.String                     `tfsdk:"description"`
+	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
+	Groups      types.Set                        `tfsdk:"groups"`
+	Enabled     types.Bool                       `tfsdk:"enabled"`
+	Id          types.Int64                      `tfsdk:"id"`
 }
 
 // HostResource is the resource implementation.
@@ -119,7 +119,7 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"variables": schema.StringAttribute{
 				Description: "Variables for the host configuration. Must be provided as either a JSON or YAML string.",
 				Optional:    true,
-				CustomType:  customtypes.CustomStringType{},
+				CustomType:  customtypes.AAPCustomStringType{},
 			},
 			"enabled": schema.BoolAttribute{
 				Optional: true,
@@ -372,7 +372,7 @@ func (r *HostResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	r.Name = types.StringValue(resultApiHost.Name)
 	r.Enabled = basetypes.NewBoolValue(resultApiHost.Enabled)
 	r.Description = ParseStringValue(resultApiHost.Description)
-	r.Variables = ParseCustomStringValue(resultApiHost.Variables)
+	r.Variables = ParseAAPCustomStringValue(resultApiHost.Variables)
 
 	return diags
 }
