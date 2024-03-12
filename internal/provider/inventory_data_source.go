@@ -60,7 +60,7 @@ func (d *InventoryDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 			"variables": schema.StringAttribute{
 				Computed:    true,
 				CustomType:  customtypes.AAPCustomStringType{},
-				Description: "Variables of the inventory. Must be provided as either a JSON or YAML string.",
+				Description: "Variables of the inventory. Will be either JSON or YAML string depending on how the variables were entered into AAP.",
 			},
 		},
 	}

@@ -52,7 +52,7 @@ resource "aap_group" "sample_abc" {
 resource "aap_group" "sample_xyz" {
   inventory_id = 1
   name         = "tf_group_xyz"
-  variables    = "Not valid JSON"
+  variables    = "os: Linux\nautomation: ansible-devel"
 }
 
 output "group_foo" {
