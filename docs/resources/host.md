@@ -25,7 +25,7 @@ description: |-
 - `description` (String) Description for the host
 - `enabled` (Boolean) Denotes if the host is online and is available
 - `groups` (Set of Number) The list of groups to assosicate with a host.
-- `variables` (String) Variables for the host configuration
+- `variables` (String) Variables for the host configuration. Must be provided as either a JSON or YAML string.
 
 ### Read-Only
 

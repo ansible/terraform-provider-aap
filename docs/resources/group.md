@@ -23,7 +23,7 @@ description: |-
 ### Optional
 
 - `description` (String) Description for the group
-- `variables` (String) Variables for the group configuration
+- `variables` (String) Variables for the group configuration. Must be provided as either a JSON or YAML string.
 
 ### Read-Only
 

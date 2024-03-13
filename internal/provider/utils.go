@@ -8,6 +8,7 @@ import (
 	"path"
 	"slices"
 
+	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -71,5 +72,13 @@ func ParseNormalizedValue(variables string) jsontypes.Normalized {
 		return jsontypes.NewNormalizedValue(variables)
 	} else {
 		return jsontypes.NewNormalizedNull()
+	}
+}
+
+func ParseAAPCustomStringValue(variables string) customtypes.AAPCustomStringValue {
+	if variables != "" {
+		return customtypes.NewAAPCustomStringValue(variables)
+	} else {
+		return customtypes.NewAAPCustomStringNull()
 	}
 }

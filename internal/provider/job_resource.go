@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -30,14 +30,14 @@ type JobAPIModel struct {
 
 // JobResourceModel maps the resource schema data.
 type JobResourceModel struct {
-	TemplateID    types.Int64          `tfsdk:"job_template_id"`
-	Type          types.String         `tfsdk:"job_type"`
-	URL           types.String         `tfsdk:"url"`
-	Status        types.String         `tfsdk:"status"`
-	InventoryID   types.Int64          `tfsdk:"inventory_id"`
-	ExtraVars     jsontypes.Normalized `tfsdk:"extra_vars"`
-	IgnoredFields types.List           `tfsdk:"ignored_fields"`
-	Triggers      types.Map            `tfsdk:"triggers"`
+	TemplateID    types.Int64                      `tfsdk:"job_template_id"`
+	Type          types.String                     `tfsdk:"job_type"`
+	URL           types.String                     `tfsdk:"url"`
+	Status        types.String                     `tfsdk:"status"`
+	InventoryID   types.Int64                      `tfsdk:"inventory_id"`
+	ExtraVars     customtypes.AAPCustomStringValue `tfsdk:"extra_vars"`
+	IgnoredFields types.List                       `tfsdk:"ignored_fields"`
+	Triggers      types.Map                        `tfsdk:"triggers"`
 }
 
 // JobResource is the resource implementation.
@@ -115,9 +115,9 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Description: "Status of the job",
 			},
 			"extra_vars": schema.StringAttribute{
+				Description: "Extra Variables. Must be provided as either a JSON or YAML string.",
 				Optional:    true,
-				CustomType:  jsontypes.NormalizedType{},
-				Description: "Extra Variables",
+				CustomType:  customtypes.AAPCustomStringType{},
 			},
 			"triggers": schema.MapAttribute{
 				Optional:    true,

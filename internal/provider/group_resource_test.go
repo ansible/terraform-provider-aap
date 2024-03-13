@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -55,7 +55,7 @@ func TestGroupResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("test group"),
 				Description: types.StringUnknown(),
 				URL:         types.StringUnknown(),
-				Variables:   jsontypes.NewNormalizedUnknown(),
+				Variables:   customtypes.NewAAPCustomStringUnknown(),
 				InventoryId: types.Int64Value(0),
 			},
 			expected: []byte(`{"inventory":0,"name":"test group"}`),
@@ -66,7 +66,7 @@ func TestGroupResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("test group"),
 				Description: types.StringNull(),
 				URL:         types.StringNull(),
-				Variables:   jsontypes.NewNormalizedNull(),
+				Variables:   customtypes.NewAAPCustomStringNull(),
 				InventoryId: types.Int64Value(0),
 			},
 			expected: []byte(`{"inventory":0,"name":"test group"}`),
@@ -78,7 +78,7 @@ func TestGroupResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("group1"),
 				Description: types.StringNull(),
 				URL:         types.StringValue("/api/v2/groups/1/"),
-				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\"}"),
+				Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 			},
 			expected: []byte(
 				`{"inventory":1,"name":"group1","variables":"{\"foo\":\"bar\"}"}`,
@@ -91,7 +91,7 @@ func TestGroupResourceCreateRequestBody(t *testing.T) {
 				Name:        types.StringValue("group1"),
 				Description: types.StringValue("A test group"),
 				URL:         types.StringValue("/api/v2/groups/1/"),
-				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\"}"),
+				Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 			},
 			expected: []byte(
 				`{"inventory":1,"name":"group1","description":"A test group","variables":"{\"foo\":\"bar\"}"}`,
@@ -150,7 +150,7 @@ func TestGroupResourceParseHttpResponse(t *testing.T) {
 				Name:        types.StringValue("group1"),
 				URL:         types.StringValue("/api/v2/groups/1/"),
 				Description: types.StringValue("A basic test group"),
-				Variables:   jsontypes.NewNormalizedValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
+				Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
 			},
 			errors: diag.Diagnostics{},
 		},
@@ -203,7 +203,7 @@ func TestAccGroupResource(t *testing.T) {
 			// Invalid variables testing
 			{
 				Config:      testAccGroupResourceBadVariables(updatedName, inventoryId),
-				ExpectError: regexp.MustCompile("A string value was provided that is not valid JSON string format"),
+				ExpectError: regexp.MustCompile("Input type `str` is not a dictionary"),
 			},
 			// Create and Read testing
 			{
@@ -213,7 +213,7 @@ func TestAccGroupResource(t *testing.T) {
 					testAccCheckGroupResourceValues(&groupApiModel, randomName, "", "", inventoryId),
 					resource.TestCheckResourceAttr("aap_group.test", "name", randomName),
 					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", inventoryId),
-					resource.TestMatchResourceAttr("aap_group.test", "group_url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
+					resource.TestMatchResourceAttr("aap_group.test", "url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
 				),
 			},
 			{
@@ -225,7 +225,7 @@ func TestAccGroupResource(t *testing.T) {
 					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", inventoryId),
 					resource.TestCheckResourceAttr("aap_group.test", "description", description),
 					resource.TestCheckResourceAttr("aap_group.test", "variables", variables),
-					resource.TestMatchResourceAttr("aap_group.test", "group_url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
+					resource.TestMatchResourceAttr("aap_group.test", "url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
 				),
 			},
 		},
@@ -269,7 +269,7 @@ func testAccCheckGroupResourceExists(name string, groupApiModel *GroupAPIModel) 
 			return fmt.Errorf("group (%s) not found in state", name)
 		}
 
-		groupResponseBody, err := testGetResource(groupResource.Primary.Attributes["group_url"])
+		groupResponseBody, err := testGetResource(groupResource.Primary.Attributes["url"])
 		if err != nil {
 			return err
 		}

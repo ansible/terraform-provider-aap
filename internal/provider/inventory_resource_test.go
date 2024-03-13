@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -54,7 +54,7 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 				Url:          types.StringUnknown(),
 				Name:         types.StringValue("test inventory"),
 				Description:  types.StringUnknown(),
-				Variables:    jsontypes.NewNormalizedUnknown(),
+				Variables:    customtypes.NewAAPCustomStringUnknown(),
 			},
 			expected: []byte(`{"organization":1,"name":"test inventory"}`),
 		},
@@ -66,7 +66,7 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 				Url:          types.StringNull(),
 				Name:         types.StringValue("test inventory"),
 				Description:  types.StringNull(),
-				Variables:    jsontypes.NewNormalizedNull(),
+				Variables:    customtypes.NewAAPCustomStringNull(),
 			},
 			expected: []byte(`{"organization":1,"name":"test inventory"}`),
 		},
@@ -78,7 +78,7 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 				Url:          types.StringValue("/inventories/1/"),
 				Name:         types.StringValue("test inventory"),
 				Description:  types.StringValue("A test inventory for testing"),
-				Variables:    jsontypes.NewNormalizedValue("{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}"),
+				Variables:    customtypes.NewAAPCustomStringValue("{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}"),
 			},
 			expected: []byte(
 				`{"organization":2,"name":"test inventory","description":"A test inventory for testing",` +
@@ -125,7 +125,7 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 				Url:          types.StringValue("/inventories/1/"),
 				Name:         types.StringValue("test inventory"),
 				Description:  types.StringNull(),
-				Variables:    jsontypes.NewNormalizedNull(),
+				Variables:    customtypes.NewAAPCustomStringNull(),
 			},
 			errors: diag.Diagnostics{},
 		},
@@ -141,7 +141,7 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 				Url:          types.StringValue("/inventories/1/"),
 				Name:         types.StringValue("test inventory"),
 				Description:  types.StringValue("A test inventory for testing"),
-				Variables:    jsontypes.NewNormalizedValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
+				Variables:    customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
 			},
 			errors: diag.Diagnostics{},
 		},
@@ -174,7 +174,7 @@ func TestAccInventoryResource(t *testing.T) {
 			// Invalid variables testing
 			{
 				Config:      testAccInventoryResourceBadVariables(updatedName),
-				ExpectError: regexp.MustCompile("A string value was provided that is not valid JSON string format"),
+				ExpectError: regexp.MustCompile("Input type `str` is not a dictionary"),
 			},
 			// Create and Read testing
 			{

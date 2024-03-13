@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -59,8 +59,8 @@ func (d *InventoryDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 			},
 			"variables": schema.StringAttribute{
 				Computed:    true,
-				CustomType:  jsontypes.NormalizedType{},
-				Description: "Variables of the inventory",
+				CustomType:  customtypes.AAPCustomStringType{},
+				Description: "Variables of the inventory. Will be either JSON or YAML string depending on how the variables were entered into AAP.",
 			},
 		},
 	}
@@ -117,12 +117,12 @@ func (d *InventoryDataSource) Configure(_ context.Context, req datasource.Config
 
 // inventoryDataSourceModel maps the data source schema data.
 type InventoryDataSourceModel struct {
-	Id           types.Int64          `tfsdk:"id"`
-	Organization types.Int64          `tfsdk:"organization"`
-	Url          types.String         `tfsdk:"url"`
-	Name         types.String         `tfsdk:"name"`
-	Description  types.String         `tfsdk:"description"`
-	Variables    jsontypes.Normalized `tfsdk:"variables"`
+	Id           types.Int64                      `tfsdk:"id"`
+	Organization types.Int64                      `tfsdk:"organization"`
+	Url          types.String                     `tfsdk:"url"`
+	Name         types.String                     `tfsdk:"name"`
+	Description  types.String                     `tfsdk:"description"`
+	Variables    customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
 func (d *InventoryDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
@@ -140,21 +140,9 @@ func (d *InventoryDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnosti
 	d.Id = types.Int64Value(apiInventory.Id)
 	d.Organization = types.Int64Value(apiInventory.Organization)
 	d.Url = types.StringValue(apiInventory.Url)
+	d.Name = ParseStringValue(apiInventory.Name)
+	d.Description = ParseStringValue(apiInventory.Description)
+	d.Variables = ParseAAPCustomStringValue(apiInventory.Variables)
 
-	if apiInventory.Name != "" {
-		d.Name = types.StringValue(apiInventory.Name)
-	} else {
-		d.Name = types.StringNull()
-	}
-	if apiInventory.Description != "" {
-		d.Description = types.StringValue(apiInventory.Description)
-	} else {
-		d.Description = types.StringNull()
-	}
-	if apiInventory.Variables != "" {
-		d.Variables = jsontypes.NewNormalizedValue(apiInventory.Variables)
-	} else {
-		d.Variables = jsontypes.NewNormalizedNull()
-	}
 	return diags
 }
