@@ -96,7 +96,6 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 }
 
 func TestAccInventoryDataSource(t *testing.T) {
-	var inventory InventoryAPIModel
 	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 
 	resource.Test(t, resource.TestCase{
@@ -107,14 +106,11 @@ func TestAccInventoryDataSource(t *testing.T) {
 			{
 				Config: testAccInventoryDataSource(randomName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Check the existence of the created inventory and store its values in the inventory model
-					testAccCheckInventoryResourceExists("aap_inventory.test", &inventory),
-					// Verify the data source values against the stored resource values
-					resource.TestCheckResourceAttrPtr("data.aap_inventory.test", "name", &inventory.Name),
-					resource.TestCheckResourceAttr("data.aap_inventory.test", "organization", "1"),
-					resource.TestCheckResourceAttrPtr("data.aap_inventory.test", "description", &inventory.Description),
-					resource.TestCheckResourceAttrPtr("data.aap_inventory.test", "variables", &inventory.Variables),
-					resource.TestCheckResourceAttrPtr("data.aap_inventory.test", "url", &inventory.Url),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "name", "data.aap_inventory.test", "name"),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "organization", "data.aap_inventory.test", "organization"),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "description", "data.aap_inventory.test", "description"),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "variables", "data.aap_inventory.test", "variables"),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "url", "data.aap_inventory.test", "url"),
 				),
 			},
 		},

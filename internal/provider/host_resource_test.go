@@ -5,10 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -257,49 +255,32 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 
 // Acceptance tests
 
-func testAccHostResourcePreCheck(t *testing.T) {
-	// Ensure provider requirements
-	testAccPreCheck(t)
-
-	requiredAAPHostEnvVars := []string{
-		"AAP_TEST_GROUP_ID",
-		"AAP_TEST_INVENTORY_ID",
-	}
-
-	for _, key := range requiredAAPHostEnvVars {
-		if v := os.Getenv(key); v == "" {
-			t.Fatalf("'%s' environment variable must be set when running acceptance tests for job resource", key)
-		}
-	}
-}
-
 func TestAccHostResource(t *testing.T) {
 	var hostApiModel HostAPIModel
-	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
-	updatedName := "updated " + randomName
+	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	hostName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	groupName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	updatedName := "updated " + hostName
 	updatedDescription := "A test host"
 	updatedVariables := hostVariable
 
-	groupId := os.Getenv("AAP_TEST_GROUP_ID")
-	inventoryId := os.Getenv("AAP_TEST_INVENTORY_ID")
-
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccHostResourcePreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			// Invalid variables testing
 			{
-				Config:      testAccHostResourceBadVariables(updatedName, inventoryId),
+				Config:      testAccHostResourceBadVariables(inventoryName, updatedName),
 				ExpectError: regexp.MustCompile("Input type `str` is not a dictionary"),
 			},
 			// Create and Read testing
 			{
-				Config: testAccHostResourceMinimal(randomName, inventoryId),
+				Config: testAccHostResourceMinimal(inventoryName, hostName),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckHostResourceExists("aap_host.test", &hostApiModel),
-					testAccCheckHostResourceValues(&hostApiModel, randomName, "", "", inventoryId),
-					resource.TestCheckResourceAttr("aap_host.test", "name", randomName),
-					resource.TestCheckResourceAttr("aap_host.test", "inventory_id", inventoryId),
+					testAccCheckHostResourceValues(&hostApiModel, hostName, "", ""),
+					resource.TestCheckResourceAttr("aap_host.test", "name", hostName),
+					resource.TestCheckResourceAttrPair("aap_host.test", "inventory_id", "aap_inventory.test", "id"),
 					resource.TestCheckResourceAttr("aap_host.test", "enabled", "true"),
 					resource.TestMatchResourceAttr("aap_host.test", "url", regexp.MustCompile("^/api/v2/hosts/[0-9]*/$")),
 					resource.TestCheckResourceAttrSet("aap_host.test", "id"),
@@ -307,12 +288,12 @@ func TestAccHostResource(t *testing.T) {
 			},
 			// Update and Read testing
 			{
-				Config: testAccHostResourceComplete(updatedName, groupId, inventoryId),
+				Config: testAccHostResourceComplete(inventoryName, groupName, updatedName),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckHostResourceExists("aap_host.test", &hostApiModel),
-					testAccCheckHostResourceValues(&hostApiModel, updatedName, updatedDescription, updatedVariables, inventoryId),
+					testAccCheckHostResourceValues(&hostApiModel, updatedName, updatedDescription, updatedVariables),
 					resource.TestCheckResourceAttr("aap_host.test", "name", updatedName),
-					resource.TestCheckResourceAttr("aap_host.test", "inventory_id", inventoryId),
+					resource.TestCheckResourceAttrPair("aap_host.test", "inventory_id", "aap_inventory.test", "id"),
 					resource.TestCheckResourceAttr("aap_host.test", "description", updatedDescription),
 					resource.TestCheckResourceAttr("aap_host.test", "variables", updatedVariables),
 					resource.TestCheckResourceAttr("aap_host.test", "enabled", "true"),
@@ -326,35 +307,52 @@ func TestAccHostResource(t *testing.T) {
 }
 
 // testAccHostResourceMinimal returns a configuration for an AAP host with the required options only
-func testAccHostResourceMinimal(name, inventoryId string) string {
+func testAccHostResourceMinimal(inventoryName, hostName string) string {
 	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+	name = "%s"
+}
+
 resource "aap_host" "test" {
   name = "%s"
-  inventory_id = %s
-}`, name, inventoryId)
+  inventory_id = aap_inventory.test.id
+}`, inventoryName, hostName)
 }
 
 // testAccHostResourceComplete returns a configuration for an AAP host with the provided name and all options
-func testAccHostResourceComplete(name, groupId, inventoryId string) string {
+func testAccHostResourceComplete(inventoryName, groupName, hostName string) string {
 	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+	name = "%s"
+}
+
+resource "aap_group" "test" {
+	name = "%s"
+	inventory_id = aap_inventory.test.id
+}
+
 resource "aap_host" "test" {
   name = "%s"
-  inventory_id = %s
+  inventory_id = aap_inventory.test.id
   description = "A test host"
   variables = "{\"foo\":\"bar\"}"
   enabled = true
-  groups = [%s]
-}`, name, inventoryId, groupId)
+  groups = [aap_group.test.id]
+}`, inventoryName, groupName, hostName)
 }
 
 // testAccHostResourceBadVariables returns a configuration for an AAP host with the provided name and invalid variables.
-func testAccHostResourceBadVariables(name, inventoryId string) string {
+func testAccHostResourceBadVariables(inventoryName, hostName string) string {
 	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+  name = "%s"
+}
+
 resource "aap_host" "test" {
   name = "%s"
-  inventory_id = %s
+  inventory_id = aap_inventory.test.id
   variables = "Not valid JSON"
-}`, name, inventoryId)
+}`, inventoryName, hostName)
 }
 
 // testAccCheckHostResourceExists queries the AAP API and retrieves the matching host.
@@ -384,15 +382,8 @@ func testAccCheckHostResourceExists(name string, hostApiModel *HostAPIModel) res
 }
 
 // testAccCheckHostResourcesValues verifies that the provided host retrieved from AAP contains the expected values.
-func testAccCheckHostResourceValues(hostApiModel *HostAPIModel, name string, description string, variables string, inventoryId string) resource.TestCheckFunc {
+func testAccCheckHostResourceValues(hostApiModel *HostAPIModel, name string, description string, variables string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		inv, err := strconv.ParseInt(inventoryId, 10, 64)
-		if err != nil {
-			return fmt.Errorf("could not convert \"%s\", to int64", inventoryId)
-		}
-		if hostApiModel.InventoryId != inv {
-			return fmt.Errorf("bad host inventory id in AAP, expected %d, got: %d", inv, hostApiModel.InventoryId)
-		}
 		if hostApiModel.URL == "" {
 			return fmt.Errorf("bad host URL in AAP, expected a URL path, got: %s", hostApiModel.URL)
 		}
@@ -406,7 +397,7 @@ func testAccCheckHostResourceValues(hostApiModel *HostAPIModel, name string, des
 			return fmt.Errorf("bad host variables in AAP, expected \"%s\", got: %s", variables, hostApiModel.Variables)
 		}
 		if hostApiModel.Enabled != true {
-			return fmt.Errorf("bad enabled value in AAP, expected %d, got: %d", inv, hostApiModel.InventoryId)
+			return fmt.Errorf("bad enabled value in AAP, expected %t, got: %t", true, hostApiModel.Enabled)
 		}
 
 		return nil

@@ -4,7 +4,7 @@ default: build
 
 build:
 	@echo "==> Building package..."
-	go build ./...
+	go build
 
 lint:
 	@echo "==> Checking source code against linters..."

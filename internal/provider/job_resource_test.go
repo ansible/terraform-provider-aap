@@ -7,7 +7,9 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"slices"
 	"testing"
+	"time"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -15,6 +17,7 @@ import (
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
@@ -248,7 +251,6 @@ func testAccJobResourcePreCheck(t *testing.T) {
 
 	requiredAAPJobEnvVars := []string{
 		"AAP_TEST_JOB_TEMPLATE_ID",
-		"AAP_TEST_INVENTORY_ID",
 	}
 
 	for _, key := range requiredAAPJobEnvVars {
@@ -317,8 +319,8 @@ func TestAccAAPJob_UpdateWithSameParameters(t *testing.T) {
 func TestAccAAPJob_UpdateWithNewInventoryId(t *testing.T) {
 	var jobURLBefore string
 
+	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
-	inventoryID := os.Getenv("AAP_TEST_INVENTORY_ID")
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
@@ -335,12 +337,14 @@ func TestAccAAPJob_UpdateWithNewInventoryId(t *testing.T) {
 				),
 			},
 			{
-				Config: testAccUpdateJobWithInventoryID(jobTemplateID, inventoryID),
+				Config: testAccUpdateJobWithInventoryID(inventoryName, jobTemplateID),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
 					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
-					testAccCheckJobUpdate(&jobURLBefore, false),
+					testAccCheckJobUpdate(&jobURLBefore, true),
+					// Wait for the job to finish so the inventory can be deleted
+					testAccCheckJobPause("aap_job.test"),
 				),
 			},
 		},
@@ -380,6 +384,38 @@ func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 	})
 }
 
+// testAccCheckJobPause is just a slightly more intelligent sleep function
+// designed to force the acceptance test framework to wait until a job is
+// finished. This is needed when the associated inventory also must be
+// deleted.
+func testAccCheckJobPause(name string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		var jobApiModel JobAPIModel
+		statuses := []string{"failed", "complete", "successful"}
+		job, ok := s.RootModule().Resources[name]
+		if !ok {
+			return fmt.Errorf("job (%s) not found in state", name)
+		}
+		i := 0
+		for i < 10 {
+			i += 1
+			body, err := testGetResource(job.Primary.Attributes["url"])
+			if err != nil {
+				return err
+			}
+			err = json.Unmarshal(body, &jobApiModel)
+			if err != nil {
+				return err
+			}
+			if slices.Contains(statuses, jobApiModel.Status) {
+				break
+			}
+			time.Sleep(6 * time.Second)
+		}
+		return nil
+	}
+}
+
 func testAccBasicJob(jobTemplateID string) string {
 	return fmt.Sprintf(`
 resource "aap_job" "test" {
@@ -388,13 +424,17 @@ resource "aap_job" "test" {
 `, jobTemplateID)
 }
 
-func testAccUpdateJobWithInventoryID(jobTemplateID, inventoryID string) string {
+func testAccUpdateJobWithInventoryID(inventoryName, jobTemplateID string) string {
 	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+  name = "%s"
+}
+
 resource "aap_job" "test" {
 	job_template_id   = %s
-	inventory_id = %s
+	inventory_id = aap_inventory.test.id
 }
-`, jobTemplateID, inventoryID)
+`, inventoryName, jobTemplateID)
 }
 
 func testAccUpdateJobWithTrigger(jobTemplateID string) string {
