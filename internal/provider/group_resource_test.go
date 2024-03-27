@@ -5,10 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -172,57 +170,41 @@ func TestGroupResourceParseHttpResponse(t *testing.T) {
 
 // Acceptance tests
 
-func testAccGroupResourcePreCheck(t *testing.T) {
-	// Ensure provider requirements
-	testAccPreCheck(t)
-
-	requiredAAPGroupEnvVars := []string{
-		"AAP_TEST_INVENTORY_ID",
-	}
-
-	for _, key := range requiredAAPGroupEnvVars {
-		if v := os.Getenv(key); v == "" {
-			t.Fatalf("'%s' environment variable must be set when running acceptance tests for group resource", key)
-		}
-	}
-}
-
 func TestAccGroupResource(t *testing.T) {
 	var groupApiModel GroupAPIModel
 	var description = "A test group"
 	var variables = "{\"foo\": \"bar\"}"
-	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
-	updatedName := "updated" + randomName
-
-	inventoryId := os.Getenv("AAP_TEST_INVENTORY_ID")
+	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	groupName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	updatedName := "updated" + groupName
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccGroupResourcePreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			// Invalid variables testing
 			{
-				Config:      testAccGroupResourceBadVariables(updatedName, inventoryId),
+				Config:      testAccGroupResourceBadVariables(inventoryName, updatedName),
 				ExpectError: regexp.MustCompile("Input type `str` is not a dictionary"),
 			},
 			// Create and Read testing
 			{
-				Config: testAccGroupResourceMinimal(randomName, inventoryId),
+				Config: testAccGroupResourceMinimal(inventoryName, groupName),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckGroupResourceExists("aap_group.test", &groupApiModel),
-					testAccCheckGroupResourceValues(&groupApiModel, randomName, "", "", inventoryId),
-					resource.TestCheckResourceAttr("aap_group.test", "name", randomName),
-					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", inventoryId),
+					testAccCheckGroupResourceValues(&groupApiModel, groupName, "", ""),
+					resource.TestCheckResourceAttr("aap_group.test", "name", groupName),
+					resource.TestCheckResourceAttrPair("aap_group.test", "inventory_id", "aap_inventory.test", "id"),
 					resource.TestMatchResourceAttr("aap_group.test", "url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
 				),
 			},
 			{
-				Config: testAccGroupResourceComplete(updatedName, inventoryId),
+				Config: testAccGroupResourceComplete(inventoryName, updatedName),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckGroupResourceExists("aap_group.test", &groupApiModel),
-					testAccCheckGroupResourceValues(&groupApiModel, updatedName, description, variables, inventoryId),
+					testAccCheckGroupResourceValues(&groupApiModel, updatedName, description, variables),
 					resource.TestCheckResourceAttr("aap_group.test", "name", updatedName),
-					resource.TestCheckResourceAttr("aap_group.test", "inventory_id", inventoryId),
+					resource.TestCheckResourceAttrPair("aap_group.test", "inventory_id", "aap_inventory.test", "id"),
 					resource.TestCheckResourceAttr("aap_group.test", "description", description),
 					resource.TestCheckResourceAttr("aap_group.test", "variables", variables),
 					resource.TestMatchResourceAttr("aap_group.test", "url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
@@ -233,32 +215,44 @@ func TestAccGroupResource(t *testing.T) {
 	})
 }
 
-func testAccGroupResourceMinimal(name, groupInventoryId string) string {
+func testAccGroupResourceMinimal(inventoryName, groupName string) string {
 	return fmt.Sprintf(`
-resource "aap_group" "test" {
+resource "aap_inventory" "test" {
   name = "%s"
-  inventory_id = %s
-}`, name, groupInventoryId)
 }
 
-func testAccGroupResourceComplete(name, groupInventoryId string) string {
-	return fmt.Sprintf(`
 resource "aap_group" "test" {
   name = "%s"
-  inventory_id = %s
+  inventory_id = aap_inventory.test.id
+}`, inventoryName, groupName)
+}
+
+func testAccGroupResourceComplete(inventoryName, groupName string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+  name = "%s"
+}
+
+resource "aap_group" "test" {
+  name = "%s"
+  inventory_id = aap_inventory.test.id
   description = "A test group"
   variables = "{\"foo\": \"bar\"}"
-}`, name, groupInventoryId)
+}`, inventoryName, groupName)
 }
 
 // testAccGroupResourceBadVariables returns a configuration for an AAP group with the provided name and invalid variables.
-func testAccGroupResourceBadVariables(name, groupInventoryId string) string {
+func testAccGroupResourceBadVariables(inventoryName, groupName string) string {
 	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+  name = "%s"
+}
+
 resource "aap_group" "test" {
   name = "%s"
-  inventory_id = %s
+  inventory_id = aap_inventory.test.id
   variables = "Not valid JSON"
-}`, name, groupInventoryId)
+}`, inventoryName, groupName)
 }
 
 // testAccCheckGroupResourceExists queries the AAP API and retrieves the matching group.
@@ -287,16 +281,8 @@ func testAccCheckGroupResourceExists(name string, groupApiModel *GroupAPIModel) 
 	}
 }
 
-func testAccCheckGroupResourceValues(groupApiModel *GroupAPIModel, name string, description string, variables string,
-	inventoryId string) resource.TestCheckFunc {
+func testAccCheckGroupResourceValues(groupApiModel *GroupAPIModel, name string, description string, variables string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		inv, err := strconv.ParseInt(inventoryId, 10, 64)
-		if err != nil {
-			return fmt.Errorf("could not convert \"%s\", to int64", inventoryId)
-		}
-		if groupApiModel.InventoryId != inv {
-			return fmt.Errorf("bad roup inventory id in AAP, expected %d, got: %d", inv, groupApiModel.InventoryId)
-		}
 		if groupApiModel.URL == "" {
 			return fmt.Errorf("bad group URL in AAP, expected a URL path, got: %s", groupApiModel.URL)
 		}
