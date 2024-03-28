@@ -46,3 +46,8 @@ resource "aap_host" "my_host" {
   )
   groups = [aap_group.my_group.id]
 }
+
+resource "aap_job" "my_job" {
+  job_template_id = 7
+  inventory_id    = aap_inventory.my_inventory.id
+}

@@ -13,9 +13,13 @@ provider "aap" {
   insecure_skip_verify = true
 }
 
+resource "aap_inventory" "my_inventory" {
+  name = "A new inventory"
+}
+
 resource "aap_job" "sample_foo" {
   job_template_id = 9
-  inventory_id    = 2
+  inventory_id    = aap_inventory.my_inventory.id
   extra_vars      = jsonencode({ "resource_state" : "absent" })
   triggers = {
     "execution_environment_id" : "3"
@@ -33,13 +37,13 @@ EOT
 
 resource "aap_job" "sample_bar" {
   job_template_id = 9
-  inventory_id    = 2
+  inventory_id    = aap_inventory.my_inventory.id
   extra_vars      = jsonencode(yamldecode(local.values_extra_vars))
 }
 
 resource "aap_job" "sample_baz" {
   job_template_id = 9
-  inventory_id    = 2
+  inventory_id    = aap_inventory.my_inventory.id
   extra_vars = jsonencode({
     execution_environment_id = "3"
     # Add other variables as needed
@@ -48,13 +52,13 @@ resource "aap_job" "sample_baz" {
 
 resource "aap_job" "sample_abc" {
   job_template_id = 9
-  inventory_id    = 2
+  inventory_id    = aap_inventory.my_inventory.id
   extra_vars      = yamlencode({ "os" : "Linux", "automation" : "ansible" })
 }
 
 resource "aap_job" "sample_xyz" {
   job_template_id = 9
-  inventory_id    = 2
+  inventory_id    = aap_inventory.my_inventory.id
   extra_vars      = "os: Linux\nautomation: ansible-devel"
 }
 

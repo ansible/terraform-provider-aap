@@ -112,6 +112,7 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				CustomType:  customtypes.AAPCustomStringType{},
 			},
 		},
+		Description: `Creates an inventory group.`,
 	}
 }
 

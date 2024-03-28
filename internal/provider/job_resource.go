@@ -132,6 +132,13 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Description: "The list of properties set by the user but ignored on server side.",
 			},
 		},
+		MarkdownDescription: "Launches an AAP job.\n\n" +
+			"A job is launched only when the resource is first created or when the " +
+			"resource is changed. The " + "`triggers`" + " argument can be used to " +
+			"launch a new job based on any arbitrary value.\n\n" +
+			"This resource always creates a new job in AAP. A destroy will not " +
+			"delete a job created by this resource, it will only remove the resource " +
+			"from the state.",
 	}
 }
 
