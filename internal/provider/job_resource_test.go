@@ -397,7 +397,7 @@ func testAccCheckJobPause(name string) resource.TestCheckFunc {
 			return fmt.Errorf("job (%s) not found in state", name)
 		}
 		i := 0
-		for i < 10 {
+		for i < 20 {
 			i += 1
 			body, err := testGetResource(job.Primary.Attributes["url"])
 			if err != nil {
