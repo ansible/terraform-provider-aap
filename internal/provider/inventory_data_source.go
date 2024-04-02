@@ -63,6 +63,7 @@ func (d *InventoryDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 				Description: "Variables of the inventory. Will be either JSON or YAML string depending on how the variables were entered into AAP.",
 			},
 		},
+		Description: `Get an existing inventory.`,
 	}
 }
 

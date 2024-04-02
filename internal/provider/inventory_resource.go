@@ -97,6 +97,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				CustomType:  customtypes.AAPCustomStringType{},
 			},
 		},
+		Description: `Creates an inventory.`,
 	}
 }
 

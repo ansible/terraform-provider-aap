@@ -13,15 +13,29 @@ provider "aap" {
   insecure_skip_verify = true
 }
 
+resource "aap_inventory" "my_inventory" {
+  name = "A new inventory"
+}
+
+resource "aap_group" "group_1" {
+  inventory_id = aap_inventory.my_inventory.id
+  name         = "Group 1"
+}
+
+resource "aap_group" "group_2" {
+  inventory_id = aap_inventory.my_inventory.id
+  name         = "Group 2"
+}
+
 resource "aap_host" "sample_foo" {
-  inventory_id = 1
+  inventory_id = aap_inventory.my_inventory.id
   name         = "tf_host_foo"
   variables = jsonencode(
     {
       "foo" : "bar"
     }
   )
-  groups = [2, 3, 4]
+  groups = [aap_group.group_1.id, aap_group.group_2.id]
 }
 
 locals {
@@ -34,13 +48,13 @@ EOT
 }
 
 resource "aap_host" "sample_bar" {
-  inventory_id = 1
+  inventory_id = aap_inventory.my_inventory.id
   name         = "tf_host_bar"
   variables    = jsonencode(yamldecode(local.values_variables))
 }
 
 resource "aap_host" "sample_baz" {
-  inventory_id = 1
+  inventory_id = aap_inventory.my_inventory.id
   name         = "tf_host_baz"
   variables = jsonencode({
     foo = "bar"
@@ -49,13 +63,13 @@ resource "aap_host" "sample_baz" {
 }
 
 resource "aap_host" "sample_abc" {
-  inventory_id = 1
+  inventory_id = aap_inventory.my_inventory.id
   name         = "tf_host_abc"
   variables    = yamlencode({ "os" : "Linux", "automation" : "ansible" })
 }
 
 resource "aap_host" "sample_xyz" {
-  inventory_id = 1
+  inventory_id = aap_inventory.my_inventory.id
   name         = "tf_host_xyz"
   variables    = "os: Linux\nautomation: ansible-devel"
 }

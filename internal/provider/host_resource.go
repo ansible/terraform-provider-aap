@@ -137,6 +137,7 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "The list of groups to assosicate with a host.",
 			},
 		},
+		Description: `Creates a host.`,
 	}
 }
 

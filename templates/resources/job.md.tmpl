@@ -1,0 +1,19 @@
+---
+page_title: "{{ .Name }} {{ .Type }} - {{ .ProviderName }}"
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{ .Name }} ({{ .Type }})
+
+{{ .Description | trimspace }}
+
+-> **Note** To pass an inventory to an aap_job resource, the underlying job template *must* have been conigured to prompt for the inventory on launch.
+
+{{ if .HasExample }}
+## Example Usage
+
+{{ tffile .ExampleFile }}
+{{ end }}
+
+{{ .SchemaMarkdown | trimspace }}
