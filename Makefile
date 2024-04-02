@@ -4,7 +4,7 @@ default: build
 
 build:
 	@echo "==> Building package..."
-	go build ./...
+	go build
 
 lint:
 	@echo "==> Checking source code against linters..."
@@ -16,7 +16,7 @@ test:
 
 testacc:
 	@echo "==> Running acceptance tests..."
-	TF_ACC=1 AAP_HOST="https://localhost:8043" AAP_INSECURE_SKIP_VERIFY=true go test -v ./...
+	TF_ACC=1 AAP_HOST="https://localhost:8043" AAP_INSECURE_SKIP_VERIFY=true go test -count=1 -v ./...
 
 gofmt:
 	@echo "==> Format code using gofmt..."
