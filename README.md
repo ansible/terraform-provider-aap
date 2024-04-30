@@ -61,14 +61,19 @@ Then you can run acceptance tests with `make testacc`.
 
 The [examples](./examples/) subdirectory contains usage examples for this provider.
 
+## Release notes
+
+See the [generated changelog](https://github.com/ansible/terraform-provider-aap/tree/main/CHANGELOG.rst).
+
 ## Releasing
 
 To release a new version of the provider:
 
 1. Run `make generatedocs` to format the example files and regenerate docs using terraform-plugin-docs [tfplugindocs installation guide](https://github.com/hashicorp/terraform-plugin-docs?tab=readme-ov-file#installation).
-2. Commit changes
-3. Push a new tag (this should trigger an automated release process to the Terraform Registry)
-4. Verify the new version is published at https://registry.terraform.io/providers/ansible/aap/latest
+2. Run `antsibull-changelog release --version <version>` to release a new version of the project.
+3. Commit changes
+4. Push a new tag (this should trigger an automated release process to the Terraform Registry). The tag version *must* start with "v", for example, v1.2.3.
+5. Verify the new version is published at https://registry.terraform.io/providers/ansible/aap/latest
 
 ## Licensing
 
