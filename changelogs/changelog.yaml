@@ -1,0 +1,10 @@
+ancestor: null
+releases:
+  1.0.0:
+    changes:
+      release_summary: This is the initial release of the Terraform provider for AAP.
+        The provider allows the user to create and manage AAP inventories, and launch
+        job templates through Terraform.
+    fragments:
+    - 1.0.0.yml
+    release_date: '2024-05-01'
