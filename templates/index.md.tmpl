@@ -1,14 +1,14 @@
 ---
-page_title: "AAP Provider"
+page_title: "Red Hat Ansible Automation Platform provider"
 description: |-
-  Terraform provider for Ansible Automation Platform (AAP).
+  Terraform provider for Red Hat Ansible Automation Platform (AAP).
 ---
 
-# AAP Provider
+# Red Hat Ansible Automation Platform provider
 
-The AAP Provider allows Terraform to manage Ansible Automation Platform resources.
-It allows you to create inventories of instances you have provisioned and run
-job templates using those inventories.
+The Red Hat Ansible Automation Platform (AAP) provider allows Terraform to manage
+AAP resources. It allows you to create inventories of instances you have provisioned
+and run job templates using those inventories.
 
 
 
