@@ -77,6 +77,10 @@ To release a new version of the provider:
 4. Push a new tag (this should trigger an automated release process to the Terraform Registry). The tag version *must* start with "v", for example, v1.2.3.
 5. Verify the new version is published at https://registry.terraform.io/providers/ansible/aap/latest
 
+## Supported Platforms
+
+1. Linux / AMD64
+
 ## Licensing
 
 GNU General Public License v3.0. See [LICENSE](/LICENSE) for full text.
