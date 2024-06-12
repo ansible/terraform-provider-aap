@@ -79,3 +79,7 @@ resource "aap_job" "my_job" {
 - `password` (String, Sensitive)
 - `timeout` (Number) Timeout specifies a time limit for requests made to the AAP server.Defaults to 5 if not provided. A Timeout of zero means no timeout.
 - `username` (String)
+
+## Supported Platform
+
+Linux / AMD64
