@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -137,7 +138,8 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 	requestData := bytes.NewReader(createRequestBody)
 
 	// Create new group in AAP
-	createResponseBody, diags := r.client.Create("/api/v2/groups/", requestData)
+	groupsURL := path.Join(r.client.getApiEndpoint(), "groups")
+	createResponseBody, diags := r.client.Create(groupsURL, requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

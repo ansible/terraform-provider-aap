@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path"
 	"slices"
 	"sync"
 
@@ -162,7 +163,8 @@ func (r *HostResource) Create(ctx context.Context, req resource.CreateRequest, r
 	requestData := bytes.NewReader(createRequestBody)
 
 	// Create new host in AAP
-	createResponseBody, diags := r.client.Create("/api/v2/hosts/", requestData)
+	hostsURL := path.Join(r.client.getApiEndpoint(), "hosts")
+	createResponseBody, diags := r.client.Create(hostsURL, requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

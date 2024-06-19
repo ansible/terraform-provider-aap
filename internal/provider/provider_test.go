@@ -46,18 +46,17 @@ func testGetResource(urlPath string) ([]byte, error) {
 	username := os.Getenv("AAP_USERNAME")
 	password := os.Getenv("AAP_PASSWORD")
 
-	client, err := NewClient(host, &username, &password, true, 0)
-	if err != nil {
-		return nil, err
+	client, diags := NewClient(host, &username, &password, true, 0)
+	if diags.HasError() {
+		return nil, fmt.Errorf("%v", diags.Errors())
 	}
 
 	body, diags := client.Get(urlPath)
 	if diags.HasError() {
-		err = fmt.Errorf("%v", diags.Errors())
-		return nil, err
+		return nil, fmt.Errorf("%v", diags.Errors())
 	}
 
-	return body, err
+	return body, nil
 }
 
 func TestReadValues(t *testing.T) {

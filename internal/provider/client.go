@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,18 +19,20 @@ type ProviderHTTPClient interface {
 	Get(path string) ([]byte, diag.Diagnostics)
 	Update(path string, data io.Reader) ([]byte, diag.Diagnostics)
 	Delete(path string) ([]byte, diag.Diagnostics)
+	getApiEndpoint() string
 }
 
 // Client -
 type AAPClient struct {
-	HostURL    string
-	Username   *string
-	Password   *string
-	httpClient *http.Client
+	HostURL     string
+	Username    *string
+	Password    *string
+	httpClient  *http.Client
+	ApiEndpoint string
 }
 
 // NewClient - create new AAPClient instance
-func NewClient(host string, username *string, password *string, insecureSkipVerify bool, timeout int64) (*AAPClient, error) {
+func NewClient(host string, username *string, password *string, insecureSkipVerify bool, timeout int64) (*AAPClient, diag.Diagnostics) {
 	hostURL, _ := url.JoinPath(host, "/")
 	client := AAPClient{
 		HostURL:  hostURL,
@@ -42,12 +45,36 @@ func NewClient(host string, username *string, password *string, insecureSkipVeri
 	}
 	client.httpClient = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
 
-	return &client, nil
+	body, diags := client.Get("/api/")
+	if diags.HasError() {
+		return nil, diags
+	}
+
+	// Unmarshal the JSON response
+	var result map[string]interface{}
+	err := json.Unmarshal(body, &result)
+	if err != nil {
+		diags.AddError("Error parsing JSON response from AAP", err.Error())
+		return nil, diags
+	}
+
+	// Extract 'current_version' from JSON response body
+	value, field_err := result["current_version"]
+	if !field_err {
+		diags.AddError("Missing field 'current_version' from JSON response", "Unable to Create AAP API Client")
+		return nil, diags
+	}
+	client.ApiEndpoint = value.(string)
+	return &client, diags
 }
 
 func (c *AAPClient) computeURLPath(path string) string {
 	fullPath, _ := url.JoinPath(c.HostURL, path, "/")
 	return fullPath
+}
+
+func (c *AAPClient) getApiEndpoint() string {
+	return c.ApiEndpoint
 }
 
 func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {

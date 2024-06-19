@@ -132,16 +132,8 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	}
 
 	// Create a new http client using the configuration values
-	client, err := NewClient(host, &username, &password, insecureSkipVerify, timeout)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Create AAP API Client",
-			"An unexpected error occurred when creating the AAP API client. "+
-				"If the error is not clear, please contact the provider developers.\n\n"+
-				"http Client Error: "+err.Error(),
-		)
-		return
-	}
+	client, diags := NewClient(host, &username, &password, insecureSkipVerify, timeout)
+	resp.Diagnostics.Append(diags...)
 
 	// Make the http client available during DataSource and Resource
 	// type Configure methods.

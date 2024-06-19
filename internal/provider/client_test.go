@@ -22,9 +22,12 @@ func TestComputeURLPath(t *testing.T) {
 	var expected = "https://localhost:8043/api/v2/state/"
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
-			client, err := NewClient(tc.url, nil, nil, true, 0)
-			if err != nil {
-				t.Fatalf(`Failed to create provider client %v`, err)
+			client := AAPClient{
+				HostURL:     tc.url,
+				Username:    nil,
+				Password:    nil,
+				httpClient:  nil,
+				ApiEndpoint: "",
 			}
 			result := client.computeURLPath(tc.path)
 			assert.Equal(t, result, expected, fmt.Sprintf("expected (%s), got (%s)", expected, result))

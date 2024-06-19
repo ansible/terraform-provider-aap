@@ -76,6 +76,10 @@ func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (
 	return &http.Response{StatusCode: c.httpCode}, result, nil
 }
 
+func (c *MockHTTPClient) getApiEndpoint() string {
+	return "/api/v2/"
+}
+
 func (c *MockHTTPClient) Create(path string, data io.Reader) ([]byte, diag.Diagnostics) {
 	createResponse, body, err := c.doRequest("POST", path, data)
 	diags := ValidateResponse(createResponse, body, err, []int{http.StatusCreated})
