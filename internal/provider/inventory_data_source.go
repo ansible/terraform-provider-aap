@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -81,7 +80,6 @@ func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadReque
 	}
 
 	resourceURL := path.Join(d.client.getApiEndpoint(), "inventories", state.Id.String())
-	tflog.Info(ctx, fmt.Sprintf("Inventory resource url: (%s)", resourceURL))
 	readResponseBody, diags := d.client.Get(resourceURL)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {

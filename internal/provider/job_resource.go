@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Job AAP API model
@@ -305,10 +304,7 @@ func (r *JobResource) LaunchJob(ctx context.Context, data *JobResourceModel) dia
 
 	requestData := bytes.NewReader(requestBody)
 	var postURL = path.Join(r.client.getApiEndpoint(), "job_templates", data.GetTemplateID(), "launch")
-	tflog.Info(ctx, fmt.Sprintf("Launch job url: (%s)", postURL))
-	tflog.Info(ctx, fmt.Sprintf("Request data: (%s)", string(requestBody)))
 	resp, body, err := r.client.doRequest(http.MethodPost, postURL, requestData)
-	tflog.Info(ctx, fmt.Sprintf("Http response status: (%v)", resp.StatusCode))
 	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
 	if diags.HasError() {
 		return diags

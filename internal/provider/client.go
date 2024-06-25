@@ -59,8 +59,8 @@ func NewClient(host string, username *string, password *string, insecureSkipVeri
 	}
 
 	// Extract 'current_version' from JSON response body
-	value, field_err := result["current_version"]
-	if !field_err {
+	value, ok := result["current_version"]
+	if !ok {
 		diags.AddError("Missing field 'current_version' from JSON response", "Unable to Create AAP API Client")
 		return nil, diags
 	}
