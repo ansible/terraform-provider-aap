@@ -152,7 +152,7 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	resp.Diagnostics.Append(r.LaunchJob(ctx, &data)...)
+	resp.Diagnostics.Append(r.LaunchJob(&data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -205,7 +205,7 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	}
 
 	// Create new Job from job template
-	resp.Diagnostics.Append(r.LaunchJob(ctx, &data)...)
+	resp.Diagnostics.Append(r.LaunchJob(&data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -291,7 +291,7 @@ func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]interface
 	return diags
 }
 
-func (r *JobResource) LaunchJob(ctx context.Context, data *JobResourceModel) diag.Diagnostics {
+func (r *JobResource) LaunchJob(data *JobResourceModel) diag.Diagnostics {
 	// Create new Job from job template
 	var diags diag.Diagnostics
 
