@@ -267,7 +267,10 @@ func (r *JobResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	r.URL = types.StringValue(resultApiJob.URL)
 	r.Status = types.StringValue(resultApiJob.Status)
 	r.TemplateID = types.Int64Value(resultApiJob.TemplateID)
-	r.InventoryID = types.Int64Value(resultApiJob.Inventory)
+	if r.InventoryID.ValueInt64() == 0 {
+		r.InventoryID = types.Int64Value(resultApiJob.Inventory)
+	}
+
 	diags = r.ParseIgnoredFields(resultApiJob.IgnoredFields)
 	return diags
 }
@@ -312,10 +315,6 @@ func (r *JobResource) LaunchJob(data *JobResourceModel) diag.Diagnostics {
 
 	// Save new job data into job resource model
 	diags.Append(data.ParseHttpResponse(body)...)
-	if diags.HasError() {
-		return diags
-	}
-
 	return diags
 }
 
