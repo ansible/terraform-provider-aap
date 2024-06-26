@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -19,7 +20,59 @@ type ProviderHTTPClient interface {
 	Get(path string) ([]byte, diag.Diagnostics)
 	Update(path string, data io.Reader) ([]byte, diag.Diagnostics)
 	Delete(path string) ([]byte, diag.Diagnostics)
+	setApiEndpoint() diag.Diagnostics
 	getApiEndpoint() string
+}
+
+func GetKeyFromJson[T interface{}](jsonData []byte, keyName string, value *T) error {
+	// Unmarshal the JSON data
+	var result map[string]interface{}
+	err := json.Unmarshal(jsonData, &result)
+	if err != nil {
+		return err
+	}
+	// Extract key from Json structure
+	rawValue, ok := result[keyName]
+	if !ok {
+		return fmt.Errorf("missing attribute '%s' from JSON response", keyName)
+	}
+	*value = rawValue.(T)
+	return nil
+}
+
+func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
+	body, diags := client.Get("/api/")
+	if diags.HasError() {
+		return "", diags
+	}
+	var apis map[string]interface{}
+	err := GetKeyFromJson[map[string]interface{}](body, "apis", &apis)
+	if err == nil {
+		// AAP 2.5 returns {"apis": { "controller": "/api/controller/", (...) } (...)}
+		// We need to fetch '/api/controller/' to have the current version
+		controller, ok := apis["controller"]
+		if !ok {
+			diags.AddError(
+				"Unable to Retrieve controller endpoint from Gateway response",
+				fmt.Sprintf("Unexpected error: %s", err.Error()),
+			)
+			return "", diags
+		}
+		body, diags = client.Get(controller.(string))
+		if diags.HasError() {
+			return "", diags
+		}
+	}
+
+	var endpoint string
+	err = GetKeyFromJson[string](body, "current_version", &endpoint)
+	if err != nil {
+		diags.AddError(
+			"Error while setting API Endpoint",
+			fmt.Sprintf("Unexpected error: %s", err.Error()),
+		)
+	}
+	return endpoint, diags
 }
 
 // Client -
@@ -45,36 +98,27 @@ func NewClient(host string, username *string, password *string, insecureSkipVeri
 	}
 	client.httpClient = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
 
-	body, diags := client.Get("/api/")
-	if diags.HasError() {
-		return nil, diags
-	}
-
-	// Unmarshal the JSON response
-	var result map[string]interface{}
-	err := json.Unmarshal(body, &result)
-	if err != nil {
-		diags.AddError("Error parsing JSON response from AAP", err.Error())
-		return nil, diags
-	}
-
-	// Extract 'current_version' from JSON response body
-	value, ok := result["current_version"]
-	if !ok {
-		diags.AddError("Missing field 'current_version' from JSON response", "Unable to Create AAP API Client")
-		return nil, diags
-	}
-	client.ApiEndpoint = value.(string)
+	// Set AAP API endpoint
+	diags := client.setApiEndpoint()
 	return &client, diags
+}
+
+func (c *AAPClient) setApiEndpoint() diag.Diagnostics {
+	endpoint, diags := readApiEndpoint(c)
+	if diags.HasError() {
+		return diags
+	}
+	c.ApiEndpoint = endpoint
+	return diags
+}
+
+func (c *AAPClient) getApiEndpoint() string {
+	return c.ApiEndpoint
 }
 
 func (c *AAPClient) computeURLPath(path string) string {
 	fullPath, _ := url.JoinPath(c.HostURL, path, "/")
 	return fullPath
-}
-
-func (c *AAPClient) getApiEndpoint() string {
-	return c.ApiEndpoint
 }
 
 func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
