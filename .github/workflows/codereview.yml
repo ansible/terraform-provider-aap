@@ -15,6 +15,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./github/actions/size_pull_request
+      - uses: abikouo/terraform-provider-aap/.github/actions/size_pull_request@size_pr_aap_version
         with:
             path: "."
