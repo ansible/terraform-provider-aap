@@ -15,12 +15,12 @@ runs:
         python-version: "3.10"
 
     - name: Install python required libraries
-      run: pip install -U pyyaml
+      run: pip install -U requests
       shell: bash
 
     - name: Evaluate pull request size
       run: >-
-        python ${{ github.action_path }}/check_pr.py
+        python3 ${{ github.action_path }}/check_pr.py
         --path ${{ inputs.path }}
         --repository ${{ github.event.pull_request.repository }}
         --pr-number ${{ github.event.pull_request.number }}
