@@ -7,25 +7,61 @@
 from argparse import ArgumentParser
 import subprocess
 import re
+import requests
+import os
 
-def RunDiff(path: str) -> None:
+
+def WriteComment(repository: str, pr_number: int, comment: str) -> None:
+    result = requests.post(
+        f"https://api.github.com/repos/{repository}/issues/{pr_number}/comments",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Authorization": "Bearer %s" % os.environ.get("GITHUB_TOKEN"),
+        },
+        json={"body": comment},
+    )
+    if result.status_code != 200:
+        raise RuntimeError(
+            "Unable to post comment into pull request - status code = %d"
+            % result.status_code
+        )
+
+
+def RunDiff(path: str, repository: str, pr_number: int) -> None:
     command = ["git diff --cached --stat $(git merge-base FETCH_HEAD origin)"]
     proc = subprocess.Popen(
         command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, cwd=path
     )
     out, _ = proc.communicate()
-    m = re.search('(\d*) files changed, (\d*) insertions\(\+\), (\d*) deletions\(\-\)', out.decode())
+    WriteComment(
+        repository,
+        pr_number,
+        f"Output => {out.decode()}",
+    )
+    m = re.search(
+        "(\d*) files changed, (\d*) insertions\(\+\), (\d*) deletions\(\-\)",
+        out.decode(),
+    )
     if m:
         files = int(m.group(1))
         insertions = int(m.group(2))
         deletions = int(m.group(3))
-        print(f"files = {files} - insertions = {insertions} - deletions = {deletions}")
+        WriteComment(
+            repository,
+            pr_number,
+            f"files = {files} - insertions = {insertions} - deletions = {deletions}",
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     """Check PR size and push corresponding message and/or add label."""
     parser = ArgumentParser()
     parser.add_argument("--path", required=True, help="Path to the repository.")
+    parser.add_argument("--repository", required=True, help="Repository name org/name.")
+    parser.add_argument(
+        "--pr-number", type=int, required=True, help="The pull request number."
+    )
 
     args = parser.parse_args()
-    RunDiff(args.path)
+    RunDiff(args.path, args.repository, args.pr_number)

@@ -20,5 +20,10 @@ runs:
 
     - name: Evaluate pull request size
       run: >-
-        python ${{ github.action_path }}/check_pr.py --path ${{ inputs.path }}
+        python ${{ github.action_path }}/check_pr.py
+        --path ${{ inputs.path }}
+        --repository ${{ github.event.pull_request.repository }}
+        --pr-number ${{ github.event.pull_request.number }}
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
