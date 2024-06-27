@@ -12,7 +12,7 @@ import os
 
 
 def WriteComment(repository: str, pr_number: int, comment: str) -> None:
-    url = f"https://api.github.com/repos/{repository}/issues/{pr_number}/comments",
+    url = f"https://api.github.com/repos/{repository}/issues/{pr_number}/comments"
     result = requests.post(
         url,
         headers={
