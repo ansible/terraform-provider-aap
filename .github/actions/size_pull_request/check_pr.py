@@ -12,8 +12,9 @@ import os
 
 
 def WriteComment(repository: str, pr_number: int, comment: str) -> None:
+    url = f"https://api.github.com/repos/{repository}/issues/{pr_number}/comments",
     result = requests.post(
-        f"https://api.github.com/repos/{repository}/issues/{pr_number}/comments",
+        url,
         headers={
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
@@ -22,10 +23,7 @@ def WriteComment(repository: str, pr_number: int, comment: str) -> None:
         json={"body": comment},
     )
     if result.status_code != 200:
-        raise RuntimeError(
-            "Unable to post comment into pull request - status code = %d"
-            % result.status_code
-        )
+        raise RuntimeError(f"Post to URL {url} returned status code = {result.status_code}")
 
 
 def RunDiff(path: str, repository: str, pr_number: int) -> None:

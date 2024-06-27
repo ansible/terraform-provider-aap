@@ -13,7 +13,7 @@ jobs:
   pull-request-size:
     runs-on: ubuntu-latest
     permissions:
-        pull-requests: write
+        issues: write
     steps:
       - uses: actions/checkout@v4
 
