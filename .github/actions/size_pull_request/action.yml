@@ -22,7 +22,7 @@ runs:
       run: >-
         python3 ${{ github.action_path }}/check_pr.py
         --path ${{ inputs.path }}
-        --repository ${{ github.event.pull_request.repository }}
+        --repository ${{ github.repository }}
         --pr-number ${{ github.event.pull_request.number }}
       shell: bash
       env:
