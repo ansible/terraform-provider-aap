@@ -26,4 +26,4 @@ runs:
         --pr-number ${{ github.event.pull_request.number }}
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ github.GITHUB_TOKEN }}
