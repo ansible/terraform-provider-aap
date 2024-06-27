@@ -26,7 +26,7 @@ runs:
         -f "body=Testing comment via an action"
       shell: bash
       env:
-        GH_TOKEN: ${{ github.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
 
     - name: Evaluate pull request size
       run: >-
@@ -36,4 +36,4 @@ runs:
         --pr-number ${{ github.event.pull_request.number }}
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ github.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ github.token }}
