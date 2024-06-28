@@ -40,14 +40,13 @@ func TestComputeURLPath(t *testing.T) {
 
 func assertTest[T int64 | string](t *testing.T, expectedErr string, err error, expectedValue T, result T) {
 	if len(expectedErr) > 0 {
-		if err == nil || expectedErr != err.Error() {
-			t.Fatalf("Expected error (%s) - current error (%v)", expectedErr, err)
+		if assert.Error(t, err) {
+		        assert.Equal(t, expectedErr, err)
 		}
 	} else {
-		if err != nil {
-			t.Fatalf("Unexpected error (%v)", err)
+		if assert.NoError(t, err) {
+		        assert.Equal(t, result, expectedValue, fmt.Sprintf("Expected value (%v), got (%v)", expectedValue, result))
 		}
-		assert.Equal(t, result, expectedValue, fmt.Sprintf("Expected value (%v), got (%v)", expectedValue, result))
 	}
 }
 
