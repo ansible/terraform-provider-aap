@@ -24,20 +24,11 @@ type ProviderHTTPClient interface {
 	getApiEndpoint() string
 }
 
-func GetKeyFromJson[T interface{}](jsonData []byte, keyName string, value *T) error {
-	// Unmarshal the JSON data
-	var result map[string]interface{}
-	err := json.Unmarshal(jsonData, &result)
-	if err != nil {
-		return err
-	}
-	// Extract key from Json structure
-	rawValue, ok := result[keyName]
-	if !ok {
-		return fmt.Errorf("missing attribute '%s' from JSON response", keyName)
-	}
-	*value = rawValue.(T)
-	return nil
+type AAPApiEndpointResponse struct {
+	Apis struct {
+		Controller string `json:"controller"`
+	} `json:"apis"`
+	CurrentVersion string `json:"current_version"`
 }
 
 func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
@@ -45,34 +36,35 @@ func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
 	if diags.HasError() {
 		return "", diags
 	}
-	var apis map[string]interface{}
-	err := GetKeyFromJson[map[string]interface{}](body, "apis", &apis)
-	if err == nil {
-		// AAP 2.5 returns {"apis": { "controller": "/api/controller/", (...) } (...)}
-		// We need to fetch '/api/controller/' to have the current version
-		controller, ok := apis["controller"]
-		if !ok {
+	var response AAPApiEndpointResponse
+	err := json.Unmarshal(body, &response)
+	if err != nil {
+		diags.AddError(
+			fmt.Sprintf("Unable to parse AAP API endpoint response: %s", string(body)),
+			fmt.Sprintf("Unexpected error: %s", err.Error()),
+		)
+		return "", diags
+	}
+	if len(response.Apis.Controller) > 0 {
+		body, diags = client.Get(response.Apis.Controller)
+		if diags.HasError() {
+			return "", diags
+		}
+		// Parse response
+		err = json.Unmarshal(body, &response)
+		if err != nil {
 			diags.AddError(
-				"Unable to Retrieve controller endpoint from Gateway response",
+				fmt.Sprintf("Unable to parse AAP API endpoint response: %s", string(body)),
 				fmt.Sprintf("Unexpected error: %s", err.Error()),
 			)
 			return "", diags
 		}
-		body, diags = client.Get(controller.(string))
-		if diags.HasError() {
-			return "", diags
-		}
 	}
-
-	var endpoint string
-	err = GetKeyFromJson[string](body, "current_version", &endpoint)
-	if err != nil {
-		diags.AddError(
-			"Error while setting API Endpoint",
-			fmt.Sprintf("Unexpected error: %s", err.Error()),
-		)
+	if len(response.CurrentVersion) == 0 {
+		diags.AddError("Unable to determine API Endpoint", "The controller endpoint is missing from response")
+		return "", diags
 	}
-	return endpoint, diags
+	return response.CurrentVersion, diags
 }
 
 // Client -
