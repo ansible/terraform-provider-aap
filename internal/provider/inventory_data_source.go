@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -78,7 +79,8 @@ func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	readResponseBody, diags := d.client.Get("api/v2/inventories/" + state.Id.String())
+	resourceURL := path.Join(d.client.getApiEndpoint(), "inventories", state.Id.String())
+	readResponseBody, diags := d.client.Get(resourceURL)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
