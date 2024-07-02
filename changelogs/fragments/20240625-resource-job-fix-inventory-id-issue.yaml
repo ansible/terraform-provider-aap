@@ -1,0 +1,3 @@
+---
+bugfixes:
+  - resource/job - fix issue when attempting to modify ``inventory_id`` attribute using job template which does not allow (https://github.com/ansible/terraform-provider-aap/issues/31).
