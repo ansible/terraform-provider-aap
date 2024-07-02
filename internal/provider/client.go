@@ -3,6 +3,8 @@ package provider
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,18 +20,64 @@ type ProviderHTTPClient interface {
 	Get(path string) ([]byte, diag.Diagnostics)
 	Update(path string, data io.Reader) ([]byte, diag.Diagnostics)
 	Delete(path string) ([]byte, diag.Diagnostics)
+	setApiEndpoint() diag.Diagnostics
+	getApiEndpoint() string
+}
+
+type AAPApiEndpointResponse struct {
+	Apis struct {
+		Controller string `json:"controller"`
+	} `json:"apis"`
+	CurrentVersion string `json:"current_version"`
+}
+
+func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
+	body, diags := client.Get("/api/")
+	if diags.HasError() {
+		return "", diags
+	}
+	var response AAPApiEndpointResponse
+	err := json.Unmarshal(body, &response)
+	if err != nil {
+		diags.AddError(
+			fmt.Sprintf("Unable to parse AAP API endpoint response: %s", string(body)),
+			fmt.Sprintf("Unexpected error: %s", err.Error()),
+		)
+		return "", diags
+	}
+	if len(response.Apis.Controller) > 0 {
+		body, diags = client.Get(response.Apis.Controller)
+		if diags.HasError() {
+			return "", diags
+		}
+		// Parse response
+		err = json.Unmarshal(body, &response)
+		if err != nil {
+			diags.AddError(
+				fmt.Sprintf("Unable to parse AAP API endpoint response: %s", string(body)),
+				fmt.Sprintf("Unexpected error: %s", err.Error()),
+			)
+			return "", diags
+		}
+	}
+	if len(response.CurrentVersion) == 0 {
+		diags.AddError("Unable to determine API Endpoint", "The controller endpoint is missing from response")
+		return "", diags
+	}
+	return response.CurrentVersion, diags
 }
 
 // Client -
 type AAPClient struct {
-	HostURL    string
-	Username   *string
-	Password   *string
-	httpClient *http.Client
+	HostURL     string
+	Username    *string
+	Password    *string
+	httpClient  *http.Client
+	ApiEndpoint string
 }
 
 // NewClient - create new AAPClient instance
-func NewClient(host string, username *string, password *string, insecureSkipVerify bool, timeout int64) (*AAPClient, error) {
+func NewClient(host string, username *string, password *string, insecureSkipVerify bool, timeout int64) (*AAPClient, diag.Diagnostics) {
 	hostURL, _ := url.JoinPath(host, "/")
 	client := AAPClient{
 		HostURL:  hostURL,
@@ -42,7 +90,22 @@ func NewClient(host string, username *string, password *string, insecureSkipVeri
 	}
 	client.httpClient = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
 
-	return &client, nil
+	// Set AAP API endpoint
+	diags := client.setApiEndpoint()
+	return &client, diags
+}
+
+func (c *AAPClient) setApiEndpoint() diag.Diagnostics {
+	endpoint, diags := readApiEndpoint(c)
+	if diags.HasError() {
+		return diags
+	}
+	c.ApiEndpoint = endpoint
+	return diags
+}
+
+func (c *AAPClient) getApiEndpoint() string {
+	return c.ApiEndpoint
 }
 
 func (c *AAPClient) computeURLPath(path string) string {
