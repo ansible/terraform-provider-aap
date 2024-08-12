@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
@@ -26,7 +27,7 @@ func TestInventoryResourceSchema(t *testing.T) {
 	schemaResponse := &fwresource.SchemaResponse{}
 
 	// Instantiate the InventoryResource and call its Schema method
-	NewInventoryResource().Schema(ctx, schemaRequest, schemaResponse)
+	NewInventoryResource(&aapProviderModel{}).Schema(ctx, schemaRequest, schemaResponse)
 
 	if schemaResponse.Diagnostics.HasError() {
 		t.Fatalf("Schema method diagnostics: %+v", schemaResponse.Diagnostics)
@@ -89,7 +90,16 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			actual, diags := test.input.generateRequestBody()
+			providerModel := aapProviderModel{
+				Host:                basetypes.StringValue{},
+				Username:            basetypes.StringValue{},
+				Password:            basetypes.StringValue{},
+				DefaultOrganization: types.Int64Value(1),
+				InsecureSkipVerify:  basetypes.BoolValue{},
+				Timeout:             basetypes.Int64Value{},
+			}
+
+			actual, diags := test.input.generateRequestBody(providerModel)
 			if diags.HasError() {
 				t.Fatal(diags.Errors())
 			}
