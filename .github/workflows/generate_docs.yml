@@ -25,12 +25,16 @@ jobs:
       - name: Build
         run: go build -v ./...
 
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.4"
+
       - name: Generate documentation
         run: make generatedocs
 
       - name: Check for doc changes
         run: |
-          if git diff --exit-code; then
+          if git diff --exit-code -- ':!go.mod' ':!go.sum'; then
             echo "Docs generation successful, no changes found."
           else
             echo "Error: Uncommitted changes found. Please run 'make generatedocs' and commit the changes."
