@@ -8,3 +8,11 @@ releases:
     fragments:
     - 1.0.0.yml
     release_date: '2024-05-01'
+  1.1.0:
+    changes:
+      minor_changes:
+      - Support dynamic value for AAP endpoints since the value depends on the AAP
+        version (https://github.com/ansible/terraform-provider-aap/pull/30).
+    fragments:
+    - 20240619-aap-versioning.yaml
+    release_date: '2025-01-14'

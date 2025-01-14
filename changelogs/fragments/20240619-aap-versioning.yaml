@@ -1,3 +1,0 @@
----
-minor_changes:
-  - Support dynamic value for AAP endpoints since the value depends on the AAP version (https://github.com/ansible/terraform-provider-aap/pull/30).
