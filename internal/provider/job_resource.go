@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -302,7 +303,7 @@ func (r *JobResource) LaunchJob(data *JobResourceModel) diag.Diagnostics {
 	}
 
 	requestData := bytes.NewReader(requestBody)
-	var postURL = "/api/v2/job_templates/" + data.GetTemplateID() + "/launch/"
+	var postURL = path.Join(r.client.getApiEndpoint(), "job_templates", data.GetTemplateID(), "launch")
 	resp, body, err := r.client.doRequest(http.MethodPost, postURL, requestData)
 	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
 	if diags.HasError() {

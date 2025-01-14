@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -122,7 +123,8 @@ func (r *InventoryResource) Create(ctx context.Context, req resource.CreateReque
 	requestData := bytes.NewReader(createRequestBody)
 
 	// Create new inventory in AAP
-	createResponseBody, diags := r.client.Create("/api/v2/inventories/", requestData)
+	inventoriesURL := path.Join(r.client.getApiEndpoint(), "inventories")
+	createResponseBody, diags := r.client.Create(inventoriesURL, requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
