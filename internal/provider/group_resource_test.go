@@ -282,7 +282,7 @@ func testAccCheckGroupResourceExists(name string, groupApiModel *GroupAPIModel) 
 }
 
 func testAccCheckGroupResourceValues(groupApiModel *GroupAPIModel, name string, description string, variables string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
+	return func(_ *terraform.State) error {
 		if groupApiModel.URL == "" {
 			return fmt.Errorf("bad group URL in AAP, expected a URL path, got: %s", groupApiModel.URL)
 		}

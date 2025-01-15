@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/attr/xattr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
@@ -14,7 +13,6 @@ import (
 
 var (
 	_ = basetypes.StringTypable(&AAPCustomStringType{})
-	_ = xattr.TypeWithValidate(&AAPCustomStringType{})
 )
 
 // AAPCustomStringType implements a custom Terraform type.
