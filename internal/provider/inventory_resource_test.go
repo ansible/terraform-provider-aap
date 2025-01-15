@@ -262,7 +262,7 @@ func testAccCheckInventoryResourceExists(name string, inventory *InventoryAPIMod
 
 // testAccCheckInventoryResourcesValues verifies that the provided inventory retrieved from AAP contains the expected values.
 func testAccCheckInventoryResourceValues(inventory *InventoryAPIModel, name string, description string, variables string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
+	return func(_ *terraform.State) error {
 		if inventory.Id == 0 {
 			return fmt.Errorf("bad inventory ID in AAP, expected a positive int64, got: %dv", inventory.Id)
 		}

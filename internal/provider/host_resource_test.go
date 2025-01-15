@@ -383,7 +383,7 @@ func testAccCheckHostResourceExists(name string, hostApiModel *HostAPIModel) res
 
 // testAccCheckHostResourcesValues verifies that the provided host retrieved from AAP contains the expected values.
 func testAccCheckHostResourceValues(hostApiModel *HostAPIModel, name string, description string, variables string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
+	return func(_ *terraform.State) error {
 		if hostApiModel.URL == "" {
 			return fmt.Errorf("bad host URL in AAP, expected a URL path, got: %s", hostApiModel.URL)
 		}
