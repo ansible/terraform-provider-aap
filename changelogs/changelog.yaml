@@ -15,4 +15,4 @@ releases:
         version (https://github.com/ansible/terraform-provider-aap/pull/30).
     fragments:
     - 20240619-aap-versioning.yaml
-    release_date: '2025-01-14'
+    release_date: '2025-01-20'
