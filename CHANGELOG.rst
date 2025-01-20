@@ -4,6 +4,11 @@ Terraform Provider for AAP Release Notes
 
 .. contents:: Topics
 
+v1.1.1
+======
+
+- The 1.1.0 release was not published to the registry due to broken release pipeline. This 1.1.1 release contains only changes to fix the release pipeline.
+
 v1.1.0
 ======
 
