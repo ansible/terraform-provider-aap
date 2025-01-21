@@ -34,6 +34,7 @@ type aapProvider struct {
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
 	version string
+	config  aapProviderModel
 }
 
 // Metadata returns the provider type name.
@@ -56,12 +57,17 @@ func (p *aapProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *
 				Optional:  true,
 				Sensitive: true,
 			},
+			"default_organization": schema.Int64Attribute{
+				Optional: true,
+				Description: "Default organization ID to use for resources that require an organization ID. " +
+					"Defaults to 1 (the Default Organization) if not provided.",
+			},
 			"insecure_skip_verify": schema.BoolAttribute{
 				Optional: true,
 			},
 			"timeout": schema.Int64Attribute{
 				Optional: true,
-				Description: "Timeout specifies a time limit for requests made to the AAP server." +
+				Description: "Timeout specifies a time limit for requests made to the AAP server. " +
 					"Defaults to 5 if not provided. A Timeout of zero means no timeout.",
 			},
 		},
@@ -107,18 +113,18 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	var host, username, password string
 	var insecureSkipVerify bool
 	var timeout int64
-	config.ReadValues(&host, &username, &password, &insecureSkipVerify, &timeout, resp)
+	var default_organization int64
+	config.ReadValues(&host, &username, &password, &default_organization, &insecureSkipVerify, &timeout, resp)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
+	// Explicitly set the DefaultOrganization to the value read from the configuration
+	config.DefaultOrganization = types.Int64Value(default_organization)
 	// If any of the expected configurations are missing, return
 	// errors with provider-specific guidance.
-
 	if len(host) == 0 {
 		AddConfigurationAttributeError(resp, "host", "AAP_HOST", false)
 	}
-
 	if len(username) == 0 {
 		AddConfigurationAttributeError(resp, "username", "AAP_USERNAME", false)
 	}
@@ -139,6 +145,8 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	// type Configure methods.
 	resp.DataSourceData = client
 	resp.ResourceData = client
+	// make the config available through the provider
+	p.config = config
 }
 
 // DataSources defines the data sources implemented in the provider.
@@ -148,10 +156,17 @@ func (p *aapProvider) DataSources(_ context.Context) []func() datasource.DataSou
 	}
 }
 
+// Wrapper function to adapt NewInventoryResource to the expected signature and be able to pass the default org around
+func NewInventoryResourceWrapper(providerModel *aapProviderModel) func() resource.Resource {
+	return func() resource.Resource {
+		return NewInventoryResource(providerModel)
+	}
+}
+
 // Resources defines the resources implemented in the provider.
 func (p *aapProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		NewInventoryResource,
+		NewInventoryResourceWrapper(&p.config),
 		NewJobResource,
 		NewGroupResource,
 		NewHostResource,
@@ -160,11 +175,12 @@ func (p *aapProvider) Resources(_ context.Context) []func() resource.Resource {
 
 // aapProviderModel maps provider schema data to a Go type.
 type aapProviderModel struct {
-	Host               types.String `tfsdk:"host"`
-	Username           types.String `tfsdk:"username"`
-	Password           types.String `tfsdk:"password"`
-	InsecureSkipVerify types.Bool   `tfsdk:"insecure_skip_verify"`
-	Timeout            types.Int64  `tfsdk:"timeout"`
+	Host                types.String `tfsdk:"host"`
+	Username            types.String `tfsdk:"username"`
+	Password            types.String `tfsdk:"password"`
+	DefaultOrganization types.Int64  `tfsdk:"default_organization"`
+	InsecureSkipVerify  types.Bool   `tfsdk:"insecure_skip_verify"`
+	Timeout             types.Int64  `tfsdk:"timeout"`
 }
 
 func (p *aapProviderModel) checkUnknownValue(resp *provider.ConfigureResponse) {
@@ -180,6 +196,10 @@ func (p *aapProviderModel) checkUnknownValue(resp *provider.ConfigureResponse) {
 		AddConfigurationAttributeError(resp, "password", "AAP_PASSWORD", true)
 	}
 
+	if p.DefaultOrganization.IsUnknown() {
+		AddConfigurationAttributeError(resp, "default_organization", "AAP_DEFAULT_ORGANIZATION", true)
+	}
+
 	if p.InsecureSkipVerify.IsUnknown() {
 		AddConfigurationAttributeError(resp, "insecure_skip_verify", "AAP_INSECURE_SKIP_VERIFY", true)
 	}
@@ -192,9 +212,10 @@ func (p *aapProviderModel) checkUnknownValue(resp *provider.ConfigureResponse) {
 const (
 	DefaultTimeOut            = 5     // Default http session timeout
 	DefaultInsecureSkipVerify = false // Default value for insecure skip verify
+	DefaultOrganization       = 1     // Default organization ID
 )
 
-func (p *aapProviderModel) ReadValues(host, username, password *string, insecureSkipVerify *bool,
+func (p *aapProviderModel) ReadValues(host, username, password *string, defaultOrganization *int64, insecureSkipVerify *bool,
 	timeout *int64, resp *provider.ConfigureResponse) {
 	// Set default values from env variables
 	*host = os.Getenv("AAP_HOST")
@@ -215,6 +236,22 @@ func (p *aapProviderModel) ReadValues(host, username, password *string, insecure
 	// Read password from user configuration
 	if !p.Password.IsNull() {
 		*password = p.Password.ValueString()
+	}
+
+	// setting default organization value
+	*defaultOrganization = DefaultOrganization
+	if !p.DefaultOrganization.IsNull() {
+		*defaultOrganization = p.DefaultOrganization.ValueInt64()
+	} else if intValue := os.Getenv("AAP_DEFAULT_ORGANIZATION"); intValue != "" {
+		// convert string into int64 value
+		*defaultOrganization, err = strconv.ParseInt(intValue, 10, 64)
+		if err != nil {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("default_organization"),
+				"Invalid value for default_organization",
+				"The provider cannot create the AAP API client as the value provided for default_organization is not a valid int64 value.",
+			)
+		}
 	}
 
 	if !p.InsecureSkipVerify.IsNull() {
