@@ -335,17 +335,3 @@ type InventoryAPIModel struct {
 	Description  string `json:"description,omitempty"`
 	Variables    string `json:"variables,omitempty"`
 }
-
-type SummaryFieldsAPIModel struct{
-	Organization OrganizationAPIModel `json:"organization"`
-}
-
-type OrganizationAPIModel struct{
-	Id           int64  `json:"id,omitempty"`
-	Name         string `json:"name"`
-	Description  string `json:"description,omitempty"`
-}
-
-type RelatedAPIModel struct{
-	NamedUrl     string `json:"named_url,omitempty"`
-}
