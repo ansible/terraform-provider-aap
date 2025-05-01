@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -39,19 +40,29 @@ func (d *InventoryDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
-				Required:    true,
+				Optional: true,
 				Description: "Inventory id",
 			},
 			"organization": schema.Int64Attribute{
-				Computed:    true,
+				Computed: true,
 				Description: "Identifier for the organization to which the inventory belongs",
+			},
+			"organization_name": schema.StringAttribute{
+				Computed: true,
+				Optional: true,
+				Description: "The name for the organization to which the inventory belongs",
 			},
 			"url": schema.StringAttribute{
 				Computed:    true,
 				Description: "Url of the inventory",
 			},
+			"named_url": schema.StringAttribute{
+				Computed:    true,
+				Description: "The Named Url of the inventory",
+			},
 			"name": schema.StringAttribute{
 				Computed:    true,
+				Optional: true,
 				Description: "Name of the inventory",
 			},
 			"description": schema.StringAttribute{
@@ -79,7 +90,21 @@ func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	resourceURL := path.Join(d.client.getApiEndpoint(), "inventories", state.Id.String())
+	//Here is where we can get the "named" inventory, which is "Inventory Name"++"Organization Name" to derive uniqueness
+	//we will take precedence if the Id is set to use that over the named_url attempt.
+
+	resourceURL := ""
+
+	if state.Id.String() != "<null>" {
+		resourceURL = path.Join(d.client.getApiEndpoint(), "inventories", state.Id.String())
+	} else if state.Name.String() != "<null>" && state.OrganizationName.String() != "<null>"{
+		namedUrl := strings.Join([]string{state.Name.String()[1 : len(state.Name.String()) - 1], "++", state.OrganizationName.String()[1 : len(state.OrganizationName.String()) - 1]}, "")
+		resourceURL = path.Join(d.client.getApiEndpoint(), "inventories", namedUrl)
+	} else { 
+		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Require [id] or [name and organization_name]")
+		return
+	}
+
 	readResponseBody, diags := d.client.Get(resourceURL)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -122,7 +147,9 @@ func (d *InventoryDataSource) Configure(_ context.Context, req datasource.Config
 type InventoryDataSourceModel struct {
 	Id           types.Int64                      `tfsdk:"id"`
 	Organization types.Int64                      `tfsdk:"organization"`
+	OrganizationName types.String                 `tfsdk:"organization_name"`
 	Url          types.String                     `tfsdk:"url"`
+	NamedUrl     types.String                     `tfsdk:"named_url"`
 	Name         types.String                     `tfsdk:"name"`
 	Description  types.String                     `tfsdk:"description"`
 	Variables    customtypes.AAPCustomStringValue `tfsdk:"variables"`
@@ -142,7 +169,9 @@ func (d *InventoryDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnosti
 	// Map response to the inventory datesource schema
 	d.Id = types.Int64Value(apiInventory.Id)
 	d.Organization = types.Int64Value(apiInventory.Organization)
+	d.OrganizationName = types.StringValue(apiInventory.SummaryFields.Organization.Name)
 	d.Url = types.StringValue(apiInventory.Url)
+	d.NamedUrl = types.StringValue(apiInventory.Related.NamedUrl)
 	d.Name = ParseStringValue(apiInventory.Name)
 	d.Description = ParseStringValue(apiInventory.Description)
 	d.Variables = ParseAAPCustomStringValue(apiInventory.Variables)

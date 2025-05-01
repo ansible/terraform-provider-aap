@@ -77,12 +77,26 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Description: "Identifier for the organization the inventory should be created in. " +
 					"If not provided, the inventory will be created in the default organization.",
 			},
+			"organization_name": schema.StringAttribute{
+				Computed: true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+				Description: "Name for the organization.",
+			},
 			"url": schema.StringAttribute{
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 				Description: "URL of the inventory",
+			},
+			"named_url": schema.StringAttribute{
+				Computed: true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+				Description: "Named URL of the inventory",
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
@@ -245,7 +259,9 @@ func (r *InventoryResource) Delete(ctx context.Context, req resource.DeleteReque
 type inventoryResourceModel struct {
 	Id           types.Int64                      `tfsdk:"id"`
 	Organization types.Int64                      `tfsdk:"organization"`
+	OrganizationName types.String                 `tfsdk:"organization_name"`
 	Url          types.String                     `tfsdk:"url"`
+	NamedUrl     types.String                     `tfsdk:"named_url"`
 	Name         types.String                     `tfsdk:"name"`
 	Description  types.String                     `tfsdk:"description"`
 	Variables    customtypes.AAPCustomStringValue `tfsdk:"variables"`
@@ -298,7 +314,9 @@ func (r *inventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics
 	// Map response to the inventory resource schema and update attribute values
 	r.Id = types.Int64Value(apiInventory.Id)
 	r.Organization = types.Int64Value(apiInventory.Organization)
+	r.OrganizationName = types.StringValue(apiInventory.SummaryFields.Organization.Name)
 	r.Url = types.StringValue(apiInventory.Url)
+	r.NamedUrl = types.StringValue(apiInventory.Related.NamedUrl)
 	r.Name = types.StringValue(apiInventory.Name)
 	r.Description = ParseStringValue(apiInventory.Description)
 	r.Variables = ParseAAPCustomStringValue(apiInventory.Variables)
@@ -310,8 +328,24 @@ func (r *inventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics
 type InventoryAPIModel struct {
 	Id           int64  `json:"id,omitempty"`
 	Organization int64  `json:"organization"`
+	SummaryFields SummaryFieldsAPIModel `json:"summary_fields,omitempty"`
 	Url          string `json:"url,omitempty"`
+	Related          RelatedAPIModel `json:"related,omitempty"`
 	Name         string `json:"name"`
 	Description  string `json:"description,omitempty"`
 	Variables    string `json:"variables,omitempty"`
+}
+
+type SummaryFieldsAPIModel struct{
+	Organization OrganizationAPIModel `json:"organization"`
+}
+
+type OrganizationAPIModel struct{
+	Id           int64  `json:"id,omitempty"`
+	Name         string `json:"name"`
+	Description  string `json:"description,omitempty"`
+}
+
+type RelatedAPIModel struct{
+	NamedUrl     string `json:"named_url,omitempty"`
 }
