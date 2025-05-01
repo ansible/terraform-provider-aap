@@ -146,6 +146,7 @@ func (p *aapProvider) DataSources(_ context.Context) []func() datasource.DataSou
 	return []func() datasource.DataSource{
 		NewInventoryDataSource,
 		NewJobTemplateDataSource,
+		NewWorkflowJobTemplateDataSource,
 	}
 }
 
