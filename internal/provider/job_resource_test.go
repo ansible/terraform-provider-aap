@@ -275,7 +275,7 @@ func TestAccAAPJob_basic(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api(/controller)?/v2/jobs/[0-9]*/$")),
 					testAccCheckJobExists,
 				),
 			},
@@ -299,7 +299,7 @@ func TestAccAAPJob_UpdateWithSameParameters(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api(/controller)?/v2/jobs/[0-9]*/$")),
 					testAccCheckJobUpdate(&jobURLBefore, false),
 				),
 			},
@@ -308,7 +308,7 @@ func TestAccAAPJob_UpdateWithSameParameters(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api(/controller)?/v2/jobs/[0-9]*/$")),
 					testAccCheckJobUpdate(&jobURLBefore, false),
 				),
 			},
@@ -332,7 +332,7 @@ func TestAccAAPJob_UpdateWithNewInventoryId(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api(/controller)?/v2/jobs/[0-9]*/$")),
 					testAccCheckJobUpdate(&jobURLBefore, false),
 				),
 			},
@@ -341,7 +341,7 @@ func TestAccAAPJob_UpdateWithNewInventoryId(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api(/controller)?/v2/jobs/[0-9]*/$")),
 					testAccCheckJobUpdate(&jobURLBefore, true),
 					// Wait for the job to finish so the inventory can be deleted
 					testAccCheckJobPause("aap_job.test"),
@@ -367,7 +367,7 @@ func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api(/controller)?/v2/jobs/[0-9]*/$")),
 					testAccCheckJobUpdate(&jobURLBefore, false),
 				),
 			},
@@ -376,7 +376,7 @@ func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
-					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api/v2/jobs/[0-9]*/$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api(/controller)?/v2/jobs/[0-9]*/$")),
 					testAccCheckJobUpdate(&jobURLBefore, true),
 				),
 			},
