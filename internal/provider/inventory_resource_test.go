@@ -43,12 +43,12 @@ func TestInventoryResourceSchema(t *testing.T) {
 func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 	var testTable = []struct {
 		name     string
-		input    inventoryResourceModel
+		input    InventoryResourceModel
 		expected []byte
 	}{
 		{
 			name: "unknown values",
-			input: inventoryResourceModel{
+			input: InventoryResourceModel{
 				Id:           types.Int64Unknown(),
 				Organization: types.Int64Unknown(),
 				Url:          types.StringUnknown(),
@@ -60,7 +60,7 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 		},
 		{
 			name: "null values",
-			input: inventoryResourceModel{
+			input: InventoryResourceModel{
 				Id:           types.Int64Null(),
 				Organization: types.Int64Null(),
 				Url:          types.StringNull(),
@@ -72,7 +72,7 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 		},
 		{
 			name: "provided values",
-			input: inventoryResourceModel{
+			input: InventoryResourceModel{
 				Id:           types.Int64Value(1),
 				Organization: types.Int64Value(2),
 				Url:          types.StringValue("/inventories/1/"),
@@ -107,19 +107,19 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 	var testTable = []struct {
 		name     string
 		input    []byte
-		expected inventoryResourceModel
+		expected InventoryResourceModel
 		errors   diag.Diagnostics
 	}{
 		{
 			name:     "JSON error",
 			input:    []byte("Not valid JSON"),
-			expected: inventoryResourceModel{},
+			expected: InventoryResourceModel{},
 			errors:   jsonError,
 		},
 		{
 			name:  "missing values",
 			input: []byte(`{"id":1,"type":"inventory","name":"test inventory","organization":2,"url":"/inventories/1/"}`),
-			expected: inventoryResourceModel{
+			expected: InventoryResourceModel{
 				Id:           types.Int64Value(1),
 				Organization: types.Int64Value(2),
 				Url:          types.StringValue("/inventories/1/"),
@@ -135,7 +135,7 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 				`{"description":"A test inventory for testing","id":1,"name":"test inventory","organization":2,` +
 					`"type":"inventory","url":"/inventories/1/","variables":"{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"}`,
 			),
-			expected: inventoryResourceModel{
+			expected: InventoryResourceModel{
 				Id:           types.Int64Value(1),
 				Organization: types.Int64Value(2),
 				Url:          types.StringValue("/inventories/1/"),
@@ -149,7 +149,7 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			resource := inventoryResourceModel{}
+			resource := InventoryResourceModel{}
 			diags := resource.parseHTTPResponse(test.input)
 			if !test.errors.Equal(diags) {
 				t.Errorf("Expected error diagnostics (%s), actual was (%s)", test.errors, diags)

@@ -17,6 +17,35 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+// Inventory AAP API model
+type InventoryAPIModel struct {
+	Id            int64                 `json:"id,omitempty"`
+	Organization  int64                 `json:"organization"`
+	SummaryFields SummaryFieldsAPIModel `json:"summary_fields,omitempty"`
+	Url           string                `json:"url,omitempty"`
+	Related       RelatedAPIModel       `json:"related,omitempty"`
+	Name          string                `json:"name"`
+	Description   string                `json:"description,omitempty"`
+	Variables     string                `json:"variables,omitempty"`
+}
+
+// InventoryResourceModel maps the inventory resource schema to a Go struct.
+type InventoryResourceModel struct {
+	Id               types.Int64                      `tfsdk:"id"`
+	Organization     types.Int64                      `tfsdk:"organization"`
+	OrganizationName types.String                     `tfsdk:"organization_name"`
+	Url              types.String                     `tfsdk:"url"`
+	NamedUrl         types.String                     `tfsdk:"named_url"`
+	Name             types.String                     `tfsdk:"name"`
+	Description      types.String                     `tfsdk:"description"`
+	Variables        customtypes.AAPCustomStringValue `tfsdk:"variables"`
+}
+
+// InventoryResource is the resource implementation.
+type InventoryResource struct {
+	client ProviderHTTPClient
+}
+
 // Ensure the implementation satisfies the expected interfaces.
 var (
 	_ resource.Resource              = &InventoryResource{}
@@ -26,11 +55,6 @@ var (
 // NewInventoryResource is a helper function to simplify the provider implementation.
 func NewInventoryResource() resource.Resource {
 	return &InventoryResource{}
-}
-
-// InventoryResource is the resource implementation.
-type InventoryResource struct {
-	client ProviderHTTPClient
 }
 
 // Metadata returns the resource type name.
@@ -118,7 +142,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 
 // Create creates the inventory resource and sets the Terraform state on success.
 func (r *InventoryResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var data inventoryResourceModel
+	var data InventoryResourceModel
 	var diags diag.Diagnostics
 
 	// Read Terraform plan data into inventory resource model
@@ -161,7 +185,7 @@ func (r *InventoryResource) Create(ctx context.Context, req resource.CreateReque
 
 // Read refreshes the Terraform state with the latest inventory data.
 func (r *InventoryResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var data inventoryResourceModel
+	var data InventoryResourceModel
 	var diags diag.Diagnostics
 
 	// Read current Terraform state data into inventory resource model
@@ -195,7 +219,7 @@ func (r *InventoryResource) Read(ctx context.Context, req resource.ReadRequest, 
 
 // Update updates the inventory resource and sets the updated Terraform state on success.
 func (r *InventoryResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data inventoryResourceModel
+	var data InventoryResourceModel
 	var diags diag.Diagnostics
 
 	// Read Terraform plan data into inventory resource model
@@ -237,7 +261,7 @@ func (r *InventoryResource) Update(ctx context.Context, req resource.UpdateReque
 
 // Delete deletes the inventory resource.
 func (r *InventoryResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var data inventoryResourceModel
+	var data InventoryResourceModel
 	var diags diag.Diagnostics
 
 	// Read current Terraform state data into inventory resource model
@@ -255,20 +279,8 @@ func (r *InventoryResource) Delete(ctx context.Context, req resource.DeleteReque
 	}
 }
 
-// InventoryResourceModel maps the inventory resource schema to a Go struct.
-type inventoryResourceModel struct {
-	Id           types.Int64                      `tfsdk:"id"`
-	Organization types.Int64                      `tfsdk:"organization"`
-	OrganizationName types.String                 `tfsdk:"organization_name"`
-	Url          types.String                     `tfsdk:"url"`
-	NamedUrl     types.String                     `tfsdk:"named_url"`
-	Name         types.String                     `tfsdk:"name"`
-	Description  types.String                     `tfsdk:"description"`
-	Variables    customtypes.AAPCustomStringValue `tfsdk:"variables"`
-}
-
 // generateRequestBody creates a JSON encoded request body from the inventory resource data.
-func (r *inventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics) {
+func (r *InventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics) {
 	// Convert inventory resource data to API data model
 	var organizationId int64
 
@@ -300,7 +312,7 @@ func (r *inventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics
 }
 
 // parseHTTPResponse updates the inventory resource data from an AAP API response.
-func (r *inventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics {
+func (r *InventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics {
 	var parseResponseDiags diag.Diagnostics
 
 	// Unmarshal the JSON response
@@ -322,16 +334,4 @@ func (r *inventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics
 	r.Variables = ParseAAPCustomStringValue(apiInventory.Variables)
 
 	return parseResponseDiags
-}
-
-// Inventory AAP API model
-type InventoryAPIModel struct {
-	Id           int64  `json:"id,omitempty"`
-	Organization int64  `json:"organization"`
-	SummaryFields SummaryFieldsAPIModel `json:"summary_fields,omitempty"`
-	Url          string `json:"url,omitempty"`
-	Related          RelatedAPIModel `json:"related,omitempty"`
-	Name         string `json:"name"`
-	Description  string `json:"description,omitempty"`
-	Variables    string `json:"variables,omitempty"`
 }

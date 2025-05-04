@@ -82,6 +82,16 @@ func TestAAPCustomStringTypeValueFromTerraform(t *testing.T) {
 		expectation attr.Value
 		expectedErr string
 	}{
+		"yaml string no newline": {
+			in: tftypes.NewValue(tftypes.String, `<<-EOT
+			os: Linux
+			automation: ansible-devel
+			EOT`),
+			expectation: customtypes.NewAAPCustomStringValue(`<<-EOT
+			os: Linux
+			automation: ansible-devel
+			EOT2`),
+		},
 		"true": {
 			in:          tftypes.NewValue(tftypes.String, `{"hello":"world"}`),
 			expectation: customtypes.NewAAPCustomStringValue(`{"hello":"world"}`),
@@ -119,7 +129,7 @@ func TestAAPCustomStringTypeValueFromTerraform(t *testing.T) {
 				t.Fatalf("Expected error to be %q, didn't get an error", testCase.expectedErr)
 			}
 			if !got.Equal(testCase.expectation) {
-				t.Errorf("Expected %+v, got %+v", testCase.expectation, got)
+				t.Errorf("Expected %d, got %d", testCase.expectation, got)
 			}
 			if testCase.expectation.IsNull() != testCase.in.IsNull() {
 				t.Errorf("Expected null-ness match: expected %t, got %t", testCase.expectation.IsNull(), testCase.in.IsNull())

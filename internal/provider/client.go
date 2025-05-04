@@ -25,6 +25,15 @@ type ProviderHTTPClient interface {
 	getApiEndpoint() string
 }
 
+// Client -
+type AAPClient struct {
+	HostURL     string
+	Username    *string
+	Password    *string
+	httpClient  *http.Client
+	ApiEndpoint string
+}
+
 type AAPApiEndpointResponse struct {
 	Apis struct {
 		Controller string `json:"controller"`
@@ -66,15 +75,6 @@ func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
 		return "", diags
 	}
 	return response.CurrentVersion, diags
-}
-
-// Client -
-type AAPClient struct {
-	HostURL     string
-	Username    *string
-	Password    *string
-	httpClient  *http.Client
-	ApiEndpoint string
 }
 
 // NewClient - create new AAPClient instance
