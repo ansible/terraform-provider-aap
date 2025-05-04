@@ -196,7 +196,6 @@ func TestJobResourceParseHttpResponse(t *testing.T) {
 }
 
 // Acceptance tests
-
 func getJobResourceFromStateFile(s *terraform.State) (map[string]interface{}, error) {
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "aap_job" {
