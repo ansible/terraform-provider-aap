@@ -41,7 +41,11 @@ type WorkflowJobTemplateAPIModel struct {
 
 // WorkflowJobTemplateDataSource is the data source implementation.
 type WorkflowJobTemplateDataSource struct {
+<<<<<<< HEAD
 	client ProviderHTTPClient
+=======
+	client *AAPClient
+>>>>>>> 450c8ab (Refactoring and cleanup of new resources and data sources (#3))
 }
 
 // Ensure the implementation satisfies the expected interfaces.
