@@ -448,3 +448,54 @@ resource "aap_job" "test" {
 }
 `, jobTemplateID)
 }
+
+func TestAccAAPJob_disappears(t *testing.T) {
+	var jobUrl string
+
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Apply a basic terraform plan that creates an AAP Job and records it to state with a URL.
+			{
+				Config: testAccBasicJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api(/controller)?/v2/jobs/[0-9]*/$")),
+					testAccCheckJobUpdate(&jobUrl, false),
+				),
+			},
+			// Wait for the job to finish.
+			{
+				Config: testAccBasicJob(jobTemplateID),
+				Check:  testAccCheckJobPause("aap_job.test"),
+			},
+			// Delete the job directly, outside of terraform.
+			{
+				Config:             testAccBasicJob(jobTemplateID),
+				Check:              testAccDeleteJob(&jobUrl),
+				ExpectNonEmptyPlan: true,
+			},
+			// Apply the plan again and confirm the job is re-created with a different URL.
+			{
+				Config: testAccBasicJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api(/controller)?/v2/jobs/[0-9]*/$")),
+					testAccCheckJobUpdate(&jobUrl, true),
+				),
+			},
+		},
+	})
+}
+
+func testAccDeleteJob(jobUrl *string) func(s *terraform.State) error {
+	return func(s *terraform.State) error {
+		_, err := testDeleteResource(*jobUrl)
+		return err
+	}
+}
