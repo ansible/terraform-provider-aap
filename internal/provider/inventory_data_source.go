@@ -105,8 +105,14 @@ func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
+<<<<<<< HEAD
 	uri := path.Join(d.client.getApiEndpoint(), "inventories")
 	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, uri)
+=======
+	URI := path.Join(d.client.getApiEndpoint(), "inventories")
+	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, URI)
+	// resourceURL, err := state.ResourceUrlFromParameters(d)
+>>>>>>> dc7d667 (Fix inventory unit tests)
 	if err != nil {
 		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected either [id] or [name + organization_name] pair")
 		return
@@ -180,7 +186,11 @@ func (d *InventoryDataSource) ValidateConfig(ctx context.Context, req datasource
 		return
 	}
 
+<<<<<<< HEAD
 	if !IsValueProvided(data.Id) && !IsValueProvided(data.Name) {
+=======
+	if IsValueNotProvided(data.Id) && IsValueNotProvided(data.Name) {
+>>>>>>> dc7d667 (Fix inventory unit tests)
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Attribute Configuration",
@@ -188,7 +198,11 @@ func (d *InventoryDataSource) ValidateConfig(ctx context.Context, req datasource
 		)
 	}
 
+<<<<<<< HEAD
 	if IsValueProvided(data.Name) && !IsValueProvided(data.OrganizationName) {
+=======
+	if IsValueProvided(data.Name) && IsValueNotProvided(data.OrganizationName) {
+>>>>>>> dc7d667 (Fix inventory unit tests)
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("organization_name"),
 			"Missing Attribute Configuration",
@@ -196,7 +210,11 @@ func (d *InventoryDataSource) ValidateConfig(ctx context.Context, req datasource
 		)
 	}
 
+<<<<<<< HEAD
 	if !IsValueProvided(data.Name) && IsValueProvided(data.OrganizationName) {
+=======
+	if IsValueNotProvided(data.Name) && IsValueProvided(data.OrganizationName) {
+>>>>>>> dc7d667 (Fix inventory unit tests)
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("name"),
 			"Missing Attribute Configuration",

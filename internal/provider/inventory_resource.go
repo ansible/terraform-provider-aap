@@ -288,7 +288,11 @@ func (r *InventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics
 		organizationId = r.Organization.ValueInt64()
 	}
 
+<<<<<<< HEAD
 	if !IsValueProvided(r.NamedUrl) {
+=======
+	if IsValueNotProvided(r.NamedUrl) {
+>>>>>>> dc7d667 (Fix inventory unit tests)
 		namedURL, err := ReturnAAPNamedURL(r.Id, r.Name, r.OrganizationName, "inventories")
 		// Squashing error here. If we can't generate the named url just leave it blank
 		if err == nil {
