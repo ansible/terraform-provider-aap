@@ -16,14 +16,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-type AAPDataSourceUtils interface {
-	ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, URI string) (string, error)
-}
-
 func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, URI string) (string, error) {
-	if !id.IsNull() {
+	if IsValueProvided(id) {
 		return path.Join(URI, id.String()), nil
-	} else if !name.IsNull() && !orgName.IsNull() {
+	} else if IsValueProvided(name) && IsValueProvided(orgName) {
 		namedUrl := fmt.Sprintf("%s++%s", name.ValueString(), orgName.ValueString())
 		return path.Join(URI, namedUrl), nil
 	} else {
@@ -31,8 +27,12 @@ func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, 
 	}
 }
 
+func IsValueNotProvided(value attr.Value) bool {
+	return value.IsNull() || value.IsUnknown()
+}
+
 func IsValueProvided(value attr.Value) bool {
-	return !value.IsNull() && !value.IsUnknown()
+	return !(value.IsNull() || value.IsUnknown())
 }
 
 func ValidateResponse(resp *http.Response, body []byte, err error, expected_statuses []int) diag.Diagnostics {

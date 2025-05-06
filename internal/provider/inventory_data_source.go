@@ -30,8 +30,7 @@ type InventoryDataSourceModel struct {
 
 // InventoryDataSource is the data source implementation.
 type InventoryDataSource struct {
-	client  ProviderHTTPClient
-	dsutils AAPDataSourceUtils
+	client ProviderHTTPClient
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -107,7 +106,7 @@ func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadReque
 	}
 
 	URI := path.Join(d.client.getApiEndpoint(), "inventories")
-	resourceURL, err := d.dsutils.ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, URI)
+	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, URI)
 	// resourceURL, err := state.ResourceUrlFromParameters(d)
 	if err != nil {
 		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected either [id] or [name + organization_name] pair")
@@ -174,15 +173,15 @@ func (d *InventoryDataSource) ValidateConfig(ctx context.Context, req provider.V
 		return
 	}
 
-	if !data.Id.IsNull() {
+	if IsValueProvided(data.Id) {
 		return
 	}
 
-	if !data.Name.IsNull() && !data.OrganizationName.IsNull() {
+	if IsValueProvided(data.Name) && IsValueProvided(data.OrganizationName) {
 		return
 	}
 
-	if data.Id.IsNull() && data.Name.IsNull() {
+	if IsValueNotProvided(data.Id) && IsValueNotProvided(data.Name) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Atribute Configuration",
@@ -190,7 +189,7 @@ func (d *InventoryDataSource) ValidateConfig(ctx context.Context, req provider.V
 		)
 	}
 
-	if !data.Name.IsNull() && data.OrganizationName.IsNull() {
+	if IsValueProvided(data.Name) && IsValueNotProvided(data.OrganizationName) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("organization_name"),
 			"Missing Attribute Configuration",
@@ -198,7 +197,7 @@ func (d *InventoryDataSource) ValidateConfig(ctx context.Context, req provider.V
 		)
 	}
 
-	if data.Name.IsNull() && !data.OrganizationName.IsNull() {
+	if IsValueNotProvided(data.Name) && IsValueProvided(data.OrganizationName) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("name"),
 			"Missing Attribute Configuration",

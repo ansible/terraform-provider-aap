@@ -290,11 +290,33 @@ func (r *InventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics
 	} else {
 		organizationId = r.Organization.ValueInt64()
 	}
+
+	if IsValueNotProvided(r.NamedUrl) {
+		namedURL, err := ReturnAAPNamedURL(r.Id, r.Name, r.OrganizationName, "inventories")
+		// Squashing error here. If we can't generate the named url just leave it blank
+		if err == nil {
+			r.NamedUrl = types.StringValue(namedURL)
+		}
+	}
+
 	inventory := InventoryAPIModel{
 		Organization: organizationId,
 		Name:         r.Name.ValueString(),
 		Description:  r.Description.ValueString(),
 		Variables:    r.Variables.ValueString(),
+		SummaryFields: SummaryFieldsAPIModel{
+			Organization: SummaryAPIModel{
+				Id:   organizationId,
+				Name: r.OrganizationName.ValueString(),
+			},
+			Inventory: SummaryAPIModel{
+				Id:   r.Id.ValueInt64(),
+				Name: r.Name.ValueString(),
+			},
+		},
+		Related: RelatedAPIModel{
+			NamedUrl: r.NamedUrl.ValueString(),
+		},
 	}
 
 	// Generate JSON encoded request body
@@ -326,9 +348,9 @@ func (r *InventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics
 	// Map response to the inventory resource schema and update attribute values
 	r.Id = types.Int64Value(apiInventory.Id)
 	r.Organization = types.Int64Value(apiInventory.Organization)
-	r.OrganizationName = types.StringValue(apiInventory.SummaryFields.Organization.Name)
+	r.OrganizationName = ParseStringValue(apiInventory.SummaryFields.Organization.Name)
 	r.Url = types.StringValue(apiInventory.Url)
-	r.NamedUrl = types.StringValue(apiInventory.Related.NamedUrl)
+	r.NamedUrl = ParseStringValue(apiInventory.Related.NamedUrl)
 	r.Name = types.StringValue(apiInventory.Name)
 	r.Description = ParseStringValue(apiInventory.Description)
 	r.Variables = ParseAAPCustomStringValue(apiInventory.Variables)

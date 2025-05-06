@@ -61,6 +61,24 @@ func TestReturnAAPNamedURL(t *testing.T) {
 		},
 		{
 
+			id:          types.Int64Unknown(),
+			name:        types.StringValue("test"),
+			orgName:     types.StringValue("org1"),
+			URI:         "inventories",
+			expectError: nil,
+			expectedUrl: "inventories/test++org1",
+		},
+		{
+
+			id:          types.Int64Null(),
+			name:        types.StringUnknown(),
+			orgName:     types.StringNull(),
+			URI:         "inventories",
+			expectError: errors.New("invalid lookup parameters"),
+			expectedUrl: "",
+		},
+		{
+
 			id:          types.Int64Null(),
 			name:        types.StringNull(),
 			orgName:     types.StringNull(),
