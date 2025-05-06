@@ -471,12 +471,23 @@ func TestAccAAPJob_disappears(t *testing.T) {
 			// Wait for the job to finish.
 			{
 				Config: testAccBasicJob(jobTemplateID),
-				Check:  testAccCheckJobPause("aap_job.test"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api(/controller)?/v2/jobs/[0-9]*/$")),
+					// Wait for the job to finish so the inventory can be deleted
+					testAccCheckJobPause("aap_job.test"),
+				),
 			},
-			// Delete the job directly, outside of terraform.
+			// Confirm the job is finished, then delete directly via API, outside of terraform.
 			{
-				Config:             testAccBasicJob(jobTemplateID),
-				Check:              testAccDeleteJob(&jobUrl),
+				Config: testAccBasicJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "status", regexp.MustCompile("^(failed|complete|successful)$")),
+					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
+					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api(/controller)?/v2/jobs/[0-9]*/$")),
+					testAccDeleteJob(&jobUrl),
+				),
 				ExpectNonEmptyPlan: true,
 			},
 			// Apply the plan again and confirm the job is re-created with a different URL.
