@@ -90,7 +90,7 @@ func TestAAPCustomStringTypeValueFromTerraform(t *testing.T) {
 			expectation: customtypes.NewAAPCustomStringValue(`<<-EOT
 			os: Linux
 			automation: ansible-devel
-			EOT2`),
+			EOT`),
 		},
 		"true": {
 			in:          tftypes.NewValue(tftypes.String, `{"hello":"world"}`),

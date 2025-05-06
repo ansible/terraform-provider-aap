@@ -145,8 +145,6 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 func (p *aapProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewInventoryDataSource,
-		NewJobTemplateDataSource,
-		NewWorkflowJobTemplateDataSource,
 	}
 }
 
@@ -155,7 +153,6 @@ func (p *aapProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewInventoryResource,
 		NewJobResource,
-		NewWorkflowJobResource,
 		NewGroupResource,
 		NewHostResource,
 	}

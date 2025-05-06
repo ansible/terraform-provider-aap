@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"path"
 	"slices"
-	"strings"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
@@ -17,34 +16,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// type AAPDataSourceModel interface {
-// 	types.Int64
-// 	types.String
-// 	types.String
-// }
-
-type AAPDataSource[T any] struct {
-	client ProviderHTTPClient
+type AAPDataSourceUtils interface {
+	ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, URI string) (string, error)
 }
 
-type AAPDataSourceModel[T any] struct {
-	Id               types.Int64
-	Name             types.String
-	OrganizationName types.String
-}
-
-func NewAAPDataSourceModel(model any) AAPDataSourceModel[any] {
-	return *&AAPDataSourceModel[any]{}
-}
-
-func (dsm *AAPDataSourceModel[T]) ReturnAAPResourceUrlDataSourceModel(datasource AAPDataSource[T]) (string, error) {
-	if !dsm.Id.IsNull() {
-		return path.Join(datasource.client.getApiEndpoint(), "inventories", dsm.Id.String()), nil
-	} else if !dsm.Name.IsNull() && !dsm.OrganizationName.IsNull() {
-		namedUrl := strings.Join([]string{dsm.Name.String()[1 : len(dsm.Name.String())-1], "++", dsm.OrganizationName.String()[1 : len(dsm.OrganizationName.String())-1]}, "")
-		return path.Join(datasource.client.getApiEndpoint(), "inventories", namedUrl), nil
+func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, URI string) (string, error) {
+	if !id.IsNull() {
+		return path.Join(URI, id.String()), nil
+	} else if !name.IsNull() && !orgName.IsNull() {
+		namedUrl := fmt.Sprintf("%s++%s", name.ValueString(), orgName.ValueString())
+		return path.Join(URI, namedUrl), nil
 	} else {
-		return types.StringNull().String(), errors.New("invalid lookup parameters")
+		return "", errors.New("invalid lookup parameters")
 	}
 }
 
@@ -91,25 +74,6 @@ func getURL(base string, paths ...string) (string, diag.Diagnostics) {
 
 	return u.String(), diags
 }
-
-type ParseValue interface {
-	ParseValue(value string) any
-}
-
-type StringTyped struct {
-}
-
-func (t *StringTyped) ParseValue(value string) types.String {
-	if value != "" {
-		return types.StringValue(value)
-	} else {
-		return types.StringNull()
-	}
-}
-
-// func (t *TypedParseValue) ParseValue(value string) jsontypes.Normalized {
-
-// }
 
 func ParseStringValue(description string) types.String {
 	if description != "" {

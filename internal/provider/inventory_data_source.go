@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path"
 
@@ -31,7 +30,8 @@ type InventoryDataSourceModel struct {
 
 // InventoryDataSource is the data source implementation.
 type InventoryDataSource struct {
-	client ProviderHTTPClient
+	client  ProviderHTTPClient
+	dsutils AAPDataSourceUtils
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -106,7 +106,9 @@ func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	resourceURL, err := state.ResourceUrlFromParameters(d)
+	URI := path.Join(d.client.getApiEndpoint(), "inventories")
+	resourceURL, err := d.dsutils.ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, URI)
+	// resourceURL, err := state.ResourceUrlFromParameters(d)
 	if err != nil {
 		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected either [id] or [name + organization_name] pair")
 		return
@@ -196,6 +198,14 @@ func (d *InventoryDataSource) ValidateConfig(ctx context.Context, req provider.V
 		)
 	}
 
+	if data.Name.IsNull() && !data.OrganizationName.IsNull() {
+		resp.Diagnostics.AddAttributeWarning(
+			tfpath.Root("name"),
+			"Missing Attribute Configuration",
+			"Expected name to be configured with organization_name.",
+		)
+	}
+
 }
 
 func (dm *InventoryDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
@@ -220,18 +230,4 @@ func (dm *InventoryDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnost
 	dm.Variables = ParseAAPCustomStringValue(apiInventory.Variables)
 
 	return diags
-}
-
-// ResourceUrlFromParameters Given the provided parameters and return the appropriate resource url
-func (dm *InventoryDataSourceModel) ResourceUrlFromParameters(datasource *InventoryDataSource) (string, error) {
-	//Here is where we can get the "named" inventory, which is "Inventory Name"++"Organization Name" to derive uniqueness
-	//we will take precedence if the Id is set to use that over the named_url attempt.
-	if !dm.Id.IsNull() {
-		return path.Join(datasource.client.getApiEndpoint(), "inventories", dm.Id.String()), nil
-	} else if dm.Name.ValueString() != "" && dm.OrganizationName.ValueString() != "" {
-		namedUrl := fmt.Sprintf("%s++%s", dm.Name.ValueString(), dm.OrganizationName.ValueString())
-		return path.Join(datasource.client.getApiEndpoint(), "inventories", namedUrl), nil
-	} else {
-		return "", errors.New("invalid inventory lookup parameters")
-	}
 }
