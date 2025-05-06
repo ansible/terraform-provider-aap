@@ -27,6 +27,7 @@ func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, 
 	}
 
 	return "", errors.New("invalid lookup parameters")
+
 }
 
 func IsValueProvided(value attr.Value) bool {
