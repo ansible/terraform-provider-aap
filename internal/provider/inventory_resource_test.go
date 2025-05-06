@@ -86,13 +86,9 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 				Variables:        customtypes.NewAAPCustomStringValue("{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}"),
 			},
 			expected: []byte(
-<<<<<<< HEAD
 				`{"organization":2,"summary_fields":{"organization":{"id":2,"name":"test organization"},"inventory":{"id":1,"name":"test inventory"}},` +
 					`"related":{"named_url":"inventories/1"},"name":"test inventory","description":"A test inventory for testing",` +
 					`"variables":"{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}"}`,
-=======
-				`{"organization":2,"summary_fields":{"organization":{"id":2,"name":"test organization"},"inventory":{"id":1,"name":"test inventory"}},"related":{"named_url":"inventories/1"},"name":"test inventory","description":"A test inventory for testing","variables":"{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}"}`,
->>>>>>> dc7d667 (Fix inventory unit tests)
 			),
 		},
 	}
