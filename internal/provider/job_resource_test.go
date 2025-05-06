@@ -344,7 +344,7 @@ func TestAccAAPJob_UpdateWithNewInventoryId(t *testing.T) {
 					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api(/controller)?/v2/jobs/[0-9]*/$")),
 					testAccCheckJobUpdate(&jobURLBefore, true),
 					// Wait for the job to finish so the inventory can be deleted
-					testAccCheckJobPause("aap_job.test"),
+					testAccCheckJobPause(resourceName),
 				),
 			},
 		},
@@ -476,10 +476,10 @@ func TestAccAAPJob_disappears(t *testing.T) {
 					resource.TestMatchResourceAttr(resourceName, "job_type", regexp.MustCompile("^(run|check)$")),
 					resource.TestMatchResourceAttr(resourceName, "url", regexp.MustCompile("^/api(/controller)?/v2/jobs/[0-9]*/$")),
 					// Wait for the job to finish so the inventory can be deleted
-					testAccCheckJobPause("aap_job.test"),
+					testAccCheckJobPause(resourceName),
 				),
 			},
-			// Confirm the job is finished, then delete directly via API, outside of terraform.
+			// Confirm the job is finished (fewer options in status), then delete directly via API, outside of terraform.
 			{
 				Config: testAccBasicJob(jobTemplateID),
 				Check: resource.ComposeAggregateTestCheckFunc(
