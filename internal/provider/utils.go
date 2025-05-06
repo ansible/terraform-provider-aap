@@ -73,25 +73,6 @@ func getURL(base string, paths ...string) (string, diag.Diagnostics) {
 	return u.String(), diags
 }
 
-type ParseValue interface {
-	ParseValue(value string) any
-}
-
-type StringTyped struct {
-}
-
-func (t *StringTyped) ParseValue(value string) types.String {
-	if value != "" {
-		return types.StringValue(value)
-	} else {
-		return types.StringNull()
-	}
-}
-
-// func (t *TypedParseValue) ParseValue(value string) jsontypes.Normalized {
-
-// }
-
 func ParseStringValue(description string) types.String {
 	if description != "" {
 		return types.StringValue(description)

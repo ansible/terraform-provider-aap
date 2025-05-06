@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path"
 
@@ -228,18 +227,4 @@ func (dm *InventoryDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnost
 	dm.Variables = ParseAAPCustomStringValue(apiInventory.Variables)
 
 	return diags
-}
-
-// ResourceUrlFromParameters Given the provided parameters and return the appropriate resource url
-func (dm *InventoryDataSourceModel) ResourceUrlFromParameters(datasource *InventoryDataSource) (string, error) {
-	//Here is where we can get the "named" inventory, which is "Inventory Name"++"Organization Name" to derive uniqueness
-	//we will take precedence if the Id is set to use that over the named_url attempt.
-	if !dm.Id.IsNull() {
-		return path.Join(datasource.client.getApiEndpoint(), "inventories", dm.Id.String()), nil
-	} else if dm.Name.ValueString() != "" && dm.OrganizationName.ValueString() != "" {
-		namedUrl := fmt.Sprintf("%s++%s", dm.Name.ValueString(), dm.OrganizationName.ValueString())
-		return path.Join(datasource.client.getApiEndpoint(), "inventories", namedUrl), nil
-	} else {
-		return "", errors.New("invalid inventory lookup parameters")
-	}
 }
