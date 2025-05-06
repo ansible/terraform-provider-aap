@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -94,6 +95,88 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 			}
 			if test.expected != resource {
 				t.Errorf("Expected (%s) not equal to actual (%s)", test.expected, resource)
+			}
+		})
+	}
+}
+
+func TestInventoryDataSourceValidateLookupParameters(t *testing.T) {
+	var testTable = []struct {
+		name string
+		organization string
+		id int64
+		expectError error
+		expectedUrl string
+	}{
+		{
+			name: "",
+			organization: "",
+			id: 1,
+			expectError: nil,
+			expectedUrl: "inventories/1",
+		},
+		{
+			name: "test",
+			organization: "org1",
+			id: 1,
+			expectError: nil,
+			expectedUrl: "inventories/1",
+		},
+		{
+			name: "",
+			organization: "org1",
+			id: 1,
+			expectError: nil,
+			expectedUrl: "inventories/1",
+		},
+		{
+			name: "test",
+			organization: "",
+			id: 1,
+			expectError: nil,
+			expectedUrl: "inventories/1",
+		},
+		{
+			name: "test",
+			organization: "org1",
+			expectError: nil,
+			expectedUrl: "inventories/test++org1",
+		},
+		{
+			name: "",
+			organization: "",
+			expectError: errors.New("invalid inventory lookup parameters"),
+			expectedUrl: "",
+		},
+		{
+			name: "test",
+			organization: "",
+			expectError: errors.New("invalid inventory lookup parameters"),
+			expectedUrl: "",
+		},
+		{
+			name: "",
+			organization: "org1",
+			expectError: errors.New("invalid inventory lookup parameters"),
+			expectedUrl: "",
+		},
+	}
+	for _, test := range testTable {
+		t.Run("test_test", func(t *testing.T) {
+			resource := InventoryDataSourceModel{}
+			resource.Name = types.StringValue(test.name)
+			resource.OrganizationName = types.StringValue(test.organization)
+			if test.id != 0 {
+				resource.Id = types.Int64Value(test.id)
+			}
+			url, err := resource.ValidateLookupParameters(&InventoryDataSource{
+				client: &AAPClient{},
+			})
+			if err != nil && err.Error() != test.expectError.Error() {
+				t.Errorf("Expected error: %v but got %v", test.expectError.Error(), err.Error())
+			}
+			if url != test.expectedUrl {
+				t.Errorf("Expected %v but got %v", test.expectedUrl, url)
 			}
 		})
 	}
