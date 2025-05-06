@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tfpath "github.com/hashicorp/terraform-plugin-framework/path"
-	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -38,6 +37,7 @@ var (
 	_ datasource.DataSource                     = &InventoryDataSource{}
 	_ datasource.DataSourceWithConfigure        = &InventoryDataSource{}
 	_ datasource.DataSourceWithConfigValidators = &InventoryDataSource{}
+	_ datasource.DataSourceWithValidateConfig   = &InventoryDataSource{}
 )
 
 // NewInventoryDataSource is a helper function to simplify the provider implementation.
@@ -105,9 +105,8 @@ func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	URI := path.Join(d.client.getApiEndpoint(), "inventories")
-	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, URI)
-	// resourceURL, err := state.ResourceUrlFromParameters(d)
+	uri := path.Join(d.client.getApiEndpoint(), "inventories")
+	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, uri)
 	if err != nil {
 		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected either [id] or [name + organization_name] pair")
 		return
@@ -164,7 +163,7 @@ func (d *InventoryDataSource) ConfigValidators(_ context.Context) []datasource.C
 	}
 }
 
-func (d *InventoryDataSource) ValidateConfig(ctx context.Context, req provider.ValidateConfigRequest, resp *provider.ValidateConfigResponse) {
+func (d *InventoryDataSource) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, resp *datasource.ValidateConfigResponse) {
 	var data InventoryDataSourceModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
@@ -181,15 +180,15 @@ func (d *InventoryDataSource) ValidateConfig(ctx context.Context, req provider.V
 		return
 	}
 
-	if IsValueNotProvided(data.Id) && IsValueNotProvided(data.Name) {
+	if !IsValueProvided(data.Id) && !IsValueProvided(data.Name) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
-			"Missing Atribute Configuration",
+			"Missing Attribute Configuration",
 			"Expected either [id] or [name + organization_name] pair",
 		)
 	}
 
-	if IsValueProvided(data.Name) && IsValueNotProvided(data.OrganizationName) {
+	if IsValueProvided(data.Name) && !IsValueProvided(data.OrganizationName) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("organization_name"),
 			"Missing Attribute Configuration",
@@ -197,14 +196,13 @@ func (d *InventoryDataSource) ValidateConfig(ctx context.Context, req provider.V
 		)
 	}
 
-	if IsValueNotProvided(data.Name) && IsValueProvided(data.OrganizationName) {
+	if !IsValueProvided(data.Name) && IsValueProvided(data.OrganizationName) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("name"),
 			"Missing Attribute Configuration",
 			"Expected name to be configured with organization_name.",
 		)
 	}
-
 }
 
 func (dm *InventoryDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {

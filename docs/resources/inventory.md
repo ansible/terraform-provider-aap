@@ -111,4 +111,6 @@ output "inventory_xyz" {
 ### Read-Only
 
 - `id` (Number) Inventory id
+- `named_url` (String) Named URL of the inventory
+- `organization_name` (String) Name for the organization.
 - `url` (String) URL of the inventory

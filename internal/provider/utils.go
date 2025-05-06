@@ -16,19 +16,17 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, URI string) (string, error) {
+func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, uri string) (string, error) {
 	if IsValueProvided(id) {
-		return path.Join(URI, id.String()), nil
-	} else if IsValueProvided(name) && IsValueProvided(orgName) {
-		namedUrl := fmt.Sprintf("%s++%s", name.ValueString(), orgName.ValueString())
-		return path.Join(URI, namedUrl), nil
-	} else {
-		return "", errors.New("invalid lookup parameters")
+		return path.Join(uri, id.String()), nil
 	}
-}
 
-func IsValueNotProvided(value attr.Value) bool {
-	return value.IsNull() || value.IsUnknown()
+	if IsValueProvided(name) && IsValueProvided(orgName) {
+		namedUrl := fmt.Sprintf("%s++%s", name.ValueString(), orgName.ValueString())
+		return path.Join(uri, namedUrl), nil
+	}
+
+	return "", errors.New("invalid lookup parameters")
 }
 
 func IsValueProvided(value attr.Value) bool {
