@@ -1,0 +1,3 @@
+---
+bugfixes:
+  - Fix plan failure when AAP job created by provider are deleted outside of terraform (https://github.com/ansible/terraform-provider-aap/pull/61).
