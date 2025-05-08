@@ -13,6 +13,7 @@ provider "aap" {
   host                 = "https://localhost:8043"
   username             = "ansible"
   password             = "test123!"
+  default_orgaization  = 4
   insecure_skip_verify = true
 }
 

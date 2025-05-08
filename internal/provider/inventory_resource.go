@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"path"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
@@ -24,13 +25,16 @@ var (
 )
 
 // NewInventoryResource is a helper function to simplify the provider implementation.
-func NewInventoryResource() resource.Resource {
-	return &InventoryResource{}
+func NewInventoryResource(providerModel *aapProviderModel) resource.Resource {
+	return &InventoryResource{
+		providerModel: providerModel,
+	}
 }
 
 // InventoryResource is the resource implementation.
 type InventoryResource struct {
-	client ProviderHTTPClient
+	providerModel *aapProviderModel
+	client        ProviderHTTPClient
 }
 
 // Metadata returns the resource type name.
@@ -75,7 +79,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 					int64planmodifier.UseStateForUnknown(),
 				},
 				Description: "Identifier for the organization the inventory should be created in. " +
-					"If not provided, the inventory will be created in the default organization.",
+					"If not specified on the resource or in the provider block, the inventory will be created in the default organization.",
 			},
 			"url": schema.StringAttribute{
 				Computed: true,
@@ -115,7 +119,7 @@ func (r *InventoryResource) Create(ctx context.Context, req resource.CreateReque
 	}
 
 	// Generate request body from inventory data
-	createRequestBody, diags := data.generateRequestBody()
+	createRequestBody, diags := data.generateRequestBody(*r.providerModel)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -192,7 +196,7 @@ func (r *InventoryResource) Update(ctx context.Context, req resource.UpdateReque
 	}
 
 	// Generate request body from inventory data
-	updateRequestBody, diags := data.generateRequestBody()
+	updateRequestBody, diags := data.generateRequestBody(*r.providerModel)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -252,15 +256,17 @@ type inventoryResourceModel struct {
 }
 
 // generateRequestBody creates a JSON encoded request body from the inventory resource data.
-func (r *inventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics) {
+func (r *inventoryResourceModel) generateRequestBody(providerModel aapProviderModel) ([]byte, diag.Diagnostics) {
 	// Convert inventory resource data to API data model
 	var organizationId int64
 
 	// Use default organization if not provided
 	if r.Organization.ValueInt64() == 0 {
-		organizationId = 1
+		organizationId = providerModel.DefaultOrganization.ValueInt64()
+		log.Printf("Organization ID set to the Default: %d", organizationId)
 	} else {
 		organizationId = r.Organization.ValueInt64()
+		log.Printf("Organization ID set by the Resource: %d", organizationId)
 	}
 	inventory := InventoryAPIModel{
 		Organization: organizationId,
@@ -279,7 +285,6 @@ func (r *inventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics
 		)
 		return nil, diags
 	}
-
 	return jsonBody, nil
 }
 
