@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 
@@ -41,7 +42,7 @@ func testAccPreCheck(t *testing.T) {
 	}
 }
 
-func testGetResource(urlPath string) ([]byte, error) {
+func testMethodResource(method string, urlPath string) ([]byte, error) {
 	host := os.Getenv("AAP_HOST")
 	username := os.Getenv("AAP_USERNAME")
 	password := os.Getenv("AAP_PASSWORD")
@@ -51,12 +52,27 @@ func testGetResource(urlPath string) ([]byte, error) {
 		return nil, fmt.Errorf("%v", diags.Errors())
 	}
 
-	body, diags := client.Get(urlPath)
+	var body []byte
+	switch method {
+	case http.MethodGet:
+		body, diags = client.Get(urlPath)
+	case http.MethodDelete:
+		body, diags = client.Delete(urlPath)
+	}
+
 	if diags.HasError() {
 		return nil, fmt.Errorf("%v", diags.Errors())
 	}
 
 	return body, nil
+}
+
+func testGetResource(urlPath string) ([]byte, error) {
+	return testMethodResource(http.MethodGet, urlPath)
+}
+
+func testDeleteResource(urlPath string) ([]byte, error) {
+	return testMethodResource(http.MethodDelete, urlPath)
 }
 
 func TestReadValues(t *testing.T) {

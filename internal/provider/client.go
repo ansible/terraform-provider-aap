@@ -18,6 +18,7 @@ type ProviderHTTPClient interface {
 	doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error)
 	Create(path string, data io.Reader) ([]byte, diag.Diagnostics)
 	Get(path string) ([]byte, diag.Diagnostics)
+	GetWithStatus(path string) ([]byte, diag.Diagnostics, int)
 	Update(path string, data io.Reader) ([]byte, diag.Diagnostics)
 	Delete(path string) ([]byte, diag.Diagnostics)
 	setApiEndpoint() diag.Diagnostics
@@ -148,9 +149,14 @@ func (c *AAPClient) Create(path string, data io.Reader) ([]byte, diag.Diagnostic
 }
 
 // Get sends a GET request to the provided path, checks for errors, and returns the response body with any errors as diagnostics.
-func (c *AAPClient) Get(path string) ([]byte, diag.Diagnostics) {
+func (c *AAPClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
 	getResponse, body, err := c.doRequest("GET", path, nil)
 	diags := ValidateResponse(getResponse, body, err, []int{http.StatusOK})
+	return body, diags, getResponse.StatusCode
+}
+
+func (c *AAPClient) Get(path string) ([]byte, diag.Diagnostics) {
+	body, diags, _ := c.GetWithStatus(path)
 	return body, diags
 }
 

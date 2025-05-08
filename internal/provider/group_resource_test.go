@@ -195,7 +195,7 @@ func TestAccGroupResource(t *testing.T) {
 					testAccCheckGroupResourceValues(&groupApiModel, groupName, "", ""),
 					resource.TestCheckResourceAttr("aap_group.test", "name", groupName),
 					resource.TestCheckResourceAttrPair("aap_group.test", "inventory_id", "aap_inventory.test", "id"),
-					resource.TestMatchResourceAttr("aap_group.test", "url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
+					resource.TestMatchResourceAttr("aap_group.test", "url", regexp.MustCompile("^/api(/controller)?/v2/groups/[0-9]*/$")),
 				),
 			},
 			{
@@ -207,7 +207,7 @@ func TestAccGroupResource(t *testing.T) {
 					resource.TestCheckResourceAttrPair("aap_group.test", "inventory_id", "aap_inventory.test", "id"),
 					resource.TestCheckResourceAttr("aap_group.test", "description", description),
 					resource.TestCheckResourceAttr("aap_group.test", "variables", variables),
-					resource.TestMatchResourceAttr("aap_group.test", "url", regexp.MustCompile("^/api/v2/groups/[0-9]*/$")),
+					resource.TestMatchResourceAttr("aap_group.test", "url", regexp.MustCompile("^/api(/controller)?/v2/groups/[0-9]*/$")),
 				),
 			},
 		},

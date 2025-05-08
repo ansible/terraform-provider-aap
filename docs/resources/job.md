@@ -16,6 +16,8 @@ This resource always creates a new job in AAP. A destroy will not delete a job c
 
 -> **Note** To pass an inventory to an aap_job resource, the underlying job template *must* have been conigured to prompt for the inventory on launch.
 
+!> **Warning** If an AAP Job launched by this resource is deleted from AAP, the resource will be removed from the state and a new job will be created to replace it.
+
 
 ## Example Usage
 
