@@ -3,15 +3,15 @@ package provider
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path"
-	"strings"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
+	"github.com/hashicorp/terraform-plugin-framework-validators/datasourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	tfpath "github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -46,8 +46,10 @@ type JobTemplateDataSource struct {
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ datasource.DataSource              = &JobTemplateDataSource{}
-	_ datasource.DataSourceWithConfigure = &JobTemplateDataSource{}
+	_ datasource.DataSource                     = &JobTemplateDataSource{}
+	_ datasource.DataSourceWithConfigure        = &JobTemplateDataSource{}
+	_ datasource.DataSourceWithConfigValidators = &JobTemplateDataSource{}
+	_ datasource.DataSourceWithValidateConfig   = &JobTemplateDataSource{}
 )
 
 // NewJobTemplateDataSource is a helper function to simplify the provider implementation.
@@ -115,7 +117,8 @@ func (d *JobTemplateDataSource) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 
-	resourceURL, err := state.ValidateLookupParameters(d)
+	uri := path.Join(d.client.getApiEndpoint(), "inventories")
+	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, uri)
 	if err != nil {
 		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Require [id] or [name and organization_name]")
 		return
@@ -159,6 +162,61 @@ func (d *JobTemplateDataSource) Configure(_ context.Context, req datasource.Conf
 	d.client = client
 }
 
+func (d *JobTemplateDataSource) ConfigValidators(_ context.Context) []datasource.ConfigValidator {
+	// You have at least an id or a name + organization_name pair
+	return []datasource.ConfigValidator{
+		datasourcevalidator.Any(
+			datasourcevalidator.AtLeastOneOf(
+				tfpath.MatchRoot("id")),
+			datasourcevalidator.RequiredTogether(
+				tfpath.MatchRoot("name"),
+				tfpath.MatchRoot("organization_name")),
+		),
+	}
+}
+
+func (d *JobTemplateDataSource) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, resp *datasource.ValidateConfigResponse) {
+	var data JobTemplateDataSourceModel
+
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if IsValueProvided(data.Id) {
+		return
+	}
+
+	if IsValueProvided(data.Name) && IsValueProvided(data.OrganizationName) {
+		return
+	}
+
+	if !IsValueProvided(data.Id) && !IsValueProvided(data.Name) {
+		resp.Diagnostics.AddAttributeWarning(
+			tfpath.Root("id"),
+			"Missing Attribute Configuration",
+			"Expected either [id] or [name + organization_name] pair",
+		)
+	}
+
+	if IsValueProvided(data.Name) && !IsValueProvided(data.OrganizationName) {
+		resp.Diagnostics.AddAttributeWarning(
+			tfpath.Root("organization_name"),
+			"Missing Attribute Configuration",
+			"Expected organization_name to be configured with name.",
+		)
+	}
+
+	if !IsValueProvided(data.Name) && IsValueProvided(data.OrganizationName) {
+		resp.Diagnostics.AddAttributeWarning(
+			tfpath.Root("name"),
+			"Missing Attribute Configuration",
+			"Expected name to be configured with organization_name.",
+		)
+	}
+}
+
 func (dm *JobTemplateDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -181,18 +239,4 @@ func (dm *JobTemplateDataSourceModel) ParseHttpResponse(body []byte) diag.Diagno
 	dm.Variables = ParseAAPCustomStringValue(apiJobTemplate.Variables)
 
 	return diags
-}
-
-// ValidateLookupParameters Validate the provided lookup parameters and return the appropriate resource url
-func (dm *JobTemplateDataSourceModel) ValidateLookupParameters(datasource *JobTemplateDataSource) (string, error) {
-	// Here is where we can get the "named" JobTemplate, which is "JobTemplate Name"++"Organization Name" to derive uniqueness
-	// we will take precedence if the Id is set to use that over the named_url attempt.
-	if dm.Id != types.Int64Null() {
-		return path.Join(datasource.client.getApiEndpoint(), "job_templates", dm.Id.String()), nil
-	} else if dm.Name != types.StringNull() && dm.OrganizationName != types.StringNull() {
-		namedUrl := strings.Join([]string{dm.Name.String()[1 : len(dm.Name.String())-1], "++", dm.OrganizationName.String()[1 : len(dm.OrganizationName.String())-1]}, "")
-		return path.Join(datasource.client.getApiEndpoint(), "job_templates", namedUrl), nil
-	} else {
-		return types.StringNull().String(), errors.New("invalid job lookup parameters")
-	}
 }

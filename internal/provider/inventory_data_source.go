@@ -96,7 +96,6 @@ func (d *InventoryDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 
 // Read refreshes the Terraform state with the latest data.
 func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-
 	var state InventoryDataSourceModel
 	var diags diag.Diagnostics
 
@@ -106,8 +105,8 @@ func (d *InventoryDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	URI := path.Join(d.client.getApiEndpoint(), "inventories")
-	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, URI)
+	uri := path.Join(d.client.getApiEndpoint(), "inventories")
+	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, uri)
 	if err != nil {
 		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected either [id] or [name + organization_name] pair")
 		return
