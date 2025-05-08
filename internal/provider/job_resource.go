@@ -178,7 +178,7 @@ func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	readResponseBody, diags, status := r.client.GetWithStatus(data.URL.ValueString())
 
 	// Check if the response is 404, meaning the job does not exist and should be recreated
-	if status == 404 {
+	if status == http.StatusNotFound {
 		resp.Diagnostics.AddWarning(
 			"Job not found",
 			"The job was not found. It may have been deleted. The job will be recreated.",

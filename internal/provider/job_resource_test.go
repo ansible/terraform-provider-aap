@@ -505,7 +505,7 @@ func TestAccAAPJob_disappears(t *testing.T) {
 }
 
 func testAccDeleteJob(jobUrl *string) func(s *terraform.State) error {
-	return func(s *terraform.State) error {
+	return func(_ *terraform.State) error {
 		_, err := testDeleteResource(*jobUrl)
 		return err
 	}
