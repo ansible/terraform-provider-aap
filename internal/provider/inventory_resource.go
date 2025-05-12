@@ -116,10 +116,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Description: "URL of the inventory",
 			},
 			"named_url": schema.StringAttribute{
-				Computed: true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
+				Computed:    true,
 				Description: "Named URL of the inventory",
 			},
 			"name": schema.StringAttribute{
