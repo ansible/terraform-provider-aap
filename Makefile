@@ -20,7 +20,7 @@ testacc:
 
 testacc-aapdev:
 	@echo "==> Running acceptance tests..."
-	TF_ACC=1 AAP_HOST="http://localhost:9080" AAP_INSECURE_SKIP_VERIFY=true go test -count=1 -v ./...
+	TF_ACC=1 AAP_HOST="http://localhost:9080" go test -count=1 -v ./...
 
 gofmt:
 	@echo "==> Format code using gofmt..."
