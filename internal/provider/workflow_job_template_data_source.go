@@ -7,16 +7,20 @@ import (
 	"path"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
+	"github.com/hashicorp/terraform-plugin-framework-validators/datasourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	tfpath "github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ datasource.DataSource              = &WorkflowJobTemplateDataSource{}
-	_ datasource.DataSourceWithConfigure = &WorkflowJobTemplateDataSource{}
+	_ datasource.DataSource                     = &WorkflowJobTemplateDataSource{}
+	_ datasource.DataSourceWithConfigure        = &WorkflowJobTemplateDataSource{}
+	_ datasource.DataSourceWithConfigValidators = &WorkflowJobTemplateDataSource{}
+	_ datasource.DataSourceWithValidateConfig   = &WorkflowJobTemplateDataSource{}
 )
 
 // NewWorkflowJobTemplateDataSource is a helper function to simplify the provider implementation.
@@ -156,6 +160,61 @@ func (d *WorkflowJobTemplateDataSource) Configure(_ context.Context, req datasou
 	}
 
 	d.client = client
+}
+
+func (d *WorkflowJobTemplateDataSource) ConfigValidators(_ context.Context) []datasource.ConfigValidator {
+	// You have at least an id or a name + organization_name pair
+	return []datasource.ConfigValidator{
+		datasourcevalidator.Any(
+			datasourcevalidator.AtLeastOneOf(
+				tfpath.MatchRoot("id")),
+			datasourcevalidator.RequiredTogether(
+				tfpath.MatchRoot("name"),
+				tfpath.MatchRoot("organization_name")),
+		),
+	}
+}
+
+func (d *WorkflowJobTemplateDataSource) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, resp *datasource.ValidateConfigResponse) {
+	var data WorkflowJobTemplateDataSourceModel
+
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if IsValueProvided(data.Id) {
+		return
+	}
+
+	if IsValueProvided(data.Name) && IsValueProvided(data.OrganizationName) {
+		return
+	}
+
+	if !IsValueProvided(data.Id) && !IsValueProvided(data.Name) {
+		resp.Diagnostics.AddAttributeWarning(
+			tfpath.Root("id"),
+			"Missing Attribute Configuration",
+			"Expected either [id] or [name + organization_name] pair",
+		)
+	}
+
+	if IsValueProvided(data.Name) && !IsValueProvided(data.OrganizationName) {
+		resp.Diagnostics.AddAttributeWarning(
+			tfpath.Root("organization_name"),
+			"Missing Attribute Configuration",
+			"Expected organization_name to be configured with name.",
+		)
+	}
+
+	if !IsValueProvided(data.Name) && IsValueProvided(data.OrganizationName) {
+		resp.Diagnostics.AddAttributeWarning(
+			tfpath.Root("name"),
+			"Missing Attribute Configuration",
+			"Expected name to be configured with organization_name.",
+		)
+	}
 }
 
 func (d *WorkflowJobTemplateDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
