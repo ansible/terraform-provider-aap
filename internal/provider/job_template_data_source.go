@@ -117,7 +117,7 @@ func (d *JobTemplateDataSource) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 
-	uri := path.Join(d.client.getApiEndpoint(), "inventories")
+	uri := path.Join(d.client.getApiEndpoint(), "job_templates")
 	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, uri)
 	if err != nil {
 		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Require [id] or [name and organization_name]")

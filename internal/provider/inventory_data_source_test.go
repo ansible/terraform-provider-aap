@@ -106,9 +106,20 @@ func TestAccInventoryDataSource(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read
+			// Create and Read
 			{
 				Config: testAccInventoryDataSource(randomName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "name", "data.aap_inventory.test", "name"),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "organization", "data.aap_inventory.test", "organization"),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "description", "data.aap_inventory.test", "description"),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "variables", "data.aap_inventory.test", "variables"),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "url", "data.aap_inventory.test", "url"),
+				),
+			},
+			// Create and Read
+			{
+				Config: testAccInventoryDataSourceNamedUrl(randomName, "Default"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrPair("aap_inventory.test", "name", "data.aap_inventory.test", "name"),
 					resource.TestCheckResourceAttrPair("aap_inventory.test", "organization", "data.aap_inventory.test", "organization"),
@@ -136,4 +147,20 @@ data "aap_inventory" "test" {
   id = aap_inventory.test.id
 }
 `, name)
+}
+
+func testAccInventoryDataSourceNamedUrl(name string, orgName string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+  name        = "%s"
+  organization = 1
+  description = "A test inventory"
+  variables   = "{\"abc\": \"def\"}"
+}
+
+data "aap_inventory" "test" {
+  name = "%s"
+  organization_name = "%s"
+}
+`, name, name, orgName)
 }
