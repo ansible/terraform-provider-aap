@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
-	"strings"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -25,9 +24,33 @@ func NewWorkflowJobTemplateDataSource() datasource.DataSource {
 	return &WorkflowJobTemplateDataSource{}
 }
 
+// WorkflowJobTemplateDataSourceModel maps the data source schema data.
+type WorkflowJobTemplateDataSourceModel struct {
+	Id               types.Int64                      `tfsdk:"id"`
+	Organization     types.Int64                      `tfsdk:"organization"`
+	OrganizationName types.String                     `tfsdk:"organization_name"`
+	Url              types.String                     `tfsdk:"url"`
+	NamedUrl         types.String                     `tfsdk:"named_url"`
+	Name             types.String                     `tfsdk:"name"`
+	Description      types.String                     `tfsdk:"description"`
+	Variables        customtypes.AAPCustomStringValue `tfsdk:"variables"`
+}
+
+// WorkflowJobTemplate AAP API model
+type WorkflowJobTemplateAPIModel struct {
+	Id            int64                 `json:"id,omitempty"`
+	Organization  int64                 `json:"organization"`
+	SummaryFields SummaryFieldsAPIModel `json:"summary_fields,omitempty"`
+	Url           string                `json:"url,omitempty"`
+	Related       RelatedAPIModel       `json:"related,omitempty"`
+	Name          string                `json:"name"`
+	Description   string                `json:"description,omitempty"`
+	Variables     string                `json:"variables,omitempty"`
+}
+
 // WorkflowJobTemplateDataSource is the data source implementation.
 type WorkflowJobTemplateDataSource struct {
-	client *AAPClient
+	client ProviderHTTPClient
 }
 
 // Metadata returns the data source type name.
@@ -40,16 +63,16 @@ func (d *WorkflowJobTemplateDataSource) Schema(_ context.Context, _ datasource.S
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
-				Optional: true,
+				Optional:    true,
 				Description: "WorkflowJobTemplate id",
 			},
 			"organization": schema.Int64Attribute{
-				Computed: true,
+				Computed:    true,
 				Description: "Identifier for the organization to which the WorkflowJobTemplate belongs",
 			},
 			"organization_name": schema.StringAttribute{
-				Computed: true,
-				Optional: true,
+				Computed:    true,
+				Optional:    true,
 				Description: "The name for the organization to which the WorkflowJobTemplate belongs",
 			},
 			"url": schema.StringAttribute{
@@ -62,7 +85,7 @@ func (d *WorkflowJobTemplateDataSource) Schema(_ context.Context, _ datasource.S
 			},
 			"name": schema.StringAttribute{
 				Computed:    true,
-				Optional: true,
+				Optional:    true,
 				Description: "Name of the WorkflowJobTemplate",
 			},
 			"description": schema.StringAttribute{
@@ -90,18 +113,10 @@ func (d *WorkflowJobTemplateDataSource) Read(ctx context.Context, req datasource
 		return
 	}
 
-	//Here is where we can get the "named" WorkflowJobTemplate, which is "WorkflowJobTemplate Name"++"Organization Name" to derive uniqueness
-	//we will take precedence if the Id is set to use that over the named_url attempt.
-
-	resourceURL := ""
-
-	if state.Id.String() != "<null>" {
-		resourceURL = path.Join(d.client.getApiEndpoint(), "workflow_job_templates", state.Id.String())
-	} else if state.Name.String() != "<null>" && state.OrganizationName.String() != "<null>"{
-		namedUrl := strings.Join([]string{state.Name.String()[1 : len(state.Name.String()) - 1], "++", state.OrganizationName.String()[1 : len(state.OrganizationName.String()) - 1]}, "")
-		resourceURL = path.Join(d.client.getApiEndpoint(), "workflow_job_templates", namedUrl)
-	} else { 
-		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Require [id] or [name and organization_name]")
+	uri := path.Join(d.client.getApiEndpoint(), "workflow_job_templates")
+	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, uri)
+	if err != nil {
+		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected either [id] or [name + organization_name] pair")
 		return
 	}
 
@@ -143,18 +158,6 @@ func (d *WorkflowJobTemplateDataSource) Configure(_ context.Context, req datasou
 	d.client = client
 }
 
-// WorkflowJobTemplateDataSourceModel maps the data source schema data.
-type WorkflowJobTemplateDataSourceModel struct {
-	Id           types.Int64                      `tfsdk:"id"`
-	Organization types.Int64                      `tfsdk:"organization"`
-	OrganizationName types.String                 `tfsdk:"organization_name"`
-	Url          types.String                     `tfsdk:"url"`
-	NamedUrl     types.String                     `tfsdk:"named_url"`
-	Name         types.String                     `tfsdk:"name"`
-	Description  types.String                     `tfsdk:"description"`
-	Variables    customtypes.AAPCustomStringValue `tfsdk:"variables"`
-}
-
 func (d *WorkflowJobTemplateDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -169,24 +172,12 @@ func (d *WorkflowJobTemplateDataSourceModel) ParseHttpResponse(body []byte) diag
 	// Map response to the WorkflowJobTemplate datesource schema
 	d.Id = types.Int64Value(apiWorkflowJobTemplate.Id)
 	d.Organization = types.Int64Value(apiWorkflowJobTemplate.Organization)
-	d.OrganizationName = types.StringValue(apiWorkflowJobTemplate.SummaryFields.Organization.Name)
-	d.Url = types.StringValue(apiWorkflowJobTemplate.Url)
-	d.NamedUrl = types.StringValue(apiWorkflowJobTemplate.Related.NamedUrl)
+	d.OrganizationName = ParseStringValue(apiWorkflowJobTemplate.SummaryFields.Organization.Name)
+	d.Url = ParseStringValue(apiWorkflowJobTemplate.Url)
+	d.NamedUrl = ParseStringValue(apiWorkflowJobTemplate.Related.NamedUrl)
 	d.Name = ParseStringValue(apiWorkflowJobTemplate.Name)
 	d.Description = ParseStringValue(apiWorkflowJobTemplate.Description)
 	d.Variables = ParseAAPCustomStringValue(apiWorkflowJobTemplate.Variables)
 
 	return diags
-}
-
-// WorkflowJobTemplate AAP API model
-type WorkflowJobTemplateAPIModel struct {
-	Id           int64  `json:"id,omitempty"`
-	Organization int64  `json:"organization"`
-	SummaryFields SummaryFieldsAPIModel `json:"summary_fields,omitempty"`
-	Url          string `json:"url,omitempty"`
-	Related          RelatedAPIModel `json:"related,omitempty"`
-	Name         string `json:"name"`
-	Description  string `json:"description,omitempty"`
-	Variables    string `json:"variables,omitempty"`
 }
