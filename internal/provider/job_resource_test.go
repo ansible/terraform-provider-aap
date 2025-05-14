@@ -316,7 +316,11 @@ func TestAccAAPJob_UpdateWithSameParameters(t *testing.T) {
 	})
 }
 
-func TestAccAAPJob_UpdateWithNewInventoryId(t *testing.T) {
+func TestAccAAPJob_UpdateWithNewInventoryIdPromptOnLaunch(t *testing.T) {
+	// In order to run the this test for the job resource, you must have a working job template already in your AAP instance.
+	// The job template used must be set to require an inventory on launch. Export the id of this job template into the
+	// environment variable AAP_TEST_JOB_TEMPLATE_ID. Otherwise this test will fail when running the suite.
+
 	var jobURLBefore string
 
 	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)

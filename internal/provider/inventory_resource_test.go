@@ -43,45 +43,51 @@ func TestInventoryResourceSchema(t *testing.T) {
 func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 	var testTable = []struct {
 		name     string
-		input    inventoryResourceModel
+		input    InventoryResourceModel
 		expected []byte
 	}{
 		{
 			name: "unknown values",
-			input: inventoryResourceModel{
-				Id:           types.Int64Unknown(),
-				Organization: types.Int64Unknown(),
-				Url:          types.StringUnknown(),
-				Name:         types.StringValue("test inventory"),
-				Description:  types.StringUnknown(),
-				Variables:    customtypes.NewAAPCustomStringUnknown(),
+			input: InventoryResourceModel{
+				Id:               types.Int64Unknown(),
+				Organization:     types.Int64Unknown(),
+				OrganizationName: types.StringUnknown(),
+				Url:              types.StringUnknown(),
+				NamedUrl:         types.StringUnknown(),
+				Name:             types.StringUnknown(),
+				Description:      types.StringUnknown(),
+				Variables:        customtypes.NewAAPCustomStringUnknown(),
 			},
-			expected: []byte(`{"organization":1,"name":"test inventory"}`),
+			expected: []byte(`{"organization":1,"summary_fields":{"organization":{"id":1,"name":""},"inventory":{"name":""}},"related":{},"name":""}`),
 		},
 		{
 			name: "null values",
-			input: inventoryResourceModel{
-				Id:           types.Int64Null(),
-				Organization: types.Int64Null(),
-				Url:          types.StringNull(),
-				Name:         types.StringValue("test inventory"),
-				Description:  types.StringNull(),
-				Variables:    customtypes.NewAAPCustomStringNull(),
+			input: InventoryResourceModel{
+				Id:               types.Int64Null(),
+				Organization:     types.Int64Null(),
+				OrganizationName: types.StringNull(),
+				Url:              types.StringNull(),
+				NamedUrl:         types.StringNull(),
+				Name:             types.StringNull(),
+				Description:      types.StringNull(),
+				Variables:        customtypes.NewAAPCustomStringNull(),
 			},
-			expected: []byte(`{"organization":1,"name":"test inventory"}`),
+			expected: []byte(`{"organization":1,"summary_fields":{"organization":{"id":1,"name":""},"inventory":{"name":""}},"related":{},"name":""}`),
 		},
 		{
 			name: "provided values",
-			input: inventoryResourceModel{
-				Id:           types.Int64Value(1),
-				Organization: types.Int64Value(2),
-				Url:          types.StringValue("/inventories/1/"),
-				Name:         types.StringValue("test inventory"),
-				Description:  types.StringValue("A test inventory for testing"),
-				Variables:    customtypes.NewAAPCustomStringValue("{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}"),
+			input: InventoryResourceModel{
+				Id:               types.Int64Value(1),
+				Organization:     types.Int64Value(2),
+				OrganizationName: types.StringValue("test organization"),
+				Url:              types.StringValue("/inventories/1/"),
+				Name:             types.StringValue("test inventory"),
+				Description:      types.StringValue("A test inventory for testing"),
+				Variables:        customtypes.NewAAPCustomStringValue("{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}"),
 			},
 			expected: []byte(
-				`{"organization":2,"name":"test inventory","description":"A test inventory for testing",` +
+				`{"organization":2,"summary_fields":{"organization":{"id":2,"name":"test organization"},"inventory":{"id":1,"name":"test inventory"}},` +
+					`"related":{"named_url":"inventories/1"},"name":"test inventory","description":"A test inventory for testing",` +
 					`"variables":"{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}"}`,
 			),
 		},
@@ -107,19 +113,19 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 	var testTable = []struct {
 		name     string
 		input    []byte
-		expected inventoryResourceModel
+		expected InventoryResourceModel
 		errors   diag.Diagnostics
 	}{
 		{
 			name:     "JSON error",
 			input:    []byte("Not valid JSON"),
-			expected: inventoryResourceModel{},
+			expected: InventoryResourceModel{},
 			errors:   jsonError,
 		},
 		{
 			name:  "missing values",
 			input: []byte(`{"id":1,"type":"inventory","name":"test inventory","organization":2,"url":"/inventories/1/"}`),
-			expected: inventoryResourceModel{
+			expected: InventoryResourceModel{
 				Id:           types.Int64Value(1),
 				Organization: types.Int64Value(2),
 				Url:          types.StringValue("/inventories/1/"),
@@ -135,7 +141,7 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 				`{"description":"A test inventory for testing","id":1,"name":"test inventory","organization":2,` +
 					`"type":"inventory","url":"/inventories/1/","variables":"{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"}`,
 			),
-			expected: inventoryResourceModel{
+			expected: InventoryResourceModel{
 				Id:           types.Int64Value(1),
 				Organization: types.Int64Value(2),
 				Url:          types.StringValue("/inventories/1/"),
@@ -149,7 +155,7 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			resource := inventoryResourceModel{}
+			resource := InventoryResourceModel{}
 			diags := resource.parseHTTPResponse(test.input)
 			if !test.errors.Equal(diags) {
 				t.Errorf("Expected error diagnostics (%s), actual was (%s)", test.errors, diags)
@@ -184,6 +190,8 @@ func TestAccInventoryResource(t *testing.T) {
 					testAccCheckInventoryResourceValues(&inventory, randomName, "", ""),
 					resource.TestCheckResourceAttr("aap_inventory.test", "name", randomName),
 					resource.TestCheckResourceAttr("aap_inventory.test", "organization", "1"),
+					resource.TestCheckResourceAttr("aap_inventory.test", "organization_name", "Default"),
+					resource.TestCheckResourceAttrSet("aap_inventory.test", "named_url"),
 					resource.TestCheckResourceAttrSet("aap_inventory.test", "id"),
 					resource.TestCheckResourceAttrSet("aap_inventory.test", "url"),
 				),
@@ -198,6 +206,7 @@ func TestAccInventoryResource(t *testing.T) {
 					resource.TestCheckResourceAttr("aap_inventory.test", "organization", "1"),
 					resource.TestCheckResourceAttr("aap_inventory.test", "description", updatedDescription),
 					resource.TestCheckResourceAttr("aap_inventory.test", "variables", updatedVariables),
+					resource.TestCheckResourceAttr("aap_inventory.test", "named_url", fmt.Sprintf("/api/controller/v2/inventories/%s++%s/", updatedName, "Default")),
 					resource.TestCheckResourceAttrSet("aap_inventory.test", "id"),
 					resource.TestCheckResourceAttrSet("aap_inventory.test", "url"),
 				),

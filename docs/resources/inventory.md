@@ -111,4 +111,32 @@ output "inventory_xyz" {
 ### Read-Only
 
 - `id` (Number) Inventory id
+- `named_url` (String) Named URL of the inventory
+- `organization_name` (String) Name for the organization.
 - `url` (String) URL of the inventory
+
+## Inventory Look Up
+
+You can look up inventories by using either the `id` or a combination of `name` and `organization_name`.
+
+Creating a new inventory in the Default organization:
+```terraform
+resource "aap_inventory" "sample" {
+  name        = "My Sample Inventory"
+  organization_name = "Default"
+  description = "A new inventory for testing"
+  variables   = jsonencode(yamldecode(local.values_variables))
+}
+```
+
+You can access this inventory using either the `id` or the combination of `name` and `organization_name`.
+```terraform
+data "aap_inventory" "sample" {
+  id = aap_inventory.sample.id
+}
+
+data "aap_inventory" "sample" {
+  name = aap_inventory.sample.name
+  organization_name = aap_inventory.sample.organization_name
+}
+```
