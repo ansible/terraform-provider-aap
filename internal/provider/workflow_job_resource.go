@@ -13,8 +13,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-//	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
-//	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+
+	//	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	//	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -86,7 +87,7 @@ func (r *WorkflowJobResource) Schema(_ context.Context, _ resource.SchemaRequest
 		Attributes: map[string]schema.Attribute{
 			"workflow_job_template_id": schema.Int64Attribute{
 				Required:    true,
-				Description: "Id of the job template.",
+				Description: "Id of the workflow job template.",
 			},
 			"job_type": schema.StringAttribute{
 				Computed:    true,
