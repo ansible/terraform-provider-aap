@@ -150,6 +150,9 @@ func (c *AAPClient) Create(path string, data io.Reader) ([]byte, diag.Diagnostic
 
 // Get sends a GET request to the provided path, checks for errors, and returns the response body with any errors as diagnostics.
 func (c *AAPClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
+	if c == nil {
+		return nil, diag.Diagnostics{diag.NewErrorDiagnostic("AAPClient is nil", "Client was not initialized properly")}, 0
+	}
 	getResponse, body, err := c.doRequest("GET", path, nil)
 	diags := ValidateResponse(getResponse, body, err, []int{http.StatusOK})
 	return body, diags, getResponse.StatusCode

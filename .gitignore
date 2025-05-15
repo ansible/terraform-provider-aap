@@ -6,6 +6,7 @@ terraform-provider-aap
 *.tfstate
 *.tfstate.*
 *.tfrc
+*.txt
 
 # Crash log files
 crash.log
@@ -38,3 +39,5 @@ config.tfrc
 
 .env
 .DS_Store
+.tools
+.vscode

@@ -42,7 +42,7 @@ Run `make test`
 
 Acceptance tests apply test terraform configurations to a running AAP instance and make changes to resources in that instance, use with caution!
 
-To run acceptance tests locally, start a local AAP instance following the [docker-compose instructions for local AWX development](https://github.com/ansible/awx/blob/devel/tools/docker-compose/README.md). Create an admin user for the AAP instance and save the credentials to these environment variables:
+To run acceptance tests locally, start a local AAP instance following the [The AAP development environment](https://github.com/ansible/aap-dev/blob/main/README.md). Create an admin user for the AAP instance and save the credentials to these environment variables:
 
 ```bash
 export AAP_USERNAME=<your admin username>
