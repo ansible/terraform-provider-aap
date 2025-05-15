@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -17,11 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
-)
-
-var (
-	reGroupURLPattern = regexp.MustCompile(`^/api(/controller)?/v2/groups/\d+/$`)
-	reInvalidVars     = regexp.MustCompile("Input type `str` is not a dictionary")
 )
 
 func TestGroupResourceSchema(t *testing.T) {
@@ -201,23 +195,20 @@ func TestAccGroupResource(t *testing.T) {
 			{
 				Config: testAccGroupResourceMinimal(inventoryName, groupName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckGroupResourceExists("aap_group.test", &groupApiModel),
+					testAccCheckGroupResourceExists(resourceNameGroup, &groupApiModel),
 					testAccCheckGroupResourceValues(&groupApiModel, groupName, "", ""),
-					resource.TestCheckResourceAttr("aap_group.test", "name", groupName),
-					resource.TestCheckResourceAttrPair("aap_group.test", "inventory_id", "aap_inventory.test", "id"),
-					resource.TestMatchResourceAttr("aap_group.test", "url", reGroupURLPattern),
+					checkBasicGroupAttributes(t, resourceNameGroup, groupName),
 				),
 			},
 			{
 				Config: testAccGroupResourceComplete(inventoryName, updatedName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckGroupResourceExists("aap_group.test", &groupApiModel),
+					testAccCheckGroupResourceExists(resourceNameGroup, &groupApiModel),
 					testAccCheckGroupResourceValues(&groupApiModel, updatedName, description, variables),
-					resource.TestCheckResourceAttr("aap_group.test", "name", updatedName),
-					resource.TestCheckResourceAttrPair("aap_group.test", "inventory_id", "aap_inventory.test", "id"),
-					resource.TestCheckResourceAttr("aap_group.test", "description", description),
-					resource.TestCheckResourceAttr("aap_group.test", "variables", variables),
-					resource.TestMatchResourceAttr("aap_group.test", "url", reGroupURLPattern),
+					checkBasicGroupAttributes(t, resourceNameGroup, updatedName),
+					resource.TestCheckResourceAttr(resourceNameGroup, "name", updatedName),
+					resource.TestCheckResourceAttr(resourceNameGroup, "description", description),
+					resource.TestCheckResourceAttr(resourceNameGroup, "variables", variables),
 				),
 			},
 		},
