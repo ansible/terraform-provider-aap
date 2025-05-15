@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 
 	//	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	//	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -22,6 +24,7 @@ import (
 // WorkflowJob AAP API model
 type WorkflowJobAPIModel struct {
 	TemplateID    int64                  `json:"workflow_job_template,omitempty"`
+	Inventory     int64                  `json:"inventory,omitempty"`
 	Type          string                 `json:"job_type,omitempty"`
 	URL           string                 `json:"url,omitempty"`
 	Status        string                 `json:"status,omitempty"`
@@ -32,6 +35,7 @@ type WorkflowJobAPIModel struct {
 // WorkflowJobResourceModel maps the resource schema data.
 type WorkflowJobResourceModel struct {
 	TemplateID    types.Int64                      `tfsdk:"workflow_job_template_id"`
+	InventoryID   types.Int64                      `tfsdk:"inventory_id"`
 	Type          types.String                     `tfsdk:"job_type"`
 	URL           types.String                     `tfsdk:"url"`
 	Status        types.String                     `tfsdk:"status"`
@@ -85,6 +89,15 @@ func (r *WorkflowJobResource) Configure(_ context.Context, req resource.Configur
 func (r *WorkflowJobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
+			"inventory_id": schema.Int64Attribute{
+				Optional: true,
+				Computed: true,
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
+				Description: "Identifier for the inventory where job should be created in. " +
+					"If not provided, the job will be created in the default inventory.",
+			},
 			"workflow_job_template_id": schema.Int64Attribute{
 				Required:    true,
 				Description: "Id of the workflow job template.",
@@ -209,10 +222,19 @@ func (r WorkflowJobResource) Delete(_ context.Context, _ resource.DeleteRequest,
 // CreateRequestBody creates a JSON encoded request body from the workflow job resource data
 func (r *WorkflowJobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	var diags diag.Diagnostics
+	var inventoryID int64
+
+	// Use default inventory if not provided
+	if r.InventoryID.ValueInt64() == 0 {
+		inventoryID = 1
+	} else {
+		inventoryID = r.InventoryID.ValueInt64()
+	}
 
 	// Convert workflow job resource data to API data model
 	workflowJob := WorkflowJobAPIModel{
 		ExtraVars: r.ExtraVars.ValueString(),
+		Inventory: inventoryID,
 	}
 
 	// Create JSON encoded request body
@@ -244,6 +266,7 @@ func (r *WorkflowJobResourceModel) ParseHttpResponse(body []byte) diag.Diagnosti
 	r.URL = types.StringValue(resultApiWorkflowJob.URL)
 	r.Status = types.StringValue(resultApiWorkflowJob.Status)
 	r.TemplateID = types.Int64Value(resultApiWorkflowJob.TemplateID)
+	r.InventoryID = types.Int64Value(resultApiWorkflowJob.Inventory)
 	diags = r.ParseIgnoredFields(resultApiWorkflowJob.IgnoredFields)
 	return diags
 }
