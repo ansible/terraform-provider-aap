@@ -152,6 +152,10 @@ func (c *AAPClient) Create(path string, data io.Reader) ([]byte, diag.Diagnostic
 func (c *AAPClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
 	getResponse, body, err := c.doRequest("GET", path, nil)
 	diags := ValidateResponse(getResponse, body, err, []int{http.StatusOK})
+	if getResponse == nil {
+		diags.AddError("HTTP response error", "No HTTP response from server")
+		return body, diags, http.StatusInternalServerError
+	}
 	return body, diags, getResponse.StatusCode
 }
 
