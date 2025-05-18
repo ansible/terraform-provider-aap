@@ -66,11 +66,12 @@ func checkBasicInventoryAttributes(t *testing.T, name, expectedName string) reso
 	t.Helper()
 	return resource.ComposeAggregateTestCheckFunc(
 		resource.TestCheckResourceAttr(name, "name", expectedName),
-		resource.TestCheckResourceAttr(name, "organization_id", "1"),
+		resource.TestCheckResourceAttr(name, "organization", "1"),
 		resource.TestCheckResourceAttr(name, "organization_name", "Default"),
 		resource.TestMatchResourceAttr(name, "url", reInventoryURLPattern),
-		resource.TestCheckResourceAttrSet(name, "id"),
 		resource.TestCheckResourceAttr(name, "named_url", fmt.Sprintf("/api/controller/v2/inventories/%s++%s/", expectedName, "Default")),
+		resource.TestCheckResourceAttrSet(name, "id"),
+		resource.TestCheckResourceAttrSet("aap_inventory.test", "url"),
 	)
 }
 

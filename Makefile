@@ -13,9 +13,13 @@ test: ## Execute all unit tests with verbose output."
 	@echo "==> Running unit tests..."
 	go test -v ./...
 
-testacc: ## Run acceptance tests against local aap-dev instance (https://localhost:9080)."
+testacc: ## Run acceptance tests against local aap-dev instance (https://localhost:8043)."
 	@echo "==> Running acceptance tests..."
-	TF_ACC=1 AAP_HOST="http://localhost:9080" go test -count=1 -v ./...
+	TF_ACC=1 AAP_HOST="http://localhost:8043" go test -count=1 -v ./...
+
+testacc-aapdev: ## Run acceptance tests against local aap-dev instance (EXPORT AAP_HOST="http://localhost:9080")
+	@echo "==> Running acceptance tests..."
+	TF_ACC=1 go test -count=1 -v ./...
 
 generatedocs: ## Format example Terraform configurations and generate plugin documentation."
 	@echo "==> Formatting examples and generating docs..."
