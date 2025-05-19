@@ -188,7 +188,7 @@ func TestAccInventoryResource(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckInventoryResourceExists(resourceNameInventory, &inventory),
 					testAccCheckInventoryResourceValues(&inventory, randomName, "", ""),
-					checkBasicInventoryAttributes(t, resourceNameInventory, randomName),
+					checkBasicInventoryAttributes(t, resourceNameInventory, randomName, "1", "Default"),
 				),
 			},
 			// Update and Read testing
@@ -197,7 +197,7 @@ func TestAccInventoryResource(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckInventoryResourceExists(resourceNameInventory, &inventory),
 					testAccCheckInventoryResourceValues(&inventory, updatedName, updatedDescription, updatedVariables),
-					checkBasicInventoryAttributes(t, resourceNameInventory, updatedName),
+					checkBasicInventoryAttributes(t, resourceNameInventory, updatedName, "1", "Default"),
 					resource.TestCheckResourceAttr(resourceNameInventory, "description", updatedDescription),
 					resource.TestCheckResourceAttr(resourceNameInventory, "variables", updatedVariables),
 				),

@@ -116,9 +116,6 @@ func (c *AAPClient) computeURLPath(path string) string {
 
 func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
 	ctx := context.Background()
-	if c.httpClient == nil {
-		return nil, nil, fmt.Errorf("internal error: httpClient is nil")
-	}
 	req, err := http.NewRequestWithContext(ctx, method, c.computeURLPath(path), data)
 	if err != nil {
 		return nil, []byte{}, err
@@ -153,28 +150,8 @@ func (c *AAPClient) Create(path string, data io.Reader) ([]byte, diag.Diagnostic
 
 // Get sends a GET request to the provided path, checks for errors, and returns the response body with any errors as diagnostics.
 func (c *AAPClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
-	if c == nil {
-		return nil, diag.Diagnostics{diag.NewErrorDiagnostic("AAPClient is nil", "Client was not initialized properly")}, 0
-	}
-	if path == "" {
-		return nil, diag.Diagnostics{diag.NewErrorDiagnostic("Path is empty", "Path cannot be empty")}, 0
-	}
-	if c.httpClient == nil {
-		return nil, diag.Diagnostics{diag.NewErrorDiagnostic("HttpClient is nil", "HttpClient was not initialized properly")}, 0
-	}
 	getResponse, body, err := c.doRequest("GET", path, nil)
 	diags := ValidateResponse(getResponse, body, err, []int{http.StatusOK})
-	if diags.HasError() {
-		return nil, diags, getResponse.StatusCode
-	}
-	if getResponse == nil {
-		diags.AddError("Get response is nil", "The response from the server is nil")
-		return nil, diags, 0
-	}
-	if body == nil {
-		diags.AddError("Get response body is nil", "The response body from the server is nil")
-		return nil, diags, 0
-	}
 	return body, diags, getResponse.StatusCode
 }
 

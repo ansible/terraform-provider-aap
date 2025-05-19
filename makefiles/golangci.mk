@@ -20,7 +20,7 @@ lint: lint-tools ## Run static analysis via golangci-lint
 	@echo "==> Checking source code against linters..."
 	$(GOLANGCI_LINT) run -v ./...
 
-gofmt: ## Format Go source code in 'internal/provider' using gofmt."
+gofmt: ## Format Go source code in 'internal/provider' using gofmt.
 	@echo "==> Format code using gofmt..."
 	gofmt -s -w internal/provider
 
