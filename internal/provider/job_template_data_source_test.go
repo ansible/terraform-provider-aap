@@ -131,7 +131,7 @@ func TestAccJobTemplateDataSource(t *testing.T) {
 	})
 }
 
-// testAccInventoryDataSource configures the Inventory Data Source for testing
+// testAccJobTemplateDataSourceFromId configures the Job Template Data Source for testing
 func testAccJobTemplateDataSourceFromId(id string) string {
 	return fmt.Sprintf(`
 data "aap_job_template" "test" {
