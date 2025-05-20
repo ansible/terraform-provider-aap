@@ -38,3 +38,5 @@ config.tfrc
 
 .env
 .DS_Store
+.tools
+.vscode

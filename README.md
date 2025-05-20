@@ -44,9 +44,13 @@ Acceptance tests apply test terraform configurations to a running AAP instance a
 
 To run acceptance tests locally, start a local AAP instance following the [docker-compose instructions for local AWX development](https://github.com/ansible/awx/blob/devel/tools/docker-compose/README.md). Create an admin user for the AAP instance and save the credentials to these environment variables:
 
+Create an admin user for the AAP instance and set the following environment variables:
+
 ```bash
 export AAP_USERNAME=<your admin username>
 export AAP_PASSWORD=<your admin password>
+export AAP_INSECURE_SKIP_VERIFY=true 
+export AAP_HOST=<your aap instance host url> # "http://localhost:9080" or "https://localhost:8043" 
 ```
 
 In order to run the acceptance tests for the job resource, you must have a working job template already in your AAP instance. The job template must be set to require an inventory on launch. Export the id of this job template:

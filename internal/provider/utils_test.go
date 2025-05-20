@@ -2,11 +2,78 @@ package provider
 
 import (
 	"errors"
+	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
+
+const (
+	resourceNameJob       = "aap_job.test"
+	resourceNameHost      = "aap_host.test"
+	resourceNameGroup     = "aap_group.test"
+	resourceNameInventory = "aap_inventory.test"
+	resourceNameUser      = "aap_user.test"
+)
+
+var (
+	reGroupURLPattern = regexp.MustCompile(`^/api(/controller)?/v2/groups/\d+/$`)
+	reInvalidVars     = regexp.MustCompile("Input type `str` is not a dictionary")
+
+	reJobStatus      = regexp.MustCompile(`^(failed|pending|running|complete|successful|waiting)$`)
+	reJobStatusFinal = regexp.MustCompile(`^(failed|complete|successful)$`)
+	reJobType        = regexp.MustCompile(`^(run|check)$`)
+	reJobURL         = regexp.MustCompile(`^/api(/controller)?/v2/jobs/\d+/$`)
+
+	reHostURL             = regexp.MustCompile(`^/api(/controller)?/v2/hosts/\d+/$`)
+	reInventoryURLPattern = regexp.MustCompile(`^/api(/controller)?/v2/inventories/\d+/$`)
+)
+
+//nolint:unparam // keeping name parameter for future test reuse
+func checkBasicJobAttributes(t *testing.T, name string, statusPattern *regexp.Regexp) resource.TestCheckFunc {
+	t.Helper()
+	return resource.ComposeAggregateTestCheckFunc(
+		resource.TestMatchResourceAttr(name, "status", statusPattern),
+		resource.TestMatchResourceAttr(name, "job_type", reJobType),
+		resource.TestMatchResourceAttr(name, "url", reJobURL),
+	)
+}
+
+func checkBasicHostAttributes(t *testing.T, name string, expectedName string) resource.TestCheckFunc {
+	t.Helper()
+	return resource.ComposeAggregateTestCheckFunc(
+		resource.TestCheckResourceAttr(name, "enabled", "true"),
+		resource.TestCheckResourceAttrPair(name, "inventory_id", "aap_inventory.test", "id"),
+		resource.TestCheckResourceAttrSet(name, "id"),
+		resource.TestMatchResourceAttr(name, "url", reHostURL),
+		resource.TestCheckResourceAttr(name, "name", expectedName),
+	)
+}
+
+func checkBasicGroupAttributes(t *testing.T, name, expectedName string) resource.TestCheckFunc {
+	t.Helper()
+	return resource.ComposeAggregateTestCheckFunc(
+		resource.TestCheckResourceAttr(name, "name", expectedName),
+		resource.TestCheckResourceAttrPair(name, "inventory_id", resourceNameInventory, "id"),
+		resource.TestMatchResourceAttr(name, "url", reGroupURLPattern),
+	)
+}
+
+func checkBasicInventoryAttributes(t *testing.T, name, expectedName string, expectedOrgId string, expectedOrgName string) resource.TestCheckFunc {
+	t.Helper()
+	return resource.ComposeAggregateTestCheckFunc(
+		resource.TestCheckResourceAttr(name, "name", expectedName),
+		resource.TestCheckResourceAttr(name, "organization", expectedOrgId),
+		resource.TestCheckResourceAttr(name, "organization_name", expectedOrgName),
+		resource.TestMatchResourceAttr(name, "url", reInventoryURLPattern),
+		resource.TestCheckResourceAttr(name, "named_url", fmt.Sprintf("/api/controller/v2/inventories/%s++%s/", expectedName, "Default")),
+		resource.TestCheckResourceAttrSet(name, "id"),
+		resource.TestCheckResourceAttrSet("aap_inventory.test", "url"),
+	)
+}
 
 func TestReturnAAPNamedURL(t *testing.T) {
 	var testTable = []struct {
