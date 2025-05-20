@@ -20,7 +20,7 @@ func TestWorkflowJobTemplateDataSourceSchema(t *testing.T) {
 	schemaRequest := fwdatasource.SchemaRequest{}
 	schemaResponse := &fwdatasource.SchemaResponse{}
 
-	// Instantiate the InventoryDataSource and call its Schema method
+	// Instantiate the WorkflowJobTemplateDataSource and call its Schema method
 	NewWorkflowJobTemplateDataSource().Schema(ctx, schemaRequest, schemaResponse)
 
 	if schemaResponse.Diagnostics.HasError() {
