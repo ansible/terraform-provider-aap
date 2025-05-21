@@ -177,7 +177,7 @@ func (r *WorkflowJobResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	// Save latest hob data into workflow job resource model
+	// Save latest job data into workflow job resource model
 	diags = data.ParseHttpResponse(readResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
