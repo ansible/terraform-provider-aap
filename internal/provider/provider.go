@@ -145,6 +145,7 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 func (p *aapProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewInventoryDataSource,
+		NewJobTemplateDataSource,
 	}
 }
 
