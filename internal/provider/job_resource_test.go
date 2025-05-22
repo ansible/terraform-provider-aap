@@ -99,6 +99,16 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 			},
 			expected: []byte(`{"inventory": 3}`),
 		},
+		{
+			name: "wait_for_completed parameters",
+			input: JobResourceModel{
+				InventoryID:              basetypes.NewInt64Value(3),
+				TemplateID:               types.Int64Value(1),
+				WaitForCompletion:        basetypes.NewBoolValue(true),
+				WaitForCompletionTimeout: basetypes.NewInt64Value(60),
+			},
+			expected: []byte(`{"inventory":3}`),
+		},
 	}
 
 	for _, tc := range testTable {

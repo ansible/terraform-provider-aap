@@ -62,6 +62,13 @@ resource "aap_job" "sample_xyz" {
   extra_vars      = "os: Linux\nautomation: ansible-devel"
 }
 
+resource "aap_job" "sample_wait_for_completion" {
+  job_template_id                     = 9
+  inventory_id                        = aap_inventory.my_inventory.id
+  wait_for_completion                 = true
+  wait_for_completion_timeout_seconds = 120
+}
+
 output "job_foo" {
   value = aap_job.sample_foo
 }

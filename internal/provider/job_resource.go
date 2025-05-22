@@ -7,16 +7,23 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"time"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
+
+// Default value for the wait_for_completion timeout, so the linter doesn't complain.
+const waitForCompletionTimeoutDefault int64 = 120
 
 // Job AAP API model
 type JobAPIModel struct {
@@ -31,14 +38,16 @@ type JobAPIModel struct {
 
 // JobResourceModel maps the resource schema data.
 type JobResourceModel struct {
-	TemplateID    types.Int64                      `tfsdk:"job_template_id"`
-	Type          types.String                     `tfsdk:"job_type"`
-	URL           types.String                     `tfsdk:"url"`
-	Status        types.String                     `tfsdk:"status"`
-	InventoryID   types.Int64                      `tfsdk:"inventory_id"`
-	ExtraVars     customtypes.AAPCustomStringValue `tfsdk:"extra_vars"`
-	IgnoredFields types.List                       `tfsdk:"ignored_fields"`
-	Triggers      types.Map                        `tfsdk:"triggers"`
+	TemplateID               types.Int64                      `tfsdk:"job_template_id"`
+	Type                     types.String                     `tfsdk:"job_type"`
+	URL                      types.String                     `tfsdk:"url"`
+	Status                   types.String                     `tfsdk:"status"`
+	InventoryID              types.Int64                      `tfsdk:"inventory_id"`
+	ExtraVars                customtypes.AAPCustomStringValue `tfsdk:"extra_vars"`
+	IgnoredFields            types.List                       `tfsdk:"ignored_fields"`
+	Triggers                 types.Map                        `tfsdk:"triggers"`
+	WaitForCompletion        types.Bool                       `tfsdk:"wait_for_completion"`
+	WaitForCompletionTimeout types.Int64                      `tfsdk:"wait_for_completion_timeout_seconds"`
 }
 
 // JobResource is the resource implementation.
@@ -59,6 +68,40 @@ var keyMapping = map[string]string{
 // NewJobResource is a helper function to simplify the provider implementation.
 func NewJobResource() resource.Resource {
 	return &JobResource{}
+}
+
+// Given a string with the name of an AAP Job state, this function returns `true`
+// if such state is final and cannot transition further; a.k.a, the job is completed.
+func IsFinalStateAAPJob(state string) bool {
+	finalStates := map[string]bool{
+		"new":        false,
+		"pending":    false,
+		"waiting":    false,
+		"running":    false,
+		"successful": true,
+		"failed":     true,
+		"error":      true,
+		"canceled":   true,
+	}
+	result, isPresent := finalStates[state]
+	return isPresent && result
+}
+
+func retryUntilAAPJobReachesAnyFinalState(client ProviderHTTPClient, model JobResourceModel, diagnostics diag.Diagnostics) retry.RetryFunc {
+	return func() *retry.RetryError {
+		responseBody, err := client.Get(model.URL.ValueString())
+		diagnostics.Append(model.ParseHttpResponse(responseBody)...)
+		if err != nil {
+			return retry.RetryableError(fmt.Errorf("error fetching job status: %s", err))
+		}
+		fmt.Printf("Job ID: %s, Current Status: %s\n", model.TemplateID, model.Status.ValueString())
+
+		if !IsFinalStateAAPJob(model.Status.ValueString()) {
+			return retry.RetryableError(fmt.Errorf("job at: %s hasn't yet reached a final state. Current state: %s", model.URL, model.Status.ValueString()))
+		} else {
+			return nil
+		}
+	}
 }
 
 // Metadata returns the resource type name.
@@ -132,6 +175,20 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Computed:    true,
 				Description: "The list of properties set by the user but ignored on server side.",
 			},
+			"wait_for_completion": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
+				Description: "When this is set to `true`, Terraform will wait until this aap_job resource is created, reaches " +
+					"any final status and then, proceeds with the following resource operation",
+			},
+			"wait_for_completion_timeout_seconds": schema.Int64Attribute{
+				Optional: true,
+				Computed: true,
+				Default:  int64default.StaticInt64(waitForCompletionTimeoutDefault),
+				Description: "Sets the maximum amount of seconds Terraform will wait before timing out the updates, " +
+					"and the job creation will fail. Default value of `120`",
+			},
 		},
 		MarkdownDescription: "Launches an AAP job.\n\n" +
 			"A job is launched only when the resource is first created or when the " +
@@ -139,7 +196,11 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"launch a new job based on any arbitrary value.\n\n" +
 			"This resource always creates a new job in AAP. A destroy will not " +
 			"delete a job created by this resource, it will only remove the resource " +
-			"from the state.",
+			"from the state.\n\n" +
+			"Moreover, you can set `wait_for_completion` to true, then Terraform will " +
+			"wait until this job is created and reaches any final state before continuing. " +
+			"This parameter works in both create and update operations.\n\n" +
+			"You can also tweak `wait_for_completion_timeout_seconds` to control the timeout limit.",
 	}
 }
 
@@ -155,6 +216,19 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	resp.Diagnostics.Append(r.LaunchJob(&data)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// If the job was configured to wait for completion, start polling the job status
+	// and wait for it to complete before marking the resource as created
+	if data.WaitForCompletion.ValueBool() {
+		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(r.client, data, resp.Diagnostics))
+		if err != nil {
+			resp.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
+		}
+		if resp.Diagnostics.HasError() {
+			return
+		}
 	}
 
 	// Save updated data into Terraform state
@@ -218,6 +292,19 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	resp.Diagnostics.Append(r.LaunchJob(&data)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// If the job was configured to wait for completion, start polling the job status
+	// and wait for it to complete before marking the resource as created
+	if data.WaitForCompletion.ValueBool() {
+		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(r.client, data, resp.Diagnostics))
+		if err != nil {
+			resp.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
+		}
+		if resp.Diagnostics.HasError() {
+			return
+		}
 	}
 
 	// Save updated data into Terraform state
