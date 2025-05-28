@@ -314,6 +314,8 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	}
 }
 
+// Delete is intentionally left blank Job and Workflow Job Resources.
+// Current guidance is to manage this inside AAP.
 func (r JobResource) Delete(_ context.Context, _ resource.DeleteRequest, _ *resource.DeleteResponse) {
 }
 

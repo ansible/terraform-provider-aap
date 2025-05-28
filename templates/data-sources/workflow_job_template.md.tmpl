@@ -1,0 +1,32 @@
+---
+page_title: "{{ .Name }} {{ .Type }} - {{ .ProviderName }}"
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{ .Name }} ({{ .Type }})
+
+{{ .Description | trimspace }}
+
+{{ if .HasExample }}
+## Example Usage
+
+{{ tffile .ExampleFile }}
+{{ end }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Workflow Job Template Look Up
+
+You can look up Job Templates by using either the `id` or a combination of `name` and `organization_name`.
+
+```terraform
+data "aap_workflow_job_template" "sample" {
+  id = 1
+}
+
+data "aap_workflow_job_template" "sample" {
+  name = "My Workflow Job Template"
+  organization_name = "My Organization"
+}
+```
