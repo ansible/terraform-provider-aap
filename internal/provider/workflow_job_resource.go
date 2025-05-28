@@ -213,6 +213,8 @@ func (r *WorkflowJobResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 }
 
+// Delete is intentionally left blank Job and Workflow Job Resources.
+// Current guidance is to manage this inside AAP.
 func (r WorkflowJobResource) Delete(_ context.Context, _ resource.DeleteRequest, _ *resource.DeleteResponse) {
 }
 
@@ -281,7 +283,7 @@ func (r *WorkflowJobResourceModel) ParseIgnoredFields(ignoredFields map[string]i
 	}
 
 	if len(keysList) > 0 {
-		r.IgnoredFields, _ = types.ListValue(types.StringType, keysList)
+		r.IgnoredFields, diags = types.ListValue(types.StringType, keysList)
 	}
 
 	return diags

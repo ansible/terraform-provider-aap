@@ -43,6 +43,24 @@ func TestJobResourceSchema(t *testing.T) {
 	}
 }
 
+func TestIsFinalStateAAPJob(t *testing.T) {
+	var testTable = []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{name: "state new"},
+	}
+	for _, tc := range testTable {
+		t.Run(tc.name, func(t *testing.T) {
+			result := IsFinalStateAAPJob(tc.input)
+			if result != tc.expected {
+				t.Errorf("expected %s, got result %s", tc.expected, result)
+			}
+		})
+	}
+}
+
 func TestJobResourceCreateRequestBody(t *testing.T) {
 	var testTable = []struct {
 		name     string

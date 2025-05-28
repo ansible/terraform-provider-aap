@@ -385,7 +385,7 @@ func TestAccAAPWorkflowJob_UpdateWithTrigger(t *testing.T) {
 // deleted.
 func testAccCheckWorkflowJobPause(name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		var jobApiModel JobAPIModel
+		var workflowjobApiModel WorkflowJobAPIModel
 		statuses := []string{"failed", "complete", "successful"}
 		job, ok := s.RootModule().Resources[name]
 		if !ok {
@@ -398,11 +398,11 @@ func testAccCheckWorkflowJobPause(name string) resource.TestCheckFunc {
 			if err != nil {
 				return err
 			}
-			err = json.Unmarshal(body, &jobApiModel)
+			err = json.Unmarshal(body, &workflowjobApiModel)
 			if err != nil {
 				return err
 			}
-			if slices.Contains(statuses, jobApiModel.Status) {
+			if slices.Contains(statuses, workflowjobApiModel.Status) {
 				break
 			}
 			time.Sleep(6 * time.Second)
