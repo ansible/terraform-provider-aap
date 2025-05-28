@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"slices"
 	"testing"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
@@ -49,13 +49,22 @@ func TestIsFinalStateAAPJob(t *testing.T) {
 		input    string
 		expected bool
 	}{
-		{name: "state new"},
+		{name: "state new", input: "new", expected: false},
+		{name: "state pending", input: "pending", expected: false},
+		{name: "state waiting", input: "waiting", expected: false},
+		{name: "state running", input: "running", expected: false},
+		{name: "state successful", input: "successful", expected: true},
+		{name: "state failed", input: "failed", expected: true},
+		{name: "state error", input: "error", expected: true},
+		{name: "state canceled", input: "canceled", expected: true},
+		{name: "state empty string", input: "", expected: false},
+		{name: "state random string", input: "random", expected: false},
 	}
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
 			result := IsFinalStateAAPJob(tc.input)
 			if result != tc.expected {
-				t.Errorf("expected %s, got result %s", tc.expected, result)
+				t.Errorf("expected %t, got result %t", tc.expected, result)
 			}
 		})
 	}
@@ -344,6 +353,7 @@ func TestAccAAPJob_UpdateWithNewInventoryIdPromptOnLaunch(t *testing.T) {
 
 	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
+	ctx := context.Background()
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
@@ -363,7 +373,7 @@ func TestAccAAPJob_UpdateWithNewInventoryIdPromptOnLaunch(t *testing.T) {
 					checkBasicJobAttributes(t, resourceNameJob, reJobStatus),
 					testAccCheckJobUpdate(&jobURLBefore, true),
 					// Wait for the job to finish so the inventory can be deleted
-					testAccCheckJobPause(resourceNameJob),
+					testAccCheckJobPause(ctx, resourceNameJob),
 				),
 			},
 		},
@@ -399,34 +409,36 @@ func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 	})
 }
 
-// testAccCheckJobPause is just a slightly more intelligent sleep function
-// designed to force the acceptance test framework to wait until a job is
-// finished. This is needed when the associated inventory also must be
+// testAccCheckJobPause is designed to force the acceptance test framework to wait
+// until a job is finished. This is needed when the associated inventory also must be
 // deleted.
-func testAccCheckJobPause(name string) resource.TestCheckFunc {
+func testAccCheckJobPause(ctx context.Context, name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		var jobApiModel JobAPIModel
-		statuses := []string{"failed", "complete", "successful"}
 		job, ok := s.RootModule().Resources[name]
 		if !ok {
-			return fmt.Errorf("job (%s) not found in state", name)
+			return fmt.Errorf("job (%s) not found in terraform state", name)
 		}
-		i := 0
-		for i < 20 {
-			i += 1
+
+		timeout := 240 * time.Second
+		err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 			body, err := testGetResource(job.Primary.Attributes["url"])
 			if err != nil {
-				return err
+				return retry.NonRetryableError(err)
 			}
 			err = json.Unmarshal(body, &jobApiModel)
 			if err != nil {
-				return err
+				return retry.NonRetryableError(err)
 			}
-			if slices.Contains(statuses, jobApiModel.Status) {
-				break
+			if IsFinalStateAAPJob(jobApiModel.Status) {
+				return nil
 			}
-			time.Sleep(6 * time.Second)
+			return retry.RetryableError(fmt.Errorf("error when waiting for AAP job to complete in test"))
+		})
+		if err != nil {
+			return err
 		}
+
 		return nil
 	}
 }
@@ -468,6 +480,7 @@ func TestAccAAPJob_disappears(t *testing.T) {
 	var jobUrl string
 
 	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
+	ctx := context.Background()
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
@@ -487,7 +500,7 @@ func TestAccAAPJob_disappears(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					checkBasicJobAttributes(t, resourceNameJob, reJobStatus),
 					// Wait for the job to finish so the inventory can be deleted
-					testAccCheckJobPause(resourceNameJob),
+					testAccCheckJobPause(ctx, resourceNameJob),
 				),
 			},
 			// Confirm the job is finished (fewer options in status), then delete directly via API, outside of terraform.

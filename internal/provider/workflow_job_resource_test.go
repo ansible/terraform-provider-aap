@@ -7,7 +7,6 @@ import (
 	"os"
 	"reflect"
 	"regexp"
-	"slices"
 	"testing"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
@@ -320,6 +320,7 @@ func TestAccAAPWorkflowJob_UpdateWithNewInventoryIdPromptOnLaunch(t *testing.T) 
 
 	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID")
+	ctx := context.Background()
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
@@ -341,7 +342,7 @@ func TestAccAAPWorkflowJob_UpdateWithNewInventoryIdPromptOnLaunch(t *testing.T) 
 					resource.TestMatchResourceAttr("aap_workflow_job.test", "url", regexp.MustCompile("^/api(/controller)?/v2/workflow_jobs/[0-9]*/$")),
 					testAccCheckWorkflowJobUpdate(&jobURLBefore, true),
 					// Wait for the job to finish so the inventory can be deleted
-					testAccCheckWorkflowJobPause("aap_workflow_job.test"),
+					testAccCheckWorkflowJobPause(ctx, "aap_workflow_job.test"),
 				),
 			},
 		},
@@ -379,34 +380,36 @@ func TestAccAAPWorkflowJob_UpdateWithTrigger(t *testing.T) {
 	})
 }
 
-// testAccCheckJobPause is just a slightly more intelligent sleep function
-// designed to force the acceptance test framework to wait until a job is
-// finished. This is needed when the associated inventory also must be
+// testAccCheckWorkflowJobPause is designed to force the acceptance test framework to wait
+// until a job is finished. This is needed when the associated inventory also must be
 // deleted.
-func testAccCheckWorkflowJobPause(name string) resource.TestCheckFunc {
+func testAccCheckWorkflowJobPause(ctx context.Context, name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		var workflowjobApiModel WorkflowJobAPIModel
-		statuses := []string{"failed", "complete", "successful"}
+		var apiModel WorkflowJobAPIModel
 		job, ok := s.RootModule().Resources[name]
 		if !ok {
-			return fmt.Errorf("job (%s) not found in state", name)
+			return fmt.Errorf("job (%s) not found in terraform state", name)
 		}
-		i := 0
-		for i < 20 {
-			i += 1
+
+		timeout := 240 * time.Second
+		err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 			body, err := testGetResource(job.Primary.Attributes["url"])
 			if err != nil {
-				return err
+				return retry.NonRetryableError(err)
 			}
-			err = json.Unmarshal(body, &workflowjobApiModel)
+			err = json.Unmarshal(body, &apiModel)
 			if err != nil {
-				return err
+				return retry.NonRetryableError(err)
 			}
-			if slices.Contains(statuses, workflowjobApiModel.Status) {
-				break
+			if IsFinalStateAAPJob(apiModel.Status) {
+				return nil
 			}
-			time.Sleep(6 * time.Second)
+			return retry.RetryableError(fmt.Errorf("error when waiting for AAP job to complete in test"))
+		})
+		if err != nil {
+			return err
 		}
+
 		return nil
 	}
 }
