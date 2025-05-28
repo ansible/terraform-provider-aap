@@ -315,7 +315,6 @@ func TestAccAAPJob_basic(t *testing.T) {
 	})
 }
 
-//nolint:dupl
 func TestAccAAPJob_UpdateWithSameParameters(t *testing.T) {
 	var jobURLBefore string
 
@@ -380,7 +379,6 @@ func TestAccAAPJob_UpdateWithNewInventoryIdPromptOnLaunch(t *testing.T) {
 	})
 }
 
-//nolint:dupl
 func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 	var jobURLBefore string
 
