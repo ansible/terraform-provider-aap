@@ -1,0 +1,32 @@
+---
+page_title: "{{ .Name }} {{ .Type }} - {{ .ProviderName }}"
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{ .Name }} ({{ .Type }})
+
+{{ .Description | trimspace }}
+
+{{ if .HasExample }}
+## Example Usage
+
+{{ tffile .ExampleFile }}
+{{ end }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Inventory Look Up
+
+You can look up Inventories by using either the `id` or a combination of `name` and `organization_name`.
+
+```terraform
+data "aap_inventory" "sample" {
+  id = 3
+}
+
+data "aap_inventory" "sample" {
+  name = "My Inventory"
+  organization_name = "My Organization"
+}
+```
