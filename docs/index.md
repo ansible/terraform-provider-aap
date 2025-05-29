@@ -6,10 +6,8 @@ description: |-
 
 # Red Hat Ansible Automation Platform provider
 
-The Red Hat Ansible Automation Platform (AAP) provider allows Terraform to manage
-AAP resources. It allows you to create inventories of instances you have provisioned
-and run job templates using those inventories.
-
+The Red Hat Ansible Automation Platform (AAP) provider allows Terraform to reference and manage
+a subset of AAP resources.
 
 
 ## Example Usage
@@ -34,8 +32,9 @@ provider "aap" {
 }
 
 resource "aap_inventory" "my_inventory" {
-  name        = "My new inventory"
-  description = "A new inventory for testing"
+  name         = "My new inventory"
+  description  = "A new inventory for testing"
+  organization = 1
   variables = jsonencode(
     {
       "foo" : "bar"

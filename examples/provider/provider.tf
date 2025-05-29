@@ -17,8 +17,9 @@ provider "aap" {
 }
 
 resource "aap_inventory" "my_inventory" {
-  name        = "My new inventory"
-  description = "A new inventory for testing"
+  name         = "My new inventory"
+  description  = "A new inventory for testing"
+  organization = 1
   variables = jsonencode(
     {
       "foo" : "bar"
