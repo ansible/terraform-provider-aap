@@ -58,3 +58,18 @@ output "inventory_details" {
 - `organization` (Number) Identifier for the organization to which the inventory belongs
 - `url` (String) Url of the inventory
 - `variables` (String) Variables of the inventory. Will be either JSON or YAML string depending on how the variables were entered into AAP.
+
+## Inventory Look Up
+
+You can look up Inventories by using either the `id` or a combination of `name` and `organization_name`.
+
+```terraform
+data "aap_inventory" "sample" {
+  id = 3
+}
+
+data "aap_inventory" "sample" {
+  name = "My Inventory"
+  organization_name = "My Organization"
+}
+```
