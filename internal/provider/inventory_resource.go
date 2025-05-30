@@ -96,7 +96,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			"organization": schema.Int64Attribute{
 				Computed: true,
 				Optional: true,
-				Default: int64default.StaticInt64(1),
+				Default:  int64default.StaticInt64(1),
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.RequiresReplaceIfConfigured(),
 				},
@@ -104,7 +104,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 					"If not provided, the inventory will be created in the default organization.",
 			},
 			"organization_name": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
 				Description: "Name for the organization.",
 			},
 			"url": schema.StringAttribute{

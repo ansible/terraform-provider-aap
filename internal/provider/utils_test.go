@@ -27,7 +27,7 @@ var (
 	reJobType        = regexp.MustCompile(`^(run|check)$`)
 	reJobURL         = regexp.MustCompile(`^/api(/controller)?/v2/jobs/\d+/$`)
 
-	reHostURL             = regexp.MustCompile(`^/api(/controller)?/v2/hosts/\d+/$`)
+	reHostURL = regexp.MustCompile(`^/api(/controller)?/v2/hosts/\d+/$`)
 )
 
 //nolint:unparam // keeping name parameter for future test reuse
