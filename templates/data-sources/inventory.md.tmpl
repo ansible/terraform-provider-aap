@@ -14,19 +14,6 @@ description: |-
 {{ tffile .ExampleFile }}
 {{ end }}
 
+!> **Warning** - the Schema definition below suggests that `id`, `name` and `organization_name` are optional, however the inventory data block requires `id` or the combiniation of `name` and `organization_name` as attributes.
+
 {{ .SchemaMarkdown | trimspace }}
-
-## Inventory Look Up
-
-You can look up Inventories by using either the `id` or a combination of `name` and `organization_name`.
-
-```terraform
-data "aap_inventory" "sample" {
-  id = 3
-}
-
-data "aap_inventory" "sample" {
-  name = "My Inventory"
-  organization_name = "My Organization"
-}
-```
