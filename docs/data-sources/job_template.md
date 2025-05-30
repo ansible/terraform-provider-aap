@@ -28,6 +28,7 @@ provider "aap" {
 
 # You can look up Job Templates by using either the `id` or a combination of `name` and `organization_name`.
 
+# This example relies on a job template with id 7 that the user has access to.
 data "aap_job_template" "sample_by_id" {
   id = 7
 }
