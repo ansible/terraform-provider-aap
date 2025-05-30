@@ -76,12 +76,6 @@ resource "aap_workflow_job" "sample_xyz" {
   extra_vars               = "os: Linux\nautomation: ansible-devel"
 }
 
-resource "aap_workflow_job" "sample_wait_for_completion" {
-  workflow_job_template_id            = 8
-  wait_for_completion                 = true
-  wait_for_completion_timeout_seconds = 120
-}
-
 output "job_foo" {
   value = aap_workflow_job.sample_foo
 }
