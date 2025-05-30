@@ -14,19 +14,8 @@ description: |-
 {{ tffile .ExampleFile }}
 {{ end }}
 
+## Attribute Information
+
+-> **Note** The Schema definition below suggests that `id`, `name` and `organization_name` are optional, however the workflow job template data block requires `id` or the combiniation of `name` and `organization_name` as attributes.
+
 {{ .SchemaMarkdown | trimspace }}
-
-## Workflow Job Template Look Up
-
-You can look up Job Templates by using either the `id` or a combination of `name` and `organization_name`.
-
-```terraform
-data "aap_workflow_job_template" "sample" {
-  id = 1
-}
-
-data "aap_workflow_job_template" "sample" {
-  name = "My Workflow Job Template"
-  organization_name = "My Organization"
-}
-```

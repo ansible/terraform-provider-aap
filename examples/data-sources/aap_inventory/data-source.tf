@@ -7,21 +7,26 @@ terraform {
 }
 
 provider "aap" {
-  host                 = "https://localhost:8043"
-  username             = "ansible"
-  password             = "test123!"
-  insecure_skip_verify = true
+  host     = "https://AAP_HOST"
+  username = "ansible"
+  password = "test123!"
 }
 
-variable "inventory_id" {
-  type        = number
-  description = "The inventory id"
+# You can look up Inventories by using either the `id` or a combination of `name` and `organization_name`.
+
+data "aap_inventory" "sample_by_id" {
+  id = 1
 }
 
-data "aap_inventory" "sample" {
-  id = var.inventory_id
+output "inventory_details_with_id" {
+  value = data.aap_inventory.sample_by_id
 }
 
-output "inventory_details" {
-  value = data.aap_inventory.sample
+data "aap_inventory" "sample_with_name_and_org_name" {
+  name              = "Demo Inventory"
+  organization_name = "Default"
+}
+
+output "inventory_details_with_name_and_org_name" {
+  value = data.aap_inventory.sample_with_name_and_org_name
 }

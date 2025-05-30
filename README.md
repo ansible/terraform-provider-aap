@@ -49,14 +49,15 @@ Create an admin user for the AAP instance and set the following environment vari
 ```bash
 export AAP_USERNAME=<your admin username>
 export AAP_PASSWORD=<your admin password>
-export AAP_INSECURE_SKIP_VERIFY=true 
-export AAP_HOST=<your aap instance host url> # "http://localhost:9080" or "https://localhost:8043" 
+export AAP_INSECURE_SKIP_VERIFY=true
+export AAP_HOST=<your aap instance host url> # "http://localhost:9080" or "https://localhost:8043"
 ```
 
-In order to run the acceptance tests for the job resource, you must have a working job template already in your AAP instance. The job template must be set to require an inventory on launch. Export the id of this job template:
+In order to run the acceptance tests for the job resource, you must have templates for job and worklow already in your AAP instance. The templates must be set to require an inventory on launch and the Workflow Template must be named "Demo Workflow Job Template". Export the IDs of these job templates:
 
 ```bash
 export AAP_TEST_JOB_TEMPLATE_ID=<the ID of a job template in your AAP instance>
+export AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID=<the ID of a workflow job template in your AAP instance>
 ```
 
 Then you can run acceptance tests with `make testacc`.
