@@ -88,7 +88,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			"id": schema.Int64Attribute{
 				Computed: true,
 				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.UseStateForUnknown(),
+					int64planmodifier.RequiresReplaceIfConfigured(),
 				},
 				Description: "Inventory id",
 			},
@@ -96,7 +96,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Computed: true,
 				Optional: true,
 				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.UseStateForUnknown(),
+					int64planmodifier.RequiresReplaceIfConfigured(),
 				},
 				Description: "Identifier for the organization the inventory should be created in. " +
 					"If not provided, the inventory will be created in the default organization.",
