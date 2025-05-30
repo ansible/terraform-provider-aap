@@ -2,7 +2,6 @@ package provider
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 	"testing"
 
@@ -59,19 +58,6 @@ func checkBasicGroupAttributes(t *testing.T, name, expectedName string) resource
 		resource.TestCheckResourceAttr(name, "name", expectedName),
 		resource.TestCheckResourceAttrPair(name, "inventory_id", resourceNameInventory, "id"),
 		resource.TestMatchResourceAttr(name, "url", reGroupURLPattern),
-	)
-}
-
-func checkBasicInventoryAttributes(t *testing.T, name, expectedName string, expectedOrgId string, expectedOrgName string) resource.TestCheckFunc {
-	t.Helper()
-	return resource.ComposeAggregateTestCheckFunc(
-		resource.TestCheckResourceAttr(name, "name", expectedName),
-		resource.TestCheckResourceAttr(name, "organization", expectedOrgId),
-		resource.TestCheckResourceAttr(name, "organization_name", expectedOrgName),
-		resource.TestMatchResourceAttr(name, "url", reInventoryURLPattern),
-		resource.TestCheckResourceAttr(name, "named_url", fmt.Sprintf("/api/controller/v2/inventories/%s++%s/", expectedName, "Default")),
-		resource.TestCheckResourceAttrSet(name, "id"),
-		resource.TestCheckResourceAttrSet("aap_inventory.test", "url"),
 	)
 }
 
