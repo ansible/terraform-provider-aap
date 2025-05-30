@@ -69,7 +69,7 @@ func checkBasicInventoryAttributes(t *testing.T, name, expectedName string, expe
 		resource.TestCheckResourceAttr(name, "organization", expectedOrgId),
 		resource.TestCheckResourceAttr(name, "organization_name", expectedOrgName),
 		resource.TestMatchResourceAttr(name, "url", reInventoryURLPattern),
-		resource.TestCheckResourceAttr(name, "named_url", fmt.Sprintf("/api/controller/v2/inventories/%s++%s/", expectedName, "Default")),
+		resource.TestMatchResourceAttr(name, "named_url", regexp.MustCompile(fmt.Sprintf(`^/api(/controller)?/v2/inventories/%s\+\+%s/`, expectedName, expectedOrgName))),
 		resource.TestCheckResourceAttrSet(name, "id"),
 		resource.TestCheckResourceAttrSet("aap_inventory.test", "url"),
 	)
