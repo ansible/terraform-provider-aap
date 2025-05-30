@@ -64,12 +64,13 @@ func checkBasicGroupAttributes(t *testing.T, name, expectedName string) resource
 
 func checkBasicInventoryAttributes(t *testing.T, name, expectedName string, expectedOrgId string, expectedOrgName string) resource.TestCheckFunc {
 	t.Helper()
+	expectedNamedUrlPattern := regexp.MustCompile(fmt.Sprintf(`^/api(/controller)?/v2/inventories/%s\+\+%s/`, expectedName, expectedOrgName))
 	return resource.ComposeAggregateTestCheckFunc(
 		resource.TestCheckResourceAttr(name, "name", expectedName),
 		resource.TestCheckResourceAttr(name, "organization", expectedOrgId),
 		resource.TestCheckResourceAttr(name, "organization_name", expectedOrgName),
 		resource.TestMatchResourceAttr(name, "url", reInventoryURLPattern),
-		resource.TestMatchResourceAttr(name, "named_url", regexp.MustCompile(fmt.Sprintf(`^/api(/controller)?/v2/inventories/%s\+\+%s/`, expectedName, expectedOrgName))),
+		resource.TestMatchResourceAttr(name, "named_url", expectedNamedUrlPattern),
 		resource.TestCheckResourceAttrSet(name, "id"),
 		resource.TestCheckResourceAttrSet("aap_inventory.test", "url"),
 	)
