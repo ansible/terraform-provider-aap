@@ -241,7 +241,7 @@ resource "aap_inventory" "test" {
 }`, name)
 }
 
-// testAccInventoryResourceComplete returns a configuration for an AAP Inventory with the provided name and all options.
+// testAccInventoryResourceWithOrg returns a configuration for an AAP Inventory with the provided name, organization and all options.
 func testAccInventoryResourceWithOrg(name string, org string) string {
 	return fmt.Sprintf(`
 resource "aap_inventory" "test" {

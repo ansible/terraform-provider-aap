@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -95,6 +96,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			"organization": schema.Int64Attribute{
 				Computed: true,
 				Optional: true,
+				Default: int64default.StaticInt64(1),
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.RequiresReplaceIfConfigured(),
 				},
@@ -103,9 +105,6 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			},
 			"organization_name": schema.StringAttribute{
 				Computed: true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 				Description: "Name for the organization.",
 			},
 			"url": schema.StringAttribute{
