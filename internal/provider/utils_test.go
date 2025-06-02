@@ -2,6 +2,7 @@ package provider
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"testing"
 
@@ -27,7 +28,8 @@ var (
 	reJobType        = regexp.MustCompile(`^(run|check)$`)
 	reJobURL         = regexp.MustCompile(`^/api(/controller)?/v2/jobs/\d+/$`)
 
-	reHostURL = regexp.MustCompile(`^/api(/controller)?/v2/hosts/\d+/$`)
+	reHostURL             = regexp.MustCompile(`^/api(/controller)?/v2/hosts/\d+/$`)
+	reInventoryURLPattern = regexp.MustCompile(`^/api(/controller)?/v2/inventories/\d+/$`)
 )
 
 //nolint:unparam // keeping name parameter for future test reuse
