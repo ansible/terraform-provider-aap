@@ -62,7 +62,16 @@ func checkBasicGroupAttributes(t *testing.T, name, expectedName string) resource
 	)
 }
 
-func checkBasicInventoryAttributes(t *testing.T, name string, inventory InventoryAPIModel, expectedName string, expectedOrgId string, expectedOrgName string, expectedDescription string, expectedVariables string) resource.TestCheckFunc {
+func checkBasicInventoryAttributes(
+	t *testing.T,
+	name string,
+	inventory InventoryAPIModel,
+	expectedName string,
+	expectedOrgId string,
+	expectedOrgName string,
+	expectedDescription string,
+	expectedVariables string,
+) resource.TestCheckFunc {
 	t.Helper()
 	expectedNamedUrlPattern := regexp.MustCompile(fmt.Sprintf(`^/api(/controller)?/v2/inventories/%s\+\+%s/`, expectedName, expectedOrgName))
 	return resource.ComposeAggregateTestCheckFunc(
