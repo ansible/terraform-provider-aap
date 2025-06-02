@@ -21,15 +21,15 @@ terraform {
 }
 
 provider "aap" {
-  host                 = "https://localhost:8043"
-  username             = "ansible"
-  password             = "test123!"
-  insecure_skip_verify = true
+  host     = "https://AAP_HOST"
+  username = "ansible"
+  password = "test123!"
 }
 
 resource "aap_inventory" "sample_foo" {
-  name        = "My new inventory foo"
-  description = "A new inventory for testing"
+  name         = "My new inventory foo"
+  description  = "A new inventory for testing"
+  organization = 1
   variables = jsonencode(
     {
       "foo" : "bar"
@@ -47,14 +47,16 @@ EOT
 }
 
 resource "aap_inventory" "sample_bar" {
-  name        = "My new inventory bar"
-  description = "A new inventory for testing"
-  variables   = jsonencode(yamldecode(local.values_variables))
+  name         = "My new inventory bar"
+  description  = "A new inventory for testing"
+  organization = 1
+  variables    = jsonencode(yamldecode(local.values_variables))
 }
 
 resource "aap_inventory" "sample_baz" {
-  name        = "My new inventory baz"
-  description = "A new inventory for testing"
+  name         = "My new inventory baz"
+  description  = "A new inventory for testing"
+  organization = 1
   variables = jsonencode({
     foo = "bar"
     # Add other variables as needed
@@ -62,15 +64,17 @@ resource "aap_inventory" "sample_baz" {
 }
 
 resource "aap_inventory" "sample_abc" {
-  name        = "My new inventory abc"
-  description = "A new inventory for testing"
-  variables   = yamlencode({ "os" : "Linux", "automation" : "ansible" })
+  name         = "My new inventory abc"
+  description  = "A new inventory for testing"
+  organization = 1
+  variables    = yamlencode({ "os" : "Linux", "automation" : "ansible" })
 }
 
 resource "aap_inventory" "sample_xyz" {
-  name        = "My new inventory xyz"
-  description = "A new inventory for testing"
-  variables   = "os: Linux\nautomation: ansible-devel"
+  name         = "My new inventory xyz"
+  description  = "A new inventory for testing"
+  organization = 1
+  variables    = "os: Linux\nautomation: ansible-devel"
 }
 
 output "inventory_foo" {
@@ -114,29 +118,3 @@ output "inventory_xyz" {
 - `named_url` (String) Named URL of the inventory
 - `organization_name` (String) Name for the organization.
 - `url` (String) URL of the inventory
-
-## Inventory Look Up
-
-You can look up inventories by using either the `id` or a combination of `name` and `organization_name`.
-
-Creating a new inventory in the Default organization:
-```terraform
-resource "aap_inventory" "sample" {
-  name        = "My Sample Inventory"
-  organization_name = "Default"
-  description = "A new inventory for testing"
-  variables   = jsonencode(yamldecode(local.values_variables))
-}
-```
-
-You can access this inventory using either the `id` or the combination of `name` and `organization_name`.
-```terraform
-data "aap_inventory" "sample" {
-  id = aap_inventory.sample.id
-}
-
-data "aap_inventory" "sample" {
-  name = aap_inventory.sample.name
-  organization_name = aap_inventory.sample.organization_name
-}
-```
