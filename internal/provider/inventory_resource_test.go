@@ -218,7 +218,7 @@ func testAccInventoryResourceWithOrg(name string, org string) string {
 resource "aap_inventory" "test" {
   name = "%s"
   description = "A test inventory"
-	organization = "%s"
+  organization = "%s"
   variables = "{\"foo\": \"bar\"}"
 }`, name, org)
 }
