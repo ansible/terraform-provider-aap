@@ -192,7 +192,7 @@ func TestAccInventoryResource(t *testing.T) {
 			// Update with new org and Read testing
 			{
 				Config: testAccInventoryResourceWithOrg(updatedName, updatedOrgId),
-				Check:  checkBasicInventoryAttributes(t, resourceNameInventory, inventory, updatedName, updatedOrgId, "Default2", updatedDescription, updatedVariables),
+				Check:  checkBasicInventoryAttributes(t, resourceNameInventory, inventory, updatedName, updatedOrgId, "Non-Default", updatedDescription, updatedVariables),
 			},
 			// Update without new org and Read testing
 			{

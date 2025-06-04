@@ -60,7 +60,7 @@ export AAP_TEST_JOB_TEMPLATE_ID=<the ID of a job template in your AAP instance>
 export AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID=<the ID of a workflow job template in your AAP instance>
 ```
 
-The inventory resource test requires the AAP instance to have a second organization and export that ID:
+The inventory resource test requires the AAP instance to have a second organization with the name `Non-Default` and export that ID:
 
 ```bash
 export AAP_TEST_ORGANIZATION_ID=<the ID of the second organization in your AAP instance>
