@@ -60,6 +60,12 @@ export AAP_TEST_JOB_TEMPLATE_ID=<the ID of a job template in your AAP instance>
 export AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID=<the ID of a workflow job template in your AAP instance>
 ```
 
+The inventory resource test requires the AAP instance to have a second organization and export that ID:
+
+```bash
+export AAP_TEST_ORGANIZATION_ID=<the ID of the second organization in your AAP instance>
+```
+
 Then you can run acceptance tests with `make testacc`.
 
 **WARNING**: running acceptance tests for the job resource will launch several jobs for the specified job template. It's strongly recommended that you create a "check" type job template for testing to ensure the launched jobs do not deploy any actual infrastructure.
