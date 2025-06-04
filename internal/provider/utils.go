@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"path"
 	"slices"
+	"strings"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
@@ -74,11 +75,11 @@ func getURL(base string, paths ...string) (string, diag.Diagnostics) {
 }
 
 func ParseStringValue(description string) types.String {
-	if description != "" {
-		return types.StringValue(description)
-	} else {
-		return types.StringNull()
+	fmt.Printf("'%s'\n", description)
+	if strings.TrimSpace(description) == "" {
+		return types.StringValue("")
 	}
+	return types.StringValue(description)
 }
 
 func ParseNormalizedValue(variables string) jsontypes.Normalized {
