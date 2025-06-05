@@ -8,6 +8,8 @@ description: |-
 
 Creates an inventory.
 
+!> ⚠️ **Deprecation Notice**: The `organization` attribute will no longer assume the default value of 1 when not present in the resource block.  `organization` attribute will be required on this resource in version `2.0.0` of this provider.   Please update your configuration to include this argument to avoid breaking changes.
+
 
 ## Example Usage
 
@@ -118,4 +120,4 @@ output "inventory_xyz" {
 - `named_url` (String) Named URL of the inventory
 - `organization_name` (String) Name for the organization.
 - `url` (String) URL of the inventory
-> ⚠️ **Deprecation Notice**: The `organization` argument will be required in version `2.0.0`. Update your configuration to include this argument to avoid breaking changes.
+
