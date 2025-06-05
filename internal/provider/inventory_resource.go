@@ -98,6 +98,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Optional: true,
 				Default:  int64default.StaticInt64(1),
 				PlanModifiers: []planmodifier.Int64{
+					WarnIfDefaultInt64Used("organization", "2.0.0"),
 					int64planmodifier.UseStateForUnknown(),
 				},
 				Description: "Identifier for the organization the inventory should be created in. " +
