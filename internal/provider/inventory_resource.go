@@ -101,7 +101,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 					int64planmodifier.UseStateForUnknown(),
 				},
 				Description: "Identifier for the organization the inventory should be created in. " +
-					"If not provided, the inventory will be created in the default organization.",
+					"If not provided, the inventory will be created in the default organization. NOTICE the organization attribute will be required in release 2.0.0",
 			},
 			"organization_name": schema.StringAttribute{
 				Computed:    true,
