@@ -102,7 +102,7 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				},
 				Description: "Identifier for the organization the inventory should be created in. " +
 					"If not provided, the inventory will be created in the default organization.",
-					DeprecationMessage: "The 'organization' argument will be required in version 2.0.0. Update your configuration to include it.",
+				DeprecationMessage: "The 'organization' argument will be required in version 2.0.0. Update your configuration to include it.",
 			},
 			"organization_name": schema.StringAttribute{
 				Computed:    true,
