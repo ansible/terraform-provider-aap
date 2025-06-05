@@ -111,7 +111,7 @@ output "inventory_xyz" {
 ### Optional
 
 - `description` (String) Description for the inventory
-- `organization` (Number) Identifier for the organization the inventory should be created in. If not provided, the inventory will be created in the default organization.
+- `organization` (Number) Identifier for the organization the inventory should be created in. If not provided, the inventory will be created in the default organization. NOTICE the organization attribute will be required in release 2.0.0
 - `variables` (String) Inventory variables. Must be provided as either a JSON or YAML string.
 
 ### Read-Only
