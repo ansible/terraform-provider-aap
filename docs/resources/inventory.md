@@ -109,7 +109,7 @@ output "inventory_xyz" {
 ### Optional
 
 - `description` (String) Description for the inventory
-- `organization` (Number) Identifier for the organization the inventory should be created in. If not provided, the inventory will be created in the default organization.
+- `organization` (Number, Deprecated) Identifier for the organization the inventory should be created in. If not provided, the inventory will be created in the default organization.
 - `variables` (String) Inventory variables. Must be provided as either a JSON or YAML string.
 
 ### Read-Only
@@ -118,3 +118,4 @@ output "inventory_xyz" {
 - `named_url` (String) Named URL of the inventory
 - `organization_name` (String) Name for the organization.
 - `url` (String) URL of the inventory
+> ⚠️ **Deprecation Notice**: The `organization` argument will be required in version `2.0.0`. Update your configuration to include this argument to avoid breaking changes.
