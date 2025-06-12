@@ -33,6 +33,16 @@ type RelatedAPIModel struct {
 	NamedUrl string `json:"named_url,omitempty"`
 }
 
+// A base struct for the entities API models. To be extended as needed.
+type BaseEntityAPIModel struct {
+	SummaryAPIModel `json:"summary_fields,omitempty"`
+	Organization    SummaryAPIModel `json:"organization,omitempty"`
+	Inventory       SummaryAPIModel `json:"inventory,omitempty"`
+	Url             string          `json:"url,omitempty"`
+	Variables       string          `json:"variables,omitempty"`
+	Related         RelatedAPIModel `json:"related,omitempty"`
+}
+
 // A base struct to represent the DataSource model so new Data Sources can
 // extend it as needed.
 type BaseDataSourceModel struct {
@@ -52,22 +62,22 @@ func (d *BaseDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	// Unmarshal the JSON response
-	var apiWorkflowJobTemplate WorkflowJobTemplateAPIModel
-	err := json.Unmarshal(body, &apiWorkflowJobTemplate)
+	var baseEntityAPIModel BaseEntityAPIModel
+	err := json.Unmarshal(body, &baseEntityAPIModel)
 	if err != nil {
 		diags.AddError("Error parsing JSON response from AAP", err.Error())
 		return diags
 	}
 
 	// Map response to the WorkflowJobTemplate datesource schema
-	d.Id = types.Int64Value(apiWorkflowJobTemplate.Id)
-	d.Organization = types.Int64Value(apiWorkflowJobTemplate.Organization)
-	d.OrganizationName = ParseStringValue(apiWorkflowJobTemplate.SummaryFields.Organization.Name)
-	d.Url = ParseStringValue(apiWorkflowJobTemplate.Url)
-	d.NamedUrl = ParseStringValue(apiWorkflowJobTemplate.Related.NamedUrl)
-	d.Name = ParseStringValue(apiWorkflowJobTemplate.Name)
-	d.Description = ParseStringValue(apiWorkflowJobTemplate.Description)
-	d.Variables = ParseAAPCustomStringValue(apiWorkflowJobTemplate.Variables)
+	d.Id = types.Int64Value(baseEntityAPIModel.Id)
+	d.Organization = types.Int64Value(baseEntityAPIModel.Organization.Id)
+	d.OrganizationName = ParseStringValue(baseEntityAPIModel.Organization.Name)
+	d.Url = ParseStringValue(baseEntityAPIModel.Url)
+	d.NamedUrl = ParseStringValue(baseEntityAPIModel.Related.NamedUrl)
+	d.Name = ParseStringValue(baseEntityAPIModel.Name)
+	d.Description = ParseStringValue(baseEntityAPIModel.Description)
+	d.Variables = ParseAAPCustomStringValue(baseEntityAPIModel.Variables)
 
 	return diags
 }
