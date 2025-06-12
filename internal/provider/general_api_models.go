@@ -44,8 +44,8 @@ type BaseEntityAPIModel struct {
 }
 
 // A base struct to represent the DataSource model so new Data Sources can
-// extend it as needed.
-type BaseDataSourceModel struct {
+// extend it as needed. No AAP organization fields.
+type BaseDataSourceModelWithOrg struct {
 	Id               types.Int64                      `tfsdk:"id"`
 	Name             types.String                     `tfsdk:"name"`
 	Organization     types.Int64                      `tfsdk:"organization"`
@@ -57,8 +57,8 @@ type BaseDataSourceModel struct {
 }
 
 // This function allows us to parse the incoming data in HTTP requests from the API
-// into the BaseDataSourceModel instances.
-func (d *BaseDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
+// into the BaseDataSourceModelWithOrg instances.
+func (d *BaseDataSourceModelWithOrg) ParseHttpResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	// Unmarshal the JSON response
@@ -143,7 +143,7 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	// Read Terraform configuration data into the model
-	var state BaseDataSourceModel
+	var state BaseDataSourceModelWithOrg
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -241,7 +241,7 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 		return
 	}
 
-	var data BaseDataSourceModel
+	var data BaseDataSourceModelWithOrg
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
