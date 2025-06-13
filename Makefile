@@ -10,10 +10,10 @@ build: ## Compile the Go package. This is the default.
 	go build
 
 clean: ## Remove the .tools folder and binaries.
-	@rm -rf .tools
-	@rm terraform-provider-aap || true
-	@rm unit-testing.cov || true
-	@rm acceptance-testing.cov || true
+	-@rm -rf .tools
+	-@rm terraform-provider-aap
+	-@rm unit-testing.cov
+	-@rm acceptance-testing.cov
 
 test: ## Execute all unit tests with verbose output.
 	@echo "==> Running unit tests..."
