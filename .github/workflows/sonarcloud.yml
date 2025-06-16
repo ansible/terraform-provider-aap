@@ -9,11 +9,29 @@ jobs:
   sonarqube:
     name: SonarCloud Static Scan
     runs-on: ubuntu-latest
+    needs: [build]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Fetch Code Coverage Report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: .
+
+      # - name: Install Go and run Tests
+      #   uses: actions/setup-go@v5
+      #   with:
+      #     go-version: '1.23.9'
+      #   run: make testcov
+      
       - name: SonarCloudScan
         uses: SonarSource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets[format('{0}', vars.SONAR_TOKEN_SECRET_NAME)] }}
+        with:
+          args: >
+            -Dsonar.go.coverage.reportPaths=unit-testing.cov  
