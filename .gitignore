@@ -43,3 +43,4 @@ config.tfrc
 
 # Ignore coverage output
 *.cov
+*.out
