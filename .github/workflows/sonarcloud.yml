@@ -22,10 +22,12 @@ jobs:
       #     name: coverage-report
       #     path: .
 
-      - name: Install Go and run Tests
+      - name: Install Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.23.9'
+
+      - name: Run Tests with Coverage
         run: make testcov
       
       - name: SonarCloudScan
