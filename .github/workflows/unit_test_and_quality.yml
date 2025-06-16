@@ -38,35 +38,3 @@ jobs:
         with:
           name: coverage-report
           path: unit-testing.cov
-      
-  sonarcloud:
-    name: Sonar Cloud Static Scans
-    runs-on: ubuntu-latest
-    needs: [build-and-test]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Fetch Code Coverage Report
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-report
-          path: .
-
-      # - name: Install Go
-      #   uses: actions/setup-go@v5
-      #   with:
-      #     go-version: '1.23.9'
-
-      # - name: Run Tests with Coverage
-      #   run: make testcov
-      
-      - name: Sonar Cloud Scan
-        uses: SonarSource/sonarqube-scan-action@master
-        env:
-          SONAR_TOKEN: ${{ secrets[format('{0}', vars.SONAR_TOKEN_SECRET_NAME)] }}
-        with:
-          args: >
-            -Dsonar.go.coverage.reportPaths=unit-testing.cov  
