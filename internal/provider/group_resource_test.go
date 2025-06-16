@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -34,13 +35,14 @@ func TestGroupResourceSchema(t *testing.T) {
 
 	// Validate the schema
 	diagnostics := schemaResponse.Schema.ValidateImplementation(ctx)
+
 	if diagnostics.HasError() {
 		t.Fatalf("Schema validation diagnostics: %+v", diagnostics)
 	}
 }
 
 func TestGroupResourceCreateRequestBody(t *testing.T) {
-	testCases := []struct {
+	var testTable = []struct {
 		name     string
 		input    GroupResourceModel
 		expected []byte
@@ -95,14 +97,14 @@ func TestGroupResourceCreateRequestBody(t *testing.T) {
 		},
 	}
 
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			actual, diags := testCase.input.CreateRequestBody()
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			actual, diags := test.input.CreateRequestBody()
 			if diags.HasError() {
 				t.Fatal(diags.Errors())
 			}
-			if !bytes.Equal(testCase.expected, actual) {
-				t.Errorf("Expected (%s) not equal to actual (%s)", testCase.expected, actual)
+			if !bytes.Equal(test.expected, actual) {
+				t.Errorf("Expected (%s) not equal to actual (%s)", test.expected, actual)
 			}
 		})
 	}
@@ -112,15 +114,7 @@ func TestGroupResourceParseHttpResponse(t *testing.T) {
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
-	const groupJSON = `{
-		"inventory": 1,
-		"description": "A basic test group",
-		"name": "group1",
-		"url": "/api/v2/groups/1/",
-		"variables": "{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"
-	}`
-
-	testCases := []struct {
+	var testTable = []struct {
 		name     string
 		input    []byte
 		expected GroupResourceModel
@@ -145,8 +139,9 @@ func TestGroupResourceParseHttpResponse(t *testing.T) {
 			errors: diag.Diagnostics{},
 		},
 		{
-			name:  "test with all values",
-			input: []byte(groupJSON),
+			name: "test with all values",
+			input: []byte(`{"inventory":1,"description":"A basic test group","name":"group1","url":"/api/v2/groups/1/",` +
+				`"variables":"{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"}`),
 			expected: GroupResourceModel{
 				InventoryId: types.Int64Value(1),
 				Id:          types.Int64Value(0),
@@ -159,15 +154,15 @@ func TestGroupResourceParseHttpResponse(t *testing.T) {
 		},
 	}
 
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
 			resource := GroupResourceModel{}
-			diags := resource.ParseHttpResponse(testCase.input)
-			if !testCase.errors.Equal(diags) {
-				t.Errorf("Expected error diagnostics (%s), actual was (%s)", testCase.errors, diags)
+			diags := resource.ParseHttpResponse(test.input)
+			if !test.errors.Equal(diags) {
+				t.Errorf("Expected error diagnostics (%s), actual was (%s)", test.errors, diags)
 			}
-			if !reflect.DeepEqual(testCase.expected, resource) {
-				t.Errorf("Expected (%s) not equal to actual (%s)", testCase.expected, resource)
+			if !reflect.DeepEqual(test.expected, resource) {
+				t.Errorf("Expected (%s) not equal to actual (%s)", test.expected, resource)
 			}
 		})
 	}
@@ -177,38 +172,42 @@ func TestGroupResourceParseHttpResponse(t *testing.T) {
 
 func TestAccGroupResource(t *testing.T) {
 	var groupApiModel GroupAPIModel
+	var description = "A test group"
+	var variables = "{\"foo\": \"bar\"}"
 	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	groupName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	updatedName := "updated" + groupName
-	description := "A test group"
-	variables := "{\"foo\": \"bar\"}"
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Invalid variables testing.
+			// Invalid variables testing
 			{
 				Config:      testAccGroupResourceBadVariables(inventoryName, updatedName),
-				ExpectError: reInvalidVars,
+				ExpectError: regexp.MustCompile("Input type `str` is not a dictionary"),
 			},
+			// Create and Read testing
 			{
 				Config: testAccGroupResourceMinimal(inventoryName, groupName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckGroupResourceExists(resourceNameGroup, &groupApiModel),
+					testAccCheckGroupResourceExists("aap_group.test", &groupApiModel),
 					testAccCheckGroupResourceValues(&groupApiModel, groupName, "", ""),
-					checkBasicGroupAttributes(t, resourceNameGroup, groupName),
+					resource.TestCheckResourceAttr("aap_group.test", "name", groupName),
+					resource.TestCheckResourceAttrPair("aap_group.test", "inventory_id", "aap_inventory.test", "id"),
+					resource.TestMatchResourceAttr("aap_group.test", "url", regexp.MustCompile("^/api(/controller)?/v2/groups/[0-9]*/$")),
 				),
 			},
 			{
 				Config: testAccGroupResourceComplete(inventoryName, updatedName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckGroupResourceExists(resourceNameGroup, &groupApiModel),
+					testAccCheckGroupResourceExists("aap_group.test", &groupApiModel),
 					testAccCheckGroupResourceValues(&groupApiModel, updatedName, description, variables),
-					checkBasicGroupAttributes(t, resourceNameGroup, updatedName),
-					resource.TestCheckResourceAttr(resourceNameGroup, "name", updatedName),
-					resource.TestCheckResourceAttr(resourceNameGroup, "description", description),
-					resource.TestCheckResourceAttr(resourceNameGroup, "variables", variables),
+					resource.TestCheckResourceAttr("aap_group.test", "name", updatedName),
+					resource.TestCheckResourceAttrPair("aap_group.test", "inventory_id", "aap_inventory.test", "id"),
+					resource.TestCheckResourceAttr("aap_group.test", "description", description),
+					resource.TestCheckResourceAttr("aap_group.test", "variables", variables),
+					resource.TestMatchResourceAttr("aap_group.test", "url", regexp.MustCompile("^/api(/controller)?/v2/groups/[0-9]*/$")),
 				),
 			},
 		},

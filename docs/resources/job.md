@@ -4,8 +4,6 @@ description: |-
   Launches an AAP job.
   A job is launched only when the resource is first created or when the resource is changed. The triggers argument can be used to launch a new job based on any arbitrary value.
   This resource always creates a new job in AAP. A destroy will not delete a job created by this resource, it will only remove the resource from the state.
-  Moreover, you can set wait_for_completion to true, then Terraform will wait until this job is created and reaches any final state before continuing. This parameter works in both create and update operations.
-  You can also tweak wait_for_completion_timeout_seconds to control the timeout limit.
 ---
 
 # aap_job (Resource)
@@ -16,11 +14,7 @@ A job is launched only when the resource is first created or when the resource i
 
 This resource always creates a new job in AAP. A destroy will not delete a job created by this resource, it will only remove the resource from the state.
 
-Moreover, you can set `wait_for_completion` to true, then Terraform will wait until this job is created and reaches any final state before continuing. This parameter works in both create and update operations.
-
-You can also tweak `wait_for_completion_timeout_seconds` to control the timeout limit.
-
--> **Note** To pass an inventory to an aap_job resource, the underlying job template *must* have been configured to prompt for the inventory on launch.
+-> **Note** To pass an inventory to an aap_job resource, the underlying job template *must* have been conigured to prompt for the inventory on launch.
 
 !> **Warning** If an AAP Job launched by this resource is deleted from AAP, the resource will be removed from the state and a new job will be created to replace it.
 
@@ -37,18 +31,18 @@ terraform {
 }
 
 provider "aap" {
-  host     = "https://AAP_HOST"
-  username = "ansible"
-  password = "test123!"
+  host                 = "https://localhost:8043"
+  username             = "ansible"
+  password             = "test123!"
+  insecure_skip_verify = true
 }
 
 resource "aap_inventory" "my_inventory" {
-  name         = "A new inventory"
-  organization = 1
+  name = "A new inventory"
 }
 
 resource "aap_job" "sample_foo" {
-  job_template_id = 7
+  job_template_id = 9
   inventory_id    = aap_inventory.my_inventory.id
   extra_vars      = jsonencode({ "resource_state" : "absent" })
   triggers = {
@@ -66,13 +60,13 @@ EOT
 }
 
 resource "aap_job" "sample_bar" {
-  job_template_id = 7
+  job_template_id = 9
   inventory_id    = aap_inventory.my_inventory.id
   extra_vars      = jsonencode(yamldecode(local.values_extra_vars))
 }
 
 resource "aap_job" "sample_baz" {
-  job_template_id = 7
+  job_template_id = 9
   inventory_id    = aap_inventory.my_inventory.id
   extra_vars = jsonencode({
     execution_environment_id = "3"
@@ -81,22 +75,15 @@ resource "aap_job" "sample_baz" {
 }
 
 resource "aap_job" "sample_abc" {
-  job_template_id = 7
+  job_template_id = 9
   inventory_id    = aap_inventory.my_inventory.id
   extra_vars      = yamlencode({ "os" : "Linux", "automation" : "ansible" })
 }
 
 resource "aap_job" "sample_xyz" {
-  job_template_id = 7
+  job_template_id = 9
   inventory_id    = aap_inventory.my_inventory.id
   extra_vars      = "os: Linux\nautomation: ansible-devel"
-}
-
-resource "aap_job" "sample_wait_for_completion" {
-  job_template_id                     = 7
-  inventory_id                        = aap_inventory.my_inventory.id
-  wait_for_completion                 = true
-  wait_for_completion_timeout_seconds = 120
 }
 
 output "job_foo" {
@@ -133,8 +120,6 @@ output "job_xyz" {
 - `extra_vars` (String) Extra Variables. Must be provided as either a JSON or YAML string.
 - `inventory_id` (Number) Identifier for the inventory where job should be created in. If not provided, the job will be created in the default inventory.
 - `triggers` (Map of String) Map of arbitrary keys and values that, when changed, will trigger a creation of a new Job on AAP. Use 'terraform taint' if you want to force the creation of a new job without changing this value.
-- `wait_for_completion` (Boolean) When this is set to `true`, Terraform will wait until this aap_job resource is created, reaches any final status and then, proceeds with the following resource operation
-- `wait_for_completion_timeout_seconds` (Number) Sets the maximum amount of seconds Terraform will wait before timing out the updates, and the job creation will fail. Default value of `120`
 
 ### Read-Only
 

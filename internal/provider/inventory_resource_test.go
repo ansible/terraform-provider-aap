@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -171,7 +170,6 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 func TestAccInventoryResource(t *testing.T) {
 	var inventory InventoryAPIModel
 	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
-	updatedOrgId := os.Getenv("AAP_TEST_ORGANIZATION_ID")
 	updatedName := "updated " + randomName
 	updatedDescription := "A test inventory"
 	updatedVariables := "{\"foo\": \"bar\"}"
@@ -187,17 +185,31 @@ func TestAccInventoryResource(t *testing.T) {
 			// Create and Read testing
 			{
 				Config: testAccInventoryResourceMinimal(randomName),
-				Check:  checkBasicInventoryAttributes(t, resourceNameInventory, inventory, randomName, "1", "Default", "", ""),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckInventoryResourceExists("aap_inventory.test", &inventory),
+					testAccCheckInventoryResourceValues(&inventory, randomName, "", ""),
+					resource.TestCheckResourceAttr("aap_inventory.test", "name", randomName),
+					resource.TestCheckResourceAttr("aap_inventory.test", "organization", "1"),
+					resource.TestCheckResourceAttr("aap_inventory.test", "organization_name", "Default"),
+					resource.TestCheckResourceAttrSet("aap_inventory.test", "named_url"),
+					resource.TestCheckResourceAttrSet("aap_inventory.test", "id"),
+					resource.TestCheckResourceAttrSet("aap_inventory.test", "url"),
+				),
 			},
-			// Update with new org and Read testing
-			{
-				Config: testAccInventoryResourceWithOrg(updatedName, updatedOrgId),
-				Check:  checkBasicInventoryAttributes(t, resourceNameInventory, inventory, updatedName, updatedOrgId, "Non-Default", updatedDescription, updatedVariables),
-			},
-			// Update without new org and Read testing
+			// Update and Read testing
 			{
 				Config: testAccInventoryResourceComplete(updatedName),
-				Check:  checkBasicInventoryAttributes(t, resourceNameInventory, inventory, updatedName, "1", "Default", updatedDescription, updatedVariables),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckInventoryResourceExists("aap_inventory.test", &inventory),
+					testAccCheckInventoryResourceValues(&inventory, updatedName, updatedDescription, updatedVariables),
+					resource.TestCheckResourceAttr("aap_inventory.test", "name", updatedName),
+					resource.TestCheckResourceAttr("aap_inventory.test", "organization", "1"),
+					resource.TestCheckResourceAttr("aap_inventory.test", "description", updatedDescription),
+					resource.TestCheckResourceAttr("aap_inventory.test", "variables", updatedVariables),
+					resource.TestCheckResourceAttr("aap_inventory.test", "named_url", fmt.Sprintf("/api/controller/v2/inventories/%s++%s/", updatedName, "Default")),
+					resource.TestCheckResourceAttrSet("aap_inventory.test", "id"),
+					resource.TestCheckResourceAttrSet("aap_inventory.test", "url"),
+				),
 			},
 		},
 		CheckDestroy: testAccCheckInventoryResourceDestroy,
@@ -210,17 +222,6 @@ func testAccInventoryResourceMinimal(name string) string {
 resource "aap_inventory" "test" {
   name = "%s"
 }`, name)
-}
-
-// testAccInventoryResourceWithOrg returns a configuration for an AAP Inventory with the provided name, organization and all options.
-func testAccInventoryResourceWithOrg(name string, org string) string {
-	return fmt.Sprintf(`
-resource "aap_inventory" "test" {
-  name = "%s"
-  description = "A test inventory"
-  organization = "%s"
-  variables = "{\"foo\": \"bar\"}"
-}`, name, org)
 }
 
 // testAccInventoryResourceComplete returns a configuration for an AAP Inventory with the provided name and all options.

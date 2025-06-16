@@ -21,14 +21,14 @@ terraform {
 }
 
 provider "aap" {
-  host     = "https://AAP_HOST"
-  username = "ansible"
-  password = "test123!"
+  host                 = "https://localhost:8043"
+  username             = "ansible"
+  password             = "test123!"
+  insecure_skip_verify = true
 }
 
 resource "aap_inventory" "my_inventory" {
-  organization = 1
-  name         = "A new inventory"
+  name = "A new inventory"
 }
 
 resource "aap_group" "sample_foo" {
