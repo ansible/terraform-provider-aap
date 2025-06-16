@@ -24,10 +24,10 @@ jobs:
         run: go build -v ./...
 
       - name: Run unit tests
-        run: make testcov
+        run: make test
 
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: unit-testing.cov
+      # - name: Upload coverage report
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: coverage-report
+      #     path: unit-testing.cov
