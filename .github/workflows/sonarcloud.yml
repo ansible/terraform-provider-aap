@@ -1,0 +1,19 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+name: SonarCloud
+jobs:
+  sonarqube:
+    name: SonarCloud Static Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: SonarCloudScan
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets[format('{0}', vars.SONAR_TOKEN_SECRET_NAME)] }}
