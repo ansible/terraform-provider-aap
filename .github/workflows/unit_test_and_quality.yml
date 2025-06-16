@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  build:
+  build-and-test:
     name: 
     runs-on: ubuntu-latest
     env:
@@ -24,11 +24,11 @@ jobs:
         with:
           go-version: ${{ env.go_version }}
 
-      # - name: Install dependencies
-      #   run: go get .
+      - name: Install Go dependencies
+        run: go get .
 
-      # - name: Build
-      #   run: go build -v ./...
+      - name: Build the Provider
+        run: go build -v ./...
 
       - name: Run unit tests with coverage
         run: make testcov
@@ -42,7 +42,7 @@ jobs:
   sonarcloud:
     name: Sonar Cloud Static Scans
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [build-and-test]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
