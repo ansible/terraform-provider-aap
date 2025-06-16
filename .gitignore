@@ -40,3 +40,7 @@ config.tfrc
 .DS_Store
 .tools
 .vscode
+
+# Ignore coverage output
+*.cov
+*.out
