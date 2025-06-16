@@ -8,10 +8,10 @@ on:
 
 jobs:
   build-and-test:
-    name: 
+    name:
     runs-on: ubuntu-latest
     env:
-        go_version: '1.23.9'
+        go_version: '1.23'
 
     steps:
       - name: Checkout Provider
@@ -38,7 +38,7 @@ jobs:
         with:
           name: coverage-report
           path: unit-testing.cov
-      
+
   sonarcloud:
     name: Sonar Cloud Static Scans
     runs-on: ubuntu-latest
@@ -62,11 +62,11 @@ jobs:
 
       # - name: Run Tests with Coverage
       #   run: make testcov
-      
+
       - name: Sonar Cloud Scan
         uses: SonarSource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets[format('{0}', vars.SONAR_TOKEN_SECRET_NAME)] }}
         with:
           args: >
-            -Dsonar.go.coverage.reportPaths=unit-testing.cov  
+            -Dsonar.go.coverage.reportPaths=unit-testing.cov
