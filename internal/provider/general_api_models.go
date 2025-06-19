@@ -16,13 +16,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
-type SummaryFieldsAPIModel struct {
-	Organization SummaryAPIModel `json:"organization,omitempty"`
-	Inventory    SummaryAPIModel `json:"inventory,omitempty"`
-}
+// ---------------------------------------------------------------------------
 
-// If we end up pulling in more summary_fields that have other information, we can split
-// them out to their own structs at that time.
+// TODO: Delete this once the PR of the refactor is merged
+// This struct is just here to make the CI happy :D
 type SummaryAPIModel struct {
 	Id          int64  `json:"id,omitempty"`
 	Name        string `json:"name"`
@@ -33,54 +30,111 @@ type RelatedAPIModel struct {
 	NamedUrl string `json:"named_url,omitempty"`
 }
 
-// A base struct for the entities API models. To be extended as needed.
-type BaseEntityAPIModel struct {
-	SummaryAPIModel `json:"summary_fields,omitempty"`
-	Organization    SummaryAPIModel `json:"organization,omitempty"`
-	Inventory       SummaryAPIModel `json:"inventory,omitempty"`
-	Url             string          `json:"url,omitempty"`
-	Variables       string          `json:"variables,omitempty"`
-	Related         RelatedAPIModel `json:"related,omitempty"`
+type SummaryField struct {
+	Id   int64  `json:"id"`
+	Name string `json:"name"`
 }
 
-// A base struct to represent the DataSource model so new Data Sources can
-// extend it as needed. No AAP organization fields.
-type BaseDataSourceModelWithOrg struct {
-	Id               types.Int64                      `tfsdk:"id"`
-	Name             types.String                     `tfsdk:"name"`
-	Organization     types.Int64                      `tfsdk:"organization"`
-	OrganizationName types.String                     `tfsdk:"organization_name"`
-	Url              types.String                     `tfsdk:"url"`
-	NamedUrl         types.String                     `tfsdk:"named_url"`
-	Description      types.String                     `tfsdk:"description"`
-	Variables        customtypes.AAPCustomStringValue `tfsdk:"variables"`
+type SummaryFieldsAPIModel struct {
+	Organization SummaryField `json:"organization,omitempty"`
+	Inventory    SummaryField `json:"inventory,omitempty"`
+}
+
+type BaseDetailAPIModel struct {
+	Id            int64                 `json:"id"`
+	Name          string                `json:"name,omitempty"`
+	Description   string                `json:"description,omitempty"`
+	URL           string                `json:"url"`
+	Related       RelatedAPIModel       `json:"related"`
+	SummaryFields SummaryFieldsAPIModel `json:"summary_fields"`
+}
+
+type BaseDetailAPIModelWithOrg struct {
+	BaseDetailAPIModel
+	Organization int64 `json:"organization"`
+}
+
+// ---------------------------------------------------------------------------
+
+type BaseDetailDataSourceModel struct {
+	Id          types.Int64  `tfsdk:"id"`
+	Name        types.String `tfsdk:"name"`
+	Description types.String `tfsdk:"description"`
+	URL         types.String `tfsdk:"url"`
+	NamedUrl    types.String `tfsdk:"named_url"`
+}
+
+type BaseDetailDataSourceModelWithOrg struct {
+	BaseDetailDataSourceModel
+	Organization     types.Int64  `tfsdk:"organization"`
+	OrganizationName types.String `tfsdk:"organization_name"`
 }
 
 // This function allows us to parse the incoming data in HTTP requests from the API
-// into the BaseDataSourceModelWithOrg instances.
-func (d *BaseDataSourceModelWithOrg) ParseHttpResponse(body []byte) diag.Diagnostics {
+// into the BaseDetailDataSourceModel instances.
+func (d *BaseDetailDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	// Unmarshal the JSON response
-	var baseEntityAPIModel BaseEntityAPIModel
-	err := json.Unmarshal(body, &baseEntityAPIModel)
+	var apiModel BaseDetailAPIModel
+	err := json.Unmarshal(body, &apiModel)
 	if err != nil {
 		diags.AddError("Error parsing JSON response from AAP", err.Error())
 		return diags
 	}
 
-	// Map response to the WorkflowJobTemplate datesource schema
-	d.Id = types.Int64Value(baseEntityAPIModel.Id)
-	d.Organization = types.Int64Value(baseEntityAPIModel.Organization.Id)
-	d.OrganizationName = ParseStringValue(baseEntityAPIModel.Organization.Name)
-	d.Url = ParseStringValue(baseEntityAPIModel.Url)
-	d.NamedUrl = ParseStringValue(baseEntityAPIModel.Related.NamedUrl)
-	d.Name = ParseStringValue(baseEntityAPIModel.Name)
-	d.Description = ParseStringValue(baseEntityAPIModel.Description)
-	d.Variables = ParseAAPCustomStringValue(baseEntityAPIModel.Variables)
+	// Map the response to the BaseDetailDataSourceModel datasource schema
+	d.Id = types.Int64Value(apiModel.Id)
+	d.Name = ParseStringValue(apiModel.Name)
+	d.Description = ParseStringValue(apiModel.Description)
+	d.URL = ParseStringValue(apiModel.URL)
+	// Parse the related fields
+	d.NamedUrl = ParseStringValue(apiModel.Related.NamedUrl)
+	// Parse the summary fields
 
 	return diags
 }
+
+// This function allows us to parse the incoming data in HTTP requests from the API
+// into the BaseDetailDataSourceModelWithOrg instances.
+func (d *BaseDetailDataSourceModelWithOrg) ParseHttpResponse(body []byte) diag.Diagnostics {
+	// Let my parent's ParseHttpResponse method handle the base fields
+	diags := d.BaseDetailDataSourceModel.ParseHttpResponse(body)
+	if diags.HasError() {
+		return diags
+	}
+
+	// Unmarshal the JSON response
+	var apiModel BaseDetailAPIModelWithOrg
+	err := json.Unmarshal(body, &apiModel)
+	if err != nil {
+		diags.AddError("Error parsing JSON response from AAP", err.Error())
+		return diags
+	}
+
+	// Map the response to the BaseDetailDataSourceModelWithOrg datasource schema
+	d.Organization = types.Int64Value(apiModel.Organization)
+	d.OrganizationName = ParseStringValue(apiModel.SummaryFields.Organization.Name)
+	// Parse the related fields
+	// Parse the summary fields
+
+	return diags
+}
+
+// ---------------------------------------------------------------------------
+
+// Ensure the implementation satisfies the expected interfaces.
+var (
+	_ datasource.DataSource                     = &BaseDataSource{}
+	_ datasource.DataSourceWithConfigure        = &BaseDataSource{}
+	_ datasource.DataSourceWithConfigValidators = &BaseDataSource{}
+	_ datasource.DataSourceWithValidateConfig   = &BaseDataSource{}
+
+	_ datasource.DataSource                     = &BaseDataSourceWithOrg{}
+	_ datasource.DataSourceWithConfigure        = &BaseDataSourceWithOrg{}
+	_ datasource.DataSourceWithConfigValidators = &BaseDataSourceWithOrg{}
+	_ datasource.DataSourceWithValidateConfig   = &BaseDataSourceWithOrg{}
+)
 
 type StringDescriptions struct {
 	ApiEntitySlug         string
@@ -95,6 +149,10 @@ type BaseDataSource struct {
 	StringDescriptions
 }
 
+type BaseDataSourceWithOrg struct {
+	BaseDataSource
+}
+
 // Constructs a new BaseDataSource object provided with a client instance (usually
 // initialized to nil, it will be later configured calling the Configure function)
 // and an apiEntitySlug string indicating the entity path name to consult the API.
@@ -102,6 +160,18 @@ func NewBaseDataSource(client ProviderHTTPClient, stringDescriptions StringDescr
 	return &BaseDataSource{
 		client:             client,
 		StringDescriptions: stringDescriptions,
+	}
+}
+
+// Constructs a new BaseDataSourceWithOrg object provided with a client instance (usually
+// initialized to nil, it will be later configured calling the Configure function)
+// and an apiEntitySlug string indicating the entity path name to consult the API.
+func NewBaseDataSourceWithOrg(client ProviderHTTPClient, stringDescriptions StringDescriptions) *BaseDataSourceWithOrg {
+	return &BaseDataSourceWithOrg{
+		BaseDataSource: BaseDataSource{
+			client:             client,
+			StringDescriptions: stringDescriptions,
+		},
 	}
 }
 
@@ -120,35 +190,78 @@ func IsContextActive(operationName string, ctx context.Context, diagnostics diag
 	return ctx.Err() == nil
 }
 
-// Read refreshes the Terraform state with the latest data.
-func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	// Check that the response and diagnostics pointer is defined
+func doReadPreconditionsMeet(ctx context.Context, resp *datasource.ReadResponse, client ProviderHTTPClient) bool {
 	if resp == nil || resp.Diagnostics == nil {
 		tflog.Error(ctx, "Response or Diagnostics pointer(s) not defined, we cannot continue with the execution")
-		return
+		return false
 	}
 
 	// Check that the current context is active
 	if !IsContextActive("Read", ctx, resp.Diagnostics) {
-		return
+		return false
 	}
 
 	// Check that the HTTP Client is defined
-	if d.client == nil {
+	if client == nil {
 		resp.Diagnostics.AddError(
 			"Aborting Read operation",
 			"HTTP Client not configured, we cannot continue with the execution",
 		)
+		return false
+	}
+	return true
+}
+
+// Read refreshes the Terraform state with the latest data.
+func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	// Check Read preconditions
+	if !doReadPreconditionsMeet(ctx, resp, d.client) {
 		return
 	}
 
 	// Read Terraform configuration data into the model
-	var state BaseDataSourceModelWithOrg
+	var state BaseDetailDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
+	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
+
+	// TODO: REVIEWERS ABOUT THESE LINES: Should this NamedUrl be created when the entity doesn't support organization?
+	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, types.StringValue(""), uri)
+	if err != nil {
+		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected either [id] or [name + organization_name] pair")
+		return
+	}
+
+	var diags diag.Diagnostics
+	readResponseBody, diags := d.client.Get(resourceURL)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
+	diags = state.ParseHttpResponse(readResponseBody)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Set state
+	// Save updated data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+// Read refreshes the Terraform state with the latest data.
+func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	// Check Read preconditions
+	if !doReadPreconditionsMeet(ctx, resp, d.client) {
+		return
+	}
+
+	// Read Terraform configuration data into the model
+	var state BaseDetailDataSourceModelWithOrg
+	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
 	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, uri)
 	if err != nil {
@@ -217,6 +330,8 @@ func (d *BaseDataSource) ConfigValidators(ctx context.Context) []datasource.Conf
 		return []datasource.ConfigValidator{}
 	}
 
+	// TODO: REVIEWERS ABOUT THESE LINES: Should this ConfigValidators be created when the entity doesn't support organization?
+
 	// You have at least an id or a name + organization_name pair
 	return []datasource.ConfigValidator{
 		datasourcevalidator.Any(
@@ -241,7 +356,42 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 		return
 	}
 
-	var data BaseDataSourceModelWithOrg
+	var data BaseDetailDataSourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if IsValueProvided(data.Id) {
+		return
+	}
+
+	// TODO: REVIEWERS ABOUT THESE LINES: Should this function do something else when the entity doesn't support organization?
+	// This function makes sense to me if the entity doesn't support organization
+
+	if !IsValueProvided(data.Id) && !IsValueProvided(data.Name) {
+		resp.Diagnostics.AddAttributeWarning(
+			tfpath.Root("id"),
+			"Missing Attribute Configuration",
+			"Expected either [id]",
+		)
+	}
+}
+
+func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, resp *datasource.ValidateConfigResponse) {
+	// Check that the response and diagnostics pointer is defined
+	if resp == nil || resp.Diagnostics == nil {
+		tflog.Error(ctx, "Response or Diagnostics pointer(s) not defined, we cannot continue with the execution")
+		return
+	}
+
+	// Check that the current context is active
+	if !IsContextActive("ValidateConfig", ctx, resp.Diagnostics) {
+		return
+	}
+
+	var data BaseDetailDataSourceModelWithOrg
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
