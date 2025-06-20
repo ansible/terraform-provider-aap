@@ -146,6 +146,7 @@ resource "aap_job" "job"{
   job_template_id = data.aap_job_template.job_template.id
   inventory_id    = data.aap_inventory.inventory.id
 
+  # Force creation of this resource to wait for the aap_host.host resource to be created
   depends_on = [
     aap_host.host
   ]
