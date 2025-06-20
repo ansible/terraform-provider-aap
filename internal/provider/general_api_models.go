@@ -227,7 +227,7 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	// TODO: REVIEWERS ABOUT THESE LINES: Should this NamedUrl be created when the entity doesn't support organization?
 	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, types.StringValue(""), uri)
 	if err != nil {
-		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected either [id] or [name + organization_name] pair")
+		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id]")
 		return
 	}
 
@@ -330,13 +330,28 @@ func (d *BaseDataSource) ConfigValidators(ctx context.Context) []datasource.Conf
 		return []datasource.ConfigValidator{}
 	}
 
-	// TODO: REVIEWERS ABOUT THESE LINES: Should this ConfigValidators be created when the entity doesn't support organization?
+	// You have at least an id
+	return []datasource.ConfigValidator{
+		datasourcevalidator.Any(
+			datasourcevalidator.AtLeastOneOf(
+				tfpath.MatchRoot("id"),
+				tfpath.MatchRoot("name")),
+		),
+	}
+}
+
+func (d *BaseDataSourceWithOrg) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
+	// Check that the current context is active
+	if !IsContextActive("ConfigValidators", ctx, nil) {
+		return []datasource.ConfigValidator{}
+	}
 
 	// You have at least an id or a name + organization_name pair
 	return []datasource.ConfigValidator{
 		datasourcevalidator.Any(
 			datasourcevalidator.AtLeastOneOf(
-				tfpath.MatchRoot("id")),
+				tfpath.MatchRoot("id"),
+				tfpath.MatchRoot("name")),
 			datasourcevalidator.RequiredTogether(
 				tfpath.MatchRoot("name"),
 				tfpath.MatchRoot("organization_name")),
