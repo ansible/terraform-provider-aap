@@ -35,6 +35,16 @@ generatedocs: ## Format example Terraform configurations and generate plugin doc
 	@echo "==> Formatting examples and generating docs..."
 	terraform fmt -recursive ./examples/
 	go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate
+	@echo
+	@echo "****************************************************************************"
+	@echo "*********  **  **  **  **  **  **  NOTICE  **  **  **  **  **  **  *********"
+	@echo "****************************************************************************"
+	@echo "*                                                                          *"
+	@echo "* If documentation updates were made, please validate them by going to     *"
+	@echo "* https://registry.terraform.io/tools/doc-preview?product_intent=terraform *"
+	@echo "* and verify how they look.                                                *"
+	@echo "*                                                                          *"
+	@echo "****************************************************************************"
 
 .PHONY: help
 help: ## Show this help message
