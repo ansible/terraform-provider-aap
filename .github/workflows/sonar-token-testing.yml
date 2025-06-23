@@ -32,3 +32,23 @@ jobs:
           | jq '."valid"')
           echo "Should be false: "$VALIDITY
           echo "Secret name: "${{ vars.SONAR_TOKEN_SECRET_NAME }}
+  token2:
+    runs-on: ubuntu-latest
+    name: 'Sonar Token Example'
+    steps:
+      - name: 'Check token'
+        env:
+          SONAR_TOKEN: ${{ CICD_ORG_SONAR_TOKEN_CICD_BOT }}
+        run: |
+          VALIDITY=$(curl -s\
+            -u $SONAR_TOKEN: \
+            "https://sonarcloud.io/api/authentication/validate" \
+            --request GET \
+          | jq '."valid"')
+          echo "Should be true: "$VALIDITY
+          VALIDITY=$(curl -s\
+            -u GaRbAgE:DEADBEEF \
+            "https://sonarcloud.io/api/authentication/validate" \
+            --request GET \
+          | jq '."valid"')
+          echo "Should be false: "$VALIDITY
