@@ -65,7 +65,7 @@ func TestOrganizationDataSourceParseHttpResponse(t *testing.T) {
 		{
 			name: "all values",
 			input: []byte(
-				`{"id":1,"url":"/organizations/1/","name":"my organization","description":"My Test Organization","related":{"named_url":"/api/controller/v2/organization/Default"}}`,
+				`{"id":1,"url":"/organizations/1/","name":"my organization","description":"My Test Organization","related":{"named_url":"/api/controller/v2/organization/Default"}}`, //nolint:golint,lll
 			),
 			expected: OrganizationDataSourceModel{
 				Id:          types.Int64Value(1),
