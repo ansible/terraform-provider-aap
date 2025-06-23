@@ -4,6 +4,7 @@ name: 'Sonar Token Example'
 
 on:
   workflow_dispatch:
+  pull_request:
 
 permissions:
   id-token: write
