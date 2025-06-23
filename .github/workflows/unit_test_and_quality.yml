@@ -44,47 +44,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-and-test]
     steps:
-      - name: 'Check token'
-        env:
-          SONAR_TOKEN: ${{ secrets[format('{0}', vars.SONAR_TOKEN_SECRET_NAME)] }}
-        run: |
-          VALIDITY=$(curl -s\
-            -u $SONAR_TOKEN: \
-            "https://sonarcloud.io/api/authentication/validate" \
-            --request GET \
-          | jq '."valid"')
-          echo "Should be true: "$VALIDITY
-          VALIDITY=$(curl -s\
-            -u GaRbAgE:DEADBEEF \
-            "https://sonarcloud.io/api/authentication/validate" \
-            --request GET \
-          | jq '."valid"')
-          echo "Should be false: "$VALIDITY
-          echo "Secret name: "${{ vars.SONAR_TOKEN_SECRET_NAME }}
-
-      - name: 'Check token2'
-        env:
-          SONAR_TOKEN: ${{ CICD_ORG_SONAR_TOKEN_CICD_BOT }}
-        run: |
-          VALIDITY=$(curl -s\
-            -u $SONAR_TOKEN: \
-            "https://sonarcloud.io/api/authentication/validate" \
-            --request GET \
-          | jq '."valid"')
-          echo "Should be true: "$VALIDITY
-          VALIDITY=$(curl -s\
-            -u GaRbAgE:DEADBEEF \
-            "https://sonarcloud.io/api/authentication/validate" \
-            --request GET \
-          | jq '."valid"')
-          echo "Should be false: "$VALIDITY
-          echo "Secret name: "${{ vars.SONAR_TOKEN_SECRET_NAME }}
-
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Fetch Code Coverage Report
         uses: actions/download-artifact@v4
         with:
