@@ -169,6 +169,19 @@ func (d *OrganizationDataSource) ValidateConfig(ctx context.Context, req datasou
 		return
 	}
 
+	if IsValueProvided(data.Id) && IsValueProvided(data.Name) {
+		resp.Diagnostics.AddAttributeError(
+			tfpath.Root("id"),
+			"Attribute Precedence",
+			"When both [id] and [name] are defined for aap_organization, id takes precedence.",
+		)
+		resp.Diagnostics.AddAttributeWarning(
+			tfpath.Root("name"),
+			"Attribute Precedence",
+			"When both [id] and [name] are defined for aap_organization, id takes precedence.",
+		)
+	}
+
 	if IsValueProvided(data.Id) {
 		return
 	}
