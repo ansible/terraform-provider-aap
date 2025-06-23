@@ -18,14 +18,6 @@ import (
 
 // ---------------------------------------------------------------------------
 
-// TODO: Delete this once the PR of the refactor is merged
-// This struct is just here to make the CI happy :D
-type SummaryAPIModel struct {
-	Id          int64  `json:"id,omitempty"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-}
-
 type RelatedAPIModel struct {
 	NamedUrl string `json:"named_url,omitempty"`
 }
@@ -47,6 +39,7 @@ type BaseDetailAPIModel struct {
 	URL           string                `json:"url"`
 	Related       RelatedAPIModel       `json:"related"`
 	SummaryFields SummaryFieldsAPIModel `json:"summary_fields"`
+	Variables     string                `json:"variables,omitempty"`
 }
 
 type BaseDetailAPIModelWithOrg struct {
@@ -57,11 +50,12 @@ type BaseDetailAPIModelWithOrg struct {
 // ---------------------------------------------------------------------------
 
 type BaseDetailDataSourceModel struct {
-	Id          types.Int64  `tfsdk:"id"`
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
-	URL         types.String `tfsdk:"url"`
-	NamedUrl    types.String `tfsdk:"named_url"`
+	Id          types.Int64                      `tfsdk:"id"`
+	Name        types.String                     `tfsdk:"name"`
+	Description types.String                     `tfsdk:"description"`
+	URL         types.String                     `tfsdk:"url"`
+	NamedUrl    types.String                     `tfsdk:"named_url"`
+	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
 type BaseDetailDataSourceModelWithOrg struct {
@@ -88,6 +82,7 @@ func (d *BaseDetailDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnost
 	d.Name = ParseStringValue(apiModel.Name)
 	d.Description = ParseStringValue(apiModel.Description)
 	d.URL = ParseStringValue(apiModel.URL)
+	d.Variables = ParseAAPCustomStringValue(apiModel.Variables)
 	// Parse the related fields
 	d.NamedUrl = ParseStringValue(apiModel.Related.NamedUrl)
 	// Parse the summary fields
@@ -224,7 +219,6 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
 
-	// TODO: REVIEWERS ABOUT THESE LINES: Should this NamedUrl be created when the entity doesn't support organization?
 	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, types.StringValue(""), uri)
 	if err != nil {
 		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id]")
@@ -382,9 +376,6 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 		return
 	}
 
-	// TODO: REVIEWERS ABOUT THESE LINES: Should this function do something else when the entity doesn't support organization?
-	// This function makes sense to me if the entity doesn't support organization
-
 	if !IsValueProvided(data.Id) && !IsValueProvided(data.Name) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
@@ -496,6 +487,7 @@ func (d *BaseDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest,
 				CustomType: customtypes.AAPCustomStringType{},
 				Description: fmt.Sprintf("Variables of the %s. Will be either JSON or YAML string depending on how the "+
 					"variables were entered into AAP.", d.DescriptiveEntityName),
+				DeprecationMessage: "This attribute is deprecated and will be removed in a future version.",
 			},
 		},
 		Description: fmt.Sprintf("Get an existing %s.", d.DescriptiveEntityName),
