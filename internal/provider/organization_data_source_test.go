@@ -133,6 +133,38 @@ func TestAccOrganizationDataSourceBadConfig(t *testing.T) {
 	})
 }
 
+func TestAccOrganizationDataSourceWithIdAndName(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Bad HCL example, expect an error
+			{
+				Config:      testAccOrganizationDataSourceWithIdAndNameHCL(1, "Default"),
+				ExpectError: regexp.MustCompile("At least one of these attributes must be configured: \\[id,\\s*name\\]"),
+			},
+		},
+	})
+}
+
+func TestAccOrganizationDataSourceNonExistentValues(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Invalid ID and Name tests (not sure about the \n in the middle of the error here, or what should be a better check)
+			{
+				Config:      createTestAccOrganizationDataSourceHCL(31415),
+				ExpectError: regexp.MustCompile("got \\(404\\).*No\nOrganization matches the given query"),
+			},
+			{
+				Config:      createTestAccOrganizationDataSourceNamedUrlHCL("Does Not Exist"),
+				ExpectError: regexp.MustCompile("got \\(404\\).*No\nOrganization matches the given query"),
+			},
+		},
+	})
+}
+
 // HCL helper functions for testing
 
 func createTestAccOrganizationDataSourceHCL(id int64) string {
@@ -156,4 +188,13 @@ func createTestAccOrganizationDataSourceErrorHCL() string {
 data "aap_organization" "bad_hcl" {
 }
 `)
+}
+
+func testAccOrganizationDataSourceWithIdAndNameHCL(id int64, name string) string {
+	return fmt.Sprintf(`
+data "aap_organization" "default_org" {
+  id   = %d
+  name = "%s"
+}
+`, id, name)
 }
