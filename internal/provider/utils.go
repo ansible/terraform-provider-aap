@@ -35,7 +35,7 @@ func ReturnAAPOrganizationNamedURL(id types.Int64, name types.String, uri string
 	}
 
 	if IsValueProvided(name) {
-		namedUrl := fmt.Sprintf("%s", name.ValueString())
+		namedUrl := name.ValueString()
 		return path.Join(uri, namedUrl), nil
 	}
 
