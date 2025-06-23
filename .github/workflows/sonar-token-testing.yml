@@ -33,10 +33,6 @@ jobs:
           echo "Should be false: "$VALIDITY
           echo "Secret name: "${{ vars.SONAR_TOKEN_SECRET_NAME }}
 
-  token2:
-    runs-on: ubuntu-latest
-    name: 'Sonar Token2 Example'
-    steps:
       - name: 'Check token2'
         env:
           SONAR_TOKEN: ${{ CICD_ORG_SONAR_TOKEN_CICD_BOT }}
