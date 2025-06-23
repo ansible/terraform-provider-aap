@@ -29,6 +29,19 @@ func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, 
 	return "", errors.New("invalid lookup parameters")
 }
 
+func ReturnAAPOrganizationNamedURL(id types.Int64, name types.String, uri string) (string, error) {
+	if IsValueProvided(id) {
+		return path.Join(uri, id.String()), nil
+	}
+
+	if IsValueProvided(name) {
+		namedUrl := fmt.Sprintf("%s", name.ValueString())
+		return path.Join(uri, namedUrl), nil
+	}
+
+	return "", errors.New("invalid lookup parameters")
+}
+
 func IsValueProvided(value attr.Value) bool {
 	return !(value.IsNull() || value.IsUnknown())
 }
