@@ -1,4 +1,4 @@
-name: Provider Unit Tests and Sonar Cloud Static Scans
+name: Provider Unit Tests
 
 on:
   push:
