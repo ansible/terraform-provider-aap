@@ -58,7 +58,7 @@ jobs:
       - name: Sonar Cloud Scan
         uses: SonarSource/sonarqube-scan-action@master
         env:
-          SONAR_TOKEN: ${{ secrets[format('{0}', vars.SONAR_TOKEN_SECRET_NAME)] }}
+          SONAR_TOKEN: ${{ secrets.CICD_ORG_SONAR_TOKEN_CICD_BOT }}
         with:
           args: >
             -Dsonar.go.coverage.reportPaths=unit-testing.cov
