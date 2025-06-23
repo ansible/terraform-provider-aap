@@ -1,0 +1,28 @@
+name: Provider Unit Tests and Sonar Cloud Static Scans
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+  sonarcloud:
+    name: Sonar Cloud Static Scans
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+
+    steps:
+      - name: Fetch Code Coverage Report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: .
+
+      - name: Sonar Cloud Scan
+        uses: SonarSource/sonarqube-scan-action@v5.2.0
+        env:
+          SONAR_TOKEN: ${{ secrets.CICD_ORG_SONAR_TOKEN_CICD_BOT }}
+        with:
+          args: >
+            -Dsonar.go.coverage.reportPaths=unit-testing.cov
