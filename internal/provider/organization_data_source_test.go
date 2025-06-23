@@ -127,7 +127,7 @@ func TestAccOrganizationDataSourceBadConfig(t *testing.T) {
 			// Bad HCL example, expect an error
 			{
 				Config:      createTestAccOrganizationDataSourceErrorHCL(),
-				ExpectError: regexp.MustCompile("At least one of these attributes must be configured: \\[id,\\s*name\\]"),
+				ExpectError: regexp.MustCompile(`At least one of these attributes must be configured: \[id,\s*name\]`),
 			},
 		},
 	})
@@ -141,7 +141,7 @@ func TestAccOrganizationDataSourceWithIdAndName(t *testing.T) {
 			// Bad HCL example, expect an error
 			{
 				Config:      testAccOrganizationDataSourceWithIdAndNameHCL(1, "Default"),
-				ExpectError: regexp.MustCompile("At least one of these attributes must be configured: \\[id,\\s*name\\]"),
+				ExpectError: regexp.MustCompile(`At least one of these attributes must be configured: \[id,\s*name\]`),
 			},
 		},
 	})
@@ -184,10 +184,10 @@ data "aap_organization" "default_org" {
 }
 
 func createTestAccOrganizationDataSourceErrorHCL() string {
-	return fmt.Sprintf(`
+	return `
 data "aap_organization" "bad_hcl" {
 }
-`)
+`
 }
 
 func testAccOrganizationDataSourceWithIdAndNameHCL(id int64, name string) string {
