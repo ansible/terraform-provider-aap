@@ -1,4 +1,4 @@
-name: Provider Unit Tests and Sonar Cloud Static Scans
+name: Sonar Cloud Static Scans
 
 on:
   workflow_run:
