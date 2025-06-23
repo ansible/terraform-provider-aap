@@ -1,0 +1,21 @@
+---
+page_title: "{{ .Name }} {{ .Type }} - {{ .ProviderName }}"
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{ .Name }} ({{ .Type }})
+
+{{ .Description | trimspace }}
+
+{{ if .HasExample }}
+## Example Usage
+
+{{ tffile .ExampleFile }}
+{{ end }}
+
+## Attribute Information
+
+-> **Note** The Schema definition below suggests that `id`, `name` are optional, however the organization data block requires `id` or `name` as an attribute.
+
+{{ .SchemaMarkdown | trimspace }}
