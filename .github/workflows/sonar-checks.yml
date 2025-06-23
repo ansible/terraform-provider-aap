@@ -3,7 +3,7 @@ name: Sonar Cloud Static Scans
 on:
   workflow_run:
     workflows:
-      - CI
+      - Provider Unit Tests
     types:
       - completed
 
