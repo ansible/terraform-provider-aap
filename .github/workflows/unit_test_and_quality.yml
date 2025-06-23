@@ -51,9 +51,10 @@ jobs:
           path: .
 
       - name: Sonar Cloud Scan
-        uses: SonarSource/sonarqube-scan-action@master
+        uses: SonarSource/sonarqube-scan-action@v5.2.0
         env:
           SONAR_TOKEN: ${{ secrets.CICD_ORG_SONAR_TOKEN_CICD_BOT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: >
             -Dsonar.go.coverage.reportPaths=unit-testing.cov
