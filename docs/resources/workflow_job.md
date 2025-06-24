@@ -102,7 +102,7 @@ output "job_xyz" {
 ```
 
 
-## Ensuring Jobs Launch on Inventories updated in the same configuration
+## Ensuring Workflow Jobs Launch on Hosts created and Inventories updated in the same configuration
 
 ### Advanced Usage - `depends_on` in `aap_workflow_job` `resource` for `aap_host` `resource` creation
 -> **Note** if you have HCL that creates an `aap_host` `resource` in an already existing `aap_inventory`, you will have to add a `depends_on` clause in the `aap_workflow_job` `resource` block of the `aap_workflow_job` that needs that `aap_host` to exist in the `aap_inventory` used for the `aap_workflow_job` creation.
