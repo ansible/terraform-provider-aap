@@ -39,7 +39,7 @@ data "aap_job_template" "job_template" {
   organization_name = "Default"
 }
 
-resource "aap_job" "job"{
+resource "aap_job" "job" {
   job_template_id = data.aap_job_template.job_template.id
   inventory_id    = data.aap_inventory.inventory.id
 
