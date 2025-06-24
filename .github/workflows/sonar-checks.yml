@@ -11,14 +11,30 @@ jobs:
   sonarcloud:
     name: Sonar Cloud Static Scans
     runs-on: ubuntu-latest
+    env:
+        go_version: '1.23'
+        
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
 
     steps:
-      - name: Fetch Code Coverage Report
-        uses: actions/download-artifact@v4
+      - name: Checkout Provider
+        uses: actions/checkout@v4
         with:
-          name: coverage-report
-          path: .
+          fetch-depth: 0
+
+      - name: Setup Go ${{ env.go_version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.go_version }}
+
+      - name: Run unit tests with coverage
+        run: make testcov
+
+      # - name: Fetch Code Coverage Report
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: coverage-report
+      #     path: .
 
       - name: Sonar Cloud Scan
         uses: SonarSource/sonarqube-scan-action@v5.2.0

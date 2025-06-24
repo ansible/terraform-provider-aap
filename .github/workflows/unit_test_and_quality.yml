@@ -30,11 +30,14 @@ jobs:
       - name: Build the Provider
         run: go build -v ./...
 
-      - name: Run unit tests with coverage
-        run: make testcov
+      - name: Run Provider Unit Tests
+        run: make test
 
-      - name: Upload code coverage report from unit tests
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: unit-testing.cov
+      # - name: Run unit tests with coverage
+      #   run: make testcov
+
+      # - name: Upload code coverage report from unit tests
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: coverage-report
+      #     path: unit-testing.cov
