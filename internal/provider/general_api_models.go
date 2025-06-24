@@ -8,6 +8,7 @@ import (
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework-validators/datasourcevalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -220,9 +221,9 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
 
-	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, types.StringValue(""), uri)
+	resourceURL, err := ReturnAAPNamedURLWithoutOrganization(state.Id, state.Name, uri)
 	if err != nil {
-		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id]")
+		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected either [id] or [name]")
 		return
 	}
 
@@ -319,10 +320,9 @@ func (d *BaseDataSource) Configure(ctx context.Context, req datasource.Configure
 func (d *BaseDataSource) ConfigValidators(_ context.Context) []datasource.ConfigValidator {
 	// You have at least an id
 	return []datasource.ConfigValidator{
-		datasourcevalidator.Any(
-			datasourcevalidator.AtLeastOneOf(
-				tfpath.MatchRoot("id")),
-		),
+		datasourcevalidator.AtLeastOneOf(
+			tfpath.MatchRoot("id"),
+			tfpath.MatchRoot("name")),
 	}
 }
 
@@ -359,15 +359,41 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 		return
 	}
 
+	if IsValueProvided(data.Id) && IsValueProvided(data.Name) {
+		resp.Diagnostics.AddAttributeError(
+			tfpath.Root("id"),
+			"Attribute Precedence",
+			fmt.Sprintf("When both [id] and [name] are defined for aap_%s, id takes precedence.", d.MetadataEntitySlug),
+		)
+		resp.Diagnostics.AddAttributeWarning(
+			tfpath.Root("name"),
+			"Attribute Precedence",
+			fmt.Sprintf("When both [id] and [name] are defined for aap_%s, id takes precedence.", d.MetadataEntitySlug),
+		)
+	}
+
 	if IsValueProvided(data.Id) {
 		return
 	}
 
-	if !IsValueProvided(data.Id) {
+	if IsValueProvided(data.Name) {
+		return
+	}
+
+	if IsValueProvided(data.Name) {
+		return
+	}
+
+	if !IsValueProvided(data.Id) && !IsValueProvided(data.Name) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Attribute Configuration",
-			"Expected [id]",
+			"Expected either [id] or [name]",
+		)
+		resp.Diagnostics.AddAttributeWarning(
+			tfpath.Root("name"),
+			"Missing Attribute Configuration",
+			"Expected either [id] or [name]",
 		)
 	}
 }
@@ -474,5 +500,81 @@ func (d *BaseDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 // Metadata returns the data source type name composing it from the provider type name and the
 // entity slug string passed in the constructor.
 func (d *BaseDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+
+	//This is where Terraform/HCL gets the first part of the block, i.e. aap_organization
 	resp.TypeName = fmt.Sprintf("%s_%s", req.ProviderTypeName, d.MetadataEntitySlug)
+}
+
+// To add something after getting the schema:
+// object.Attributes["string"] = schema.___Attribute{ ... }
+func GetBaseSchema(descriptiveEntityName string, metadataEntitySlug string) schema.Schema {
+	return schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"id": schema.Int64Attribute{
+				Optional:    true,
+				Description: fmt.Sprintf("%s id", descriptiveEntityName),
+			},
+			"name": schema.StringAttribute{
+				Computed:    true,
+				Optional:    true,
+				Description: fmt.Sprintf("Name of the %s", metadataEntitySlug),
+			},
+			"url": schema.StringAttribute{
+				Computed:    true,
+				Description: fmt.Sprintf("Url of the %s", metadataEntitySlug),
+			},
+			"named_url": schema.StringAttribute{
+				Computed:    true,
+				Description: fmt.Sprintf("The Named Url of the %s", metadataEntitySlug),
+			},
+			"description": schema.StringAttribute{
+				Computed:    true,
+				Description: fmt.Sprintf("Description of the %s", metadataEntitySlug),
+			},
+			"variables": schema.StringAttribute{
+				Computed:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+				Description: fmt.Sprintf("Variables of the %s. Will be either JSON or YAML string depending on how the variables were entered into AAP.", metadataEntitySlug),
+			},
+		},
+		Description: fmt.Sprintf("Get an existing %s.", metadataEntitySlug),
+	}
+}
+
+func GetIdOrNameDataSourceConfigValidator() []datasource.ConfigValidator {
+	return []datasource.ConfigValidator{
+		datasourcevalidator.AtLeastOneOf(
+			tfpath.MatchRoot("id"),
+			tfpath.MatchRoot("name"),
+		),
+	}
+}
+
+func AppendIdOrNameConfigurationValidationResults(resp *datasource.ValidateConfigResponse, id attr.Value, name attr.Value) {
+
+	if IsValueProvided(id) && IsValueProvided(name) {
+		resp.Diagnostics.AddAttributeWarning(
+			tfpath.Root("id"),
+			"Attribute Precedence",
+			"When both [id] and [name] are defined for aap_organization, id takes precedence.",
+		)
+		resp.Diagnostics.AddAttributeWarning(
+			tfpath.Root("name"),
+			"Attribute Precedence",
+			"When both [id] and [name] are defined for aap_organization, id takes precedence.",
+		)
+	}
+
+	if !IsValueProvided(id) && !IsValueProvided(name) {
+		resp.Diagnostics.AddAttributeError(
+			tfpath.Root("id"),
+			"Missing Attribute Configuration",
+			"Expected either [id] or [name]",
+		)
+		resp.Diagnostics.AddAttributeError(
+			tfpath.Root("name"),
+			"Missing Attribute Configuration",
+			"Expected either [id] or [name]",
+		)
+	}
 }
