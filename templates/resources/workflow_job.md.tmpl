@@ -18,13 +18,17 @@ description: |-
 {{ tffile .ExampleFile }}
 {{ end }}
 
-## Advanced Usage - `depends_on` in `aap_workflow_job` `resource` for `aap_host` `resource` creation
+## Ensuring Jobs Launch on Inventories updated in the same configuration
+
+### Advanced Usage - `depends_on` in `aap_workflow_job` `resource` for `aap_host` `resource` creation
 -> **Note** if you have HCL that creates an `aap_host` `resource` in an already existing `aap_inventory`, you will have to add a `depends_on` clause in the `aap_workflow_job` `resource` block of the `aap_workflow_job` that needs that `aap_host` to exist in the `aap_inventory` used for the `aap_workflow_job` creation.
+
+If you do not use the depends_on clause as illustrated below you may run into a race condition where the workflow job will attempt to launch before the inventory is updated with the host required.
 
 ### Example HCL for this scenario:
 
 ```terraform
-data "aap_inventory" "inventory"{
+data "aap_inventory" "inventory" {
   name              = "Demo Inventory"
   organization_name = "Default"
 }
@@ -34,12 +38,12 @@ resource "aap_host" "host" {
   name         = "127.0.0.1"
 }
 
-data "aap_workflow_job_template" "workflow_job_template"{
+data "aap_workflow_job_template" "workflow_job_template" {
   name              = "Demo Workflow Job Template"
   organization_name = "Default"
 }
 
-resource "aap_workflow_job" "workflow_job"{
+resource "aap_workflow_job" "workflow_job" {
   workflow_job_template_id = data.aap_workflow_job_template.workflow_job_template.id
   inventory_id             = data.aap_inventory.inventory.id
 

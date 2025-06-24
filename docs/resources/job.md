@@ -121,13 +121,17 @@ output "job_xyz" {
 ```
 
 
-## Advanced Usage - `depends_on` in `aap_job` `resource` for `aap_host` `resource` creation
+## Ensuring Jobs Launch on Hosts created and Inventories updated in the same configuration
+
+### Advanced Usage - `depends_on` in `aap_job` `resource` for `aap_host` `resource` creation
 -> **Note** if you have HCL that creates an `aap_host` `resource` in an already existing `aap_inventory`, you will have to add a `depends_on` clause in the `aap_job` `resource` block of the `aap_job` that needs that `aap_host` to exist in the `aap_inventory` used for the `aap_job` creation.
+
+If you do not use the depends_on clause as illustrated below you may run into a race condition where the job will attempt to launch before the inventory is updated with the host required.
 
 ### Example HCL for this scenario:
 
 ```terraform
-data "aap_inventory" "inventory"{
+data "aap_inventory" "inventory" {
   name              = "Demo Inventory"
   organization_name = "Default"
 }
@@ -137,12 +141,12 @@ resource "aap_host" "host" {
   name         = "127.0.0.1"
 }
 
-data "aap_job_template" "job_template"{
+data "aap_job_template" "job_template" {
   name              = "Demo Job Template"
   organization_name = "Default"
 }
 
-resource "aap_job" "job"{
+resource "aap_job" "job" {
   job_template_id = data.aap_job_template.job_template.id
   inventory_id    = data.aap_inventory.inventory.id
 
