@@ -59,7 +59,7 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 				Description:      types.StringUnknown(),
 				Variables:        customtypes.NewAAPCustomStringUnknown(),
 			},
-			expected: []byte(`{"organization":1,"summary_fields":{"organization":{"id":1,"name":""},"inventory":{"name":""}},"related":{},"name":""}`),
+			expected: []byte(`{"organization":1,"summary_fields":{"organization":{"id":1,"name":""},"inventory":{"id":0,"name":""}},"related":{},"name":""}`),
 		},
 		{
 			name: "null values",
@@ -73,7 +73,7 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 				Description:      types.StringNull(),
 				Variables:        customtypes.NewAAPCustomStringNull(),
 			},
-			expected: []byte(`{"organization":1,"summary_fields":{"organization":{"id":1,"name":""},"inventory":{"name":""}},"related":{},"name":""}`),
+			expected: []byte(`{"organization":1,"summary_fields":{"organization":{"id":1,"name":""},"inventory":{"id":0,"name":""}},"related":{},"name":""}`),
 		},
 		{
 			name: "provided values",

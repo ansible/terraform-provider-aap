@@ -301,11 +301,11 @@ func (r *InventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics
 		Description:  r.Description.ValueString(),
 		Variables:    r.Variables.ValueString(),
 		SummaryFields: SummaryFieldsAPIModel{
-			Organization: SummaryAPIModel{
+			Organization: SummaryField{
 				Id:   organizationId,
 				Name: r.OrganizationName.ValueString(),
 			},
-			Inventory: SummaryAPIModel{
+			Inventory: SummaryField{
 				Id:   r.Id.ValueInt64(),
 				Name: r.Name.ValueString(),
 			},
