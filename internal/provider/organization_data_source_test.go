@@ -54,11 +54,13 @@ func TestOrganizationDataSourceParseHttpResponse(t *testing.T) {
 			name:  "missing values",
 			input: []byte(`{"id":1,"url":"/organizations/1/"}`),
 			expected: OrganizationDataSourceModel{
-				Id:          types.Int64Value(1),
-				Url:         types.StringValue("/organizations/1/"),
-				NamedUrl:    types.StringValue(""),
-				Name:        types.StringNull(),
-				Description: types.StringNull(),
+				BaseDetailDataSourceModel: BaseDetailDataSourceModel{
+					Id:          types.Int64Value(1),
+					URL:         types.StringValue("/organizations/1/"),
+					NamedUrl:    types.StringNull(),
+					Name:        types.StringNull(),
+					Description: types.StringNull(),
+				},
 			},
 			errors: diag.Diagnostics{},
 		},
@@ -68,11 +70,13 @@ func TestOrganizationDataSourceParseHttpResponse(t *testing.T) {
 				`{"id":1,"url":"/organizations/1/","name":"my organization","description":"My Test Organization","related":{"named_url":"/api/controller/v2/organization/Default"}}`, //nolint:golint,lll
 			),
 			expected: OrganizationDataSourceModel{
-				Id:          types.Int64Value(1),
-				Url:         types.StringValue("/organizations/1/"),
-				NamedUrl:    types.StringValue("/api/controller/v2/organization/Default"),
-				Name:        types.StringValue("my organization"),
-				Description: types.StringValue("My Test Organization"),
+				BaseDetailDataSourceModel: BaseDetailDataSourceModel{
+					Id:          types.Int64Value(1),
+					URL:         types.StringValue("/organizations/1/"),
+					NamedUrl:    types.StringValue("/api/controller/v2/organization/Default"),
+					Name:        types.StringValue("my organization"),
+					Description: types.StringValue("My Test Organization"),
+				},
 			},
 			errors: diag.Diagnostics{},
 		},
@@ -138,10 +142,14 @@ func TestAccOrganizationDataSourceWithIdAndName(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Bad HCL example, expect an error
+			// ID Should take precedence
 			{
-				Config:      testAccOrganizationDataSourceWithIdAndNameHCL(1, "Default"),
-				ExpectError: regexp.MustCompile(`At least one of these attributes must be configured: \[id,\s*name\]`),
+				Config: testAccOrganizationDataSourceWithIdAndNameHCL(1, "SomeOtherOrganization"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.aap_organization.default_org", "id", "1"),
+					resource.TestCheckResourceAttr("data.aap_organization.default_org", "name", "Default"),
+					resource.TestCheckResourceAttr("data.aap_organization.default_org", "description", "The default organization for Ansible Automation Platform"),
+				),
 			},
 		},
 	})
