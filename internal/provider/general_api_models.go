@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tfpath "github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // ---------------------------------------------------------------------------
@@ -169,9 +170,51 @@ func NewBaseDataSourceWithOrg(client ProviderHTTPClient, stringDescriptions Stri
 	}
 }
 
+func IsContextActive(operationName string, ctx context.Context, diagnostics diag.Diagnostics) bool {
+	if ctx.Err() == nil {
+		if diagnostics != nil {
+			diagnostics.AddError(
+				fmt.Sprintf("Aborting %s operation", operationName),
+				"Context is not active, we cannot continue with the execution",
+			)
+		} else {
+			tflog.Error(ctx, fmt.Sprintf("Aborting %s operation. "+
+				"Context is not active, we cannot continue with the execution", operationName))
+		}
+	}
+	return ctx.Err() == nil
+}
+
+func doReadPreconditionsMeet(ctx context.Context, resp *datasource.ReadResponse, client ProviderHTTPClient) bool {
+	if resp == nil {
+		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
+		return false
+	}
+
+	// Check that the current context is active
+	if !IsContextActive("Read", ctx, resp.Diagnostics) {
+		return false
+	}
+
+	// Check that the HTTP Client is defined
+	if client == nil {
+		resp.Diagnostics.AddError(
+			"Aborting Read operation",
+			"HTTP Client not configured, we cannot continue with the execution",
+		)
+		return false
+	}
+	return true
+}
+
 // Read refreshes the Terraform state with the latest data.
 func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state BaseDetailDataSourceModel
+
+	// Check Read preconditions
+	if !doReadPreconditionsMeet(ctx, resp, d.client) {
+		return
+	}
 
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
@@ -208,6 +251,11 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state BaseDetailDataSourceModelWithOrg
 
+	// Check Read preconditions
+	if !doReadPreconditionsMeet(ctx, resp, d.client) {
+		return
+	}
+
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
@@ -239,7 +287,18 @@ func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadReq
 }
 
 // Configure adds the provider configured client to the data source.
-func (d *BaseDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+func (d *BaseDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	// Check that the current context is active
+	if !IsContextActive("Configure", ctx, resp.Diagnostics) {
+		return
+	}
+
+	// Check that the response and diagnostics pointer is defined
+	if resp == nil {
+		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
+		return
+	}
+
 	if req.ProviderData == nil {
 		return
 	}
@@ -261,8 +320,7 @@ func (d *BaseDataSource) ConfigValidators(_ context.Context) []datasource.Config
 	return []datasource.ConfigValidator{
 		datasourcevalidator.Any(
 			datasourcevalidator.AtLeastOneOf(
-				tfpath.MatchRoot("id"),
-				tfpath.MatchRoot("name")),
+				tfpath.MatchRoot("id")),
 		),
 	}
 }
@@ -272,8 +330,7 @@ func (d *BaseDataSourceWithOrg) ConfigValidators(_ context.Context) []datasource
 	return []datasource.ConfigValidator{
 		datasourcevalidator.Any(
 			datasourcevalidator.AtLeastOneOf(
-				tfpath.MatchRoot("id"),
-				tfpath.MatchRoot("name")),
+				tfpath.MatchRoot("id")),
 			datasourcevalidator.RequiredTogether(
 				tfpath.MatchRoot("name"),
 				tfpath.MatchRoot("organization_name")),
@@ -282,6 +339,17 @@ func (d *BaseDataSourceWithOrg) ConfigValidators(_ context.Context) []datasource
 }
 
 func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, resp *datasource.ValidateConfigResponse) {
+	// Check that the response and diagnostics pointer is defined
+	if resp == nil {
+		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
+		return
+	}
+
+	// Check that the current context is active
+	if !IsContextActive("ValidateConfig", ctx, resp.Diagnostics) {
+		return
+	}
+
 	var data BaseDetailDataSourceModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
@@ -294,16 +362,27 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 		return
 	}
 
-	if !IsValueProvided(data.Id) && !IsValueProvided(data.Name) {
+	if !IsValueProvided(data.Id) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Attribute Configuration",
-			"Expected either [id]",
+			"Expected [id]",
 		)
 	}
 }
 
 func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, resp *datasource.ValidateConfigResponse) {
+	// Check that the response and diagnostics pointer is defined
+	if resp == nil {
+		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
+		return
+	}
+
+	// Check that the current context is active
+	if !IsContextActive("ValidateConfig", ctx, resp.Diagnostics) {
+		return
+	}
+
 	var data BaseDetailDataSourceModelWithOrg
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
