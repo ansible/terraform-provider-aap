@@ -186,8 +186,8 @@ func IsContextActive(operationName string, ctx context.Context, diagnostics diag
 }
 
 func doReadPreconditionsMeet(ctx context.Context, resp *datasource.ReadResponse, client ProviderHTTPClient) bool {
-	if resp == nil || resp.Diagnostics == nil {
-		tflog.Error(ctx, "Response or Diagnostics pointer(s) not defined, we cannot continue with the execution")
+	if resp == nil {
+		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
 		return false
 	}
 
@@ -287,8 +287,8 @@ func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadReq
 // Configure adds the provider configured client to the data source.
 func (d *BaseDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	// Check that the response and diagnostics pointer is defined
-	if resp == nil || resp.Diagnostics == nil {
-		tflog.Error(ctx, "Response or Diagnostics pointer(s) not defined, we cannot continue with the execution")
+	if resp == nil {
+		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
 		return
 	}
 
@@ -355,8 +355,8 @@ func (d *BaseDataSourceWithOrg) ConfigValidators(ctx context.Context) []datasour
 
 func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, resp *datasource.ValidateConfigResponse) {
 	// Check that the response and diagnostics pointer is defined
-	if resp == nil || resp.Diagnostics == nil {
-		tflog.Error(ctx, "Response or Diagnostics pointer(s) not defined, we cannot continue with the execution")
+	if resp == nil {
+		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
 		return
 	}
 
@@ -387,8 +387,8 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 
 func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, resp *datasource.ValidateConfigResponse) {
 	// Check that the response and diagnostics pointer is defined
-	if resp == nil || resp.Diagnostics == nil {
-		tflog.Error(ctx, "Response or Diagnostics pointer(s) not defined, we cannot continue with the execution")
+	if resp == nil {
+		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
 		return
 	}
 
@@ -439,9 +439,9 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 
 // Schema defines the schema fields for the data source.
 func (d *BaseDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	// Check that the response and diagnostics pointer is defined
-	if resp == nil || resp.Diagnostics == nil {
-		tflog.Error(ctx, "Response or Diagnostics pointer(s) not defined, we cannot continue with the execution")
+	// Check that the response pointer is defined
+	if resp == nil {
+		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
 		return
 	}
 
