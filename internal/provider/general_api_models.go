@@ -288,17 +288,18 @@ func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadReq
 
 // Configure adds the provider configured client to the data source.
 func (d *BaseDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	// Check that the current context is active
-	if !IsContextActive("Configure", ctx, resp.Diagnostics) {
-		return
-	}
-
 	// Check that the response and diagnostics pointer is defined
 	if resp == nil {
 		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
 		return
 	}
 
+	// Check that the current context is active
+	if !IsContextActive("Configure", ctx, resp.Diagnostics) {
+		return
+	}
+
+	// Check that the provider data is configured
 	if req.ProviderData == nil {
 		return
 	}
