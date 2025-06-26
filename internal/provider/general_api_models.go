@@ -239,7 +239,7 @@ func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadReq
 }
 
 // Configure adds the provider configured client to the data source.
-func (d *BaseDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+func (d *BaseDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -256,7 +256,7 @@ func (d *BaseDataSource) Configure(ctx context.Context, req datasource.Configure
 	d.client = client
 }
 
-func (d *BaseDataSource) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
+func (d *BaseDataSource) ConfigValidators(_ context.Context) []datasource.ConfigValidator {
 	// You have at least an id
 	return []datasource.ConfigValidator{
 		datasourcevalidator.Any(
@@ -267,7 +267,7 @@ func (d *BaseDataSource) ConfigValidators(ctx context.Context) []datasource.Conf
 	}
 }
 
-func (d *BaseDataSourceWithOrg) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
+func (d *BaseDataSourceWithOrg) ConfigValidators(_ context.Context) []datasource.ConfigValidator {
 	// You have at least an id or a name + organization_name pair
 	return []datasource.ConfigValidator{
 		datasourcevalidator.Any(
