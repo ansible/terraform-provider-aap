@@ -209,13 +209,14 @@ func doReadPreconditionsMeet(ctx context.Context, resp *datasource.ReadResponse,
 
 // Read refreshes the Terraform state with the latest data.
 func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var state BaseDetailDataSourceModel
+
 	// Check Read preconditions
 	if !doReadPreconditionsMeet(ctx, resp, d.client) {
 		return
 	}
 
 	// Read Terraform configuration data into the model
-	var state BaseDetailDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
 
@@ -248,13 +249,14 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 // Read refreshes the Terraform state with the latest data.
 func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var state BaseDetailDataSourceModelWithOrg
+
 	// Check Read preconditions
 	if !doReadPreconditionsMeet(ctx, resp, d.client) {
 		return
 	}
 
 	// Read Terraform configuration data into the model
-	var state BaseDetailDataSourceModelWithOrg
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
 	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, uri)
@@ -299,10 +301,6 @@ func (d *BaseDataSource) Configure(ctx context.Context, req datasource.Configure
 
 	// Check that the provider data is configured
 	if req.ProviderData == nil {
-		resp.Diagnostics.AddError(
-			"Aborting Configure operation",
-			"The provider is not configured, we cannot continue with the execution",
-		)
 		return
 	}
 
@@ -318,34 +316,22 @@ func (d *BaseDataSource) Configure(ctx context.Context, req datasource.Configure
 	d.client = client
 }
 
-func (d *BaseDataSource) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
-	// Check that the current context is active
-	if !IsContextActive("ConfigValidators", ctx, nil) {
-		return []datasource.ConfigValidator{}
-	}
-
+func (d *BaseDataSource) ConfigValidators(_ context.Context) []datasource.ConfigValidator {
 	// You have at least an id
 	return []datasource.ConfigValidator{
 		datasourcevalidator.Any(
 			datasourcevalidator.AtLeastOneOf(
-				tfpath.MatchRoot("id"),
-				tfpath.MatchRoot("name")),
+				tfpath.MatchRoot("id")),
 		),
 	}
 }
 
-func (d *BaseDataSourceWithOrg) ConfigValidators(ctx context.Context) []datasource.ConfigValidator {
-	// Check that the current context is active
-	if !IsContextActive("ConfigValidators", ctx, nil) {
-		return []datasource.ConfigValidator{}
-	}
-
+func (d *BaseDataSourceWithOrg) ConfigValidators(_ context.Context) []datasource.ConfigValidator {
 	// You have at least an id or a name + organization_name pair
 	return []datasource.ConfigValidator{
 		datasourcevalidator.Any(
 			datasourcevalidator.AtLeastOneOf(
-				tfpath.MatchRoot("id"),
-				tfpath.MatchRoot("name")),
+				tfpath.MatchRoot("id")),
 			datasourcevalidator.RequiredTogether(
 				tfpath.MatchRoot("name"),
 				tfpath.MatchRoot("organization_name")),
@@ -366,6 +352,7 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 	}
 
 	var data BaseDetailDataSourceModel
+
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
@@ -376,11 +363,11 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 		return
 	}
 
-	if !IsValueProvided(data.Id) && !IsValueProvided(data.Name) {
+	if !IsValueProvided(data.Id) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Attribute Configuration",
-			"Expected either [id]",
+			"Expected [id]",
 		)
 	}
 }
@@ -398,6 +385,7 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 	}
 
 	var data BaseDetailDataSourceModelWithOrg
+
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
@@ -438,18 +426,7 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 }
 
 // Schema defines the schema fields for the data source.
-func (d *BaseDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	// Check that the response pointer is defined
-	if resp == nil {
-		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
-		return
-	}
-
-	// Check that the current context is active
-	if !IsContextActive("Schema definition", ctx, resp.Diagnostics) {
-		return
-	}
-
+func (d *BaseDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
@@ -496,17 +473,6 @@ func (d *BaseDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest,
 
 // Metadata returns the data source type name composing it from the provider type name and the
 // entity slug string passed in the constructor.
-func (d *BaseDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	// Check that the response and diagnostics pointer is defined
-	if resp == nil {
-		tflog.Error(ctx, "Response pointer not defined, we cannot continue with the execution")
-		return
-	}
-
-	// Check that the current context is active
-	if !IsContextActive("Metadata", ctx, nil) {
-		return
-	}
-
+func (d *BaseDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = fmt.Sprintf("%s_%s", req.ProviderTypeName, d.MetadataEntitySlug)
 }
