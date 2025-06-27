@@ -59,7 +59,7 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 				Description:      types.StringUnknown(),
 				Variables:        customtypes.NewAAPCustomStringUnknown(),
 			},
-			expected: []byte(`{"organization":1,"summary_fields":{"organization":{"id":1,"name":""},"inventory":{"id":0,"name":""}},"related":{},"name":""}`),
+			expected: []byte(`{"id":0,"url":"","related":{},"summary_fields":{"organization":{"id":1,"name":""},"inventory":{"id":0,"name":""}},"organization":1}`),
 		},
 		{
 			name: "null values",
@@ -73,7 +73,7 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 				Description:      types.StringNull(),
 				Variables:        customtypes.NewAAPCustomStringNull(),
 			},
-			expected: []byte(`{"organization":1,"summary_fields":{"organization":{"id":1,"name":""},"inventory":{"id":0,"name":""}},"related":{},"name":""}`),
+			expected: []byte(`{"id":0,"url":"","related":{},"summary_fields":{"organization":{"id":1,"name":""},"inventory":{"id":0,"name":""}},"organization":1}`),
 		},
 		{
 			name: "provided values",
@@ -87,9 +87,9 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 				Variables:        customtypes.NewAAPCustomStringValue("{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}"),
 			},
 			expected: []byte(
-				`{"organization":2,"summary_fields":{"organization":{"id":2,"name":"test organization"},"inventory":{"id":1,"name":"test inventory"}},` +
-					`"related":{"named_url":"inventories/1"},"name":"test inventory","description":"A test inventory for testing",` +
-					`"variables":"{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}"}`,
+				`{"id":1,"name":"test inventory","description":"A test inventory for testing","url":"","related":{"named_url":"inventories/1"},` +
+					`"summary_fields":{"organization":{"id":2,"name":"test organization"},"inventory":{"id":1,"name":"test inventory"}},` +
+					`"variables":"{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}","organization":2}`,
 			),
 		},
 	}
@@ -277,8 +277,8 @@ func testAccCheckInventoryResourceValues(inventory *InventoryAPIModel, name stri
 		if inventory.Organization == 0 {
 			return fmt.Errorf("bad inventory organization in AAP, expected a positive int64, got: %d", inventory.Organization)
 		}
-		if inventory.Url == "" {
-			return fmt.Errorf("bad inventory URL in AAP, expected a URL path, got: %s", inventory.Url)
+		if inventory.URL == "" {
+			return fmt.Errorf("bad inventory URL in AAP, expected a URL path, got: %s", inventory.URL)
 		}
 		if inventory.Name != name {
 			return fmt.Errorf("bad inventory name in AAP, expected \"%s\", got: %s", name, inventory.Name)

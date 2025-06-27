@@ -18,18 +18,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Inventory AAP API model
-type InventoryAPIModel struct {
-	Id            int64                 `json:"id,omitempty"`
-	Organization  int64                 `json:"organization"`
-	SummaryFields SummaryFieldsAPIModel `json:"summary_fields,omitempty"`
-	Url           string                `json:"url,omitempty"`
-	Related       RelatedAPIModel       `json:"related,omitempty"`
-	Name          string                `json:"name"`
-	Description   string                `json:"description,omitempty"`
-	Variables     string                `json:"variables,omitempty"`
-}
-
 // InventoryResourceModel maps the inventory resource schema to a Go struct.
 type InventoryResourceModel struct {
 	Id               types.Int64                      `tfsdk:"id"`
@@ -296,22 +284,27 @@ func (r *InventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics
 	}
 
 	inventory := InventoryAPIModel{
-		Organization: organizationId,
-		Name:         r.Name.ValueString(),
-		Description:  r.Description.ValueString(),
-		Variables:    r.Variables.ValueString(),
-		SummaryFields: SummaryFieldsAPIModel{
-			Organization: SummaryField{
-				Id:   organizationId,
-				Name: r.OrganizationName.ValueString(),
+		BaseDetailAPIModelWithOrg: BaseDetailAPIModelWithOrg{
+			BaseDetailAPIModel: BaseDetailAPIModel{
+				Id:          r.Id.ValueInt64(),
+				Name:        r.Name.ValueString(),
+				Description: r.Description.ValueString(),
+				SummaryFields: SummaryFieldsAPIModel{
+					Organization: SummaryField{
+						Id:   organizationId,
+						Name: r.OrganizationName.ValueString(),
+					},
+					Inventory: SummaryField{
+						Id:   r.Id.ValueInt64(),
+						Name: r.Name.ValueString(),
+					},
+				},
+				Related: RelatedAPIModel{
+					NamedUrl: r.NamedUrl.ValueString(),
+				},
+				Variables: r.Variables.ValueString(),
 			},
-			Inventory: SummaryField{
-				Id:   r.Id.ValueInt64(),
-				Name: r.Name.ValueString(),
-			},
-		},
-		Related: RelatedAPIModel{
-			NamedUrl: r.NamedUrl.ValueString(),
+			Organization: organizationId,
 		},
 	}
 
@@ -345,7 +338,7 @@ func (r *InventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics
 	r.Id = types.Int64Value(apiInventory.Id)
 	r.Organization = types.Int64Value(apiInventory.Organization)
 	r.OrganizationName = ParseStringValue(apiInventory.SummaryFields.Organization.Name)
-	r.Url = types.StringValue(apiInventory.Url)
+	r.Url = types.StringValue(apiInventory.URL)
 	r.NamedUrl = ParseStringValue(apiInventory.Related.NamedUrl)
 	r.Name = types.StringValue(apiInventory.Name)
 	r.Description = ParseStringValue(apiInventory.Description)
