@@ -195,6 +195,83 @@ func TestReturnAAPNamedURL(t *testing.T) {
 	}
 }
 
+func TestReturnAAPNamedURLWithoutOrganization(t *testing.T) {
+	var testTable = []struct {
+		id          types.Int64
+		name        types.String
+		URI         string
+		expectError error
+		expectedUrl string
+	}{
+		{
+			id:          types.Int64Value(1),
+			name:        types.StringNull(),
+			URI:         "organizations",
+			expectError: nil,
+			expectedUrl: "organizations/1",
+		},
+		{
+
+			id:          types.Int64Value(1),
+			name:        types.StringValue("test"),
+			URI:         "organizations",
+			expectError: nil,
+			expectedUrl: "organizations/1",
+		},
+		{
+
+			id:          types.Int64Null(),
+			name:        types.StringValue("test"),
+			URI:         "organizations",
+			expectError: nil,
+			expectedUrl: "organizations/test",
+		},
+		{
+
+			id:          types.Int64Unknown(),
+			name:        types.StringValue("test"),
+			URI:         "organizations",
+			expectError: nil,
+			expectedUrl: "organizations/test",
+		},
+		{
+
+			id:          types.Int64Null(),
+			name:        types.StringUnknown(),
+			URI:         "organizations",
+			expectError: errors.New("invalid lookup parameters"),
+			expectedUrl: "",
+		},
+		{
+
+			id:          types.Int64Unknown(),
+			name:        types.StringNull(),
+			URI:         "organizations",
+			expectError: errors.New("invalid lookup parameters"),
+			expectedUrl: "",
+		},
+		{
+
+			id:          types.Int64Null(),
+			name:        types.StringNull(),
+			URI:         "organizations",
+			expectError: errors.New("invalid lookup parameters"),
+			expectedUrl: "",
+		},
+	}
+	for _, test := range testTable {
+		t.Run("test_test", func(t *testing.T) {
+			url, err := ReturnAAPNamedURLWithoutOrganization(test.id, test.name, test.URI)
+			if err != nil && err.Error() != test.expectError.Error() {
+				t.Errorf("Expected error: %v but got %v", test.expectError.Error(), err.Error())
+			}
+			if url != test.expectedUrl {
+				t.Errorf("Expected %v but got %v", test.expectedUrl, url)
+			}
+		})
+	}
+}
+
 func TestGetURL(t *testing.T) {
 	tests := []struct {
 		hostname    string
