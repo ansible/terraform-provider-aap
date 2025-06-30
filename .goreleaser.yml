@@ -18,11 +18,13 @@ builds:
     - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
   goos:
     - linux
+    - darwin
   goarch:
     - amd64
+    - arm64
   binary: '{{ .ProjectName }}_v{{ .Version }}'
 archives:
-- format: zip
+- formats: ["zip"]
   name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 checksum:
   extra_files:
