@@ -2,11 +2,14 @@
 page_title: "aap_host Resource - terraform-provider-aap"
 description: |-
   Creates a host.
+  This resource includes built-in retry logic to handle HTTP 409 (Conflict) errors that occur when the host is being used by running jobs. When a delete or update operation encounters a 409 error, the provider will automatically retry the operation until either (1) The operation succeeds or (2) The configured timeout is reached. The operation_timeout_seconds field controls how long the provider will wait before giving up. The default timeout is 600 seconds (10 minutes). You can adjust this value based on your typical job execution times.
 ---
 
 # aap_host (Resource)
 
 Creates a host.
+
+This resource includes built-in retry logic to handle HTTP 409 (Conflict) errors that occur when the host is being used by running jobs. When a delete or update operation encounters a 409 error, the provider will automatically retry the operation until either (1) The operation succeeds or (2) The configured timeout is reached. The `operation_timeout_seconds` field controls how long the provider will wait before giving up. The default timeout is 600 seconds (10 minutes). You can adjust this value based on your typical job execution times.
 
 
 ## Example Usage
@@ -88,6 +91,17 @@ resource "aap_host" "sample_xyz" {
   variables    = "os: Linux\nautomation: ansible-devel"
 }
 
+resource "aap_host" "sample_with_timeout" {
+  inventory_id              = aap_inventory.my_inventory.id
+  name                      = "tf_host_with_timeout"
+  operation_timeout_seconds = 600 # 10 minutes timeout for delete/update operations
+  variables = jsonencode({
+    foo = "bar"
+    # Add other variables as needed
+  })
+  groups = [aap_group.group_1.id]
+}
+
 output "host_foo" {
   value = aap_host.sample_foo
 }
@@ -106,6 +120,9 @@ output "host_abc" {
 output "host_xyz" {
   value = aap_host.sample_xyz
 }
+output "host_with_timeout" {
+  value = aap_host.sample_with_timeout
+}
 ```
 
 
@@ -122,6 +139,7 @@ output "host_xyz" {
 - `description` (String) Description for the host
 - `enabled` (Boolean) Denotes if the host is online and is available
 - `groups` (Set of Number) The list of groups to assosicate with a host.
+- `operation_timeout_seconds` (Number) Timeout in seconds for delete and update operations when the host is being used by running jobs (HTTP 409 conflicts). Default value is 600 seconds (10 minutes).
 - `variables` (String) Variables for the host configuration. Must be provided as either a JSON or YAML string.
 
 ### Read-Only

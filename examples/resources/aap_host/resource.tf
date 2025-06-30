@@ -74,6 +74,17 @@ resource "aap_host" "sample_xyz" {
   variables    = "os: Linux\nautomation: ansible-devel"
 }
 
+resource "aap_host" "sample_with_timeout" {
+  inventory_id              = aap_inventory.my_inventory.id
+  name                      = "tf_host_with_timeout"
+  operation_timeout_seconds = 600 # 10 minutes timeout for delete/update operations
+  variables = jsonencode({
+    foo = "bar"
+    # Add other variables as needed
+  })
+  groups = [aap_group.group_1.id]
+}
+
 output "host_foo" {
   value = aap_host.sample_foo
 }
@@ -91,4 +102,7 @@ output "host_abc" {
 }
 output "host_xyz" {
   value = aap_host.sample_xyz
+}
+output "host_with_timeout" {
+  value = aap_host.sample_with_timeout
 }
