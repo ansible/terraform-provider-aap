@@ -4,21 +4,20 @@ import (
 	"errors"
 	"fmt"
 	"path"
-
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	"strconv"
 )
 
 type urlOpts struct {
-	CredentialTypeName      types.String
-	CredentialTypeKind      types.String
-	Hostname                types.String
-	Id                      types.Int64
-	InventoryName           types.String
-	Kind                    types.String
-	Name                    types.String
-	OrganizationName        types.String
-	Username                types.String
-	WorkflowJobTemplateName types.String
+	CredentialTypeName      string
+	CredentialTypeKind      string
+	Hostname                string
+	Id                      int64
+	InventoryName           string
+	Kind                    string
+	Name                    string
+	OrganizationName        string
+	Username                string
+	WorkflowJobTemplateName string
 }
 
 type namedUrlFunc func(uri string, opts urlOpts) (string, error)
@@ -56,22 +55,22 @@ func unsupportedNamedUrlFunc(_ string, _ urlOpts) (string, error) {
 }
 
 func nameNamedUrlFunc(uri string, opts urlOpts) (string, error) {
-	if IsValueProvided(opts.Id) {
-		return path.Join(uri, opts.Id.String()), nil
+	if opts.Id != 0 {
+		return path.Join(uri, strconv.FormatInt(opts.Id, 10)), nil
 	}
-	if IsValueProvided(opts.Name) {
-		return path.Join(uri, opts.Name.ValueString()), nil
+	if opts.Name != "" {
+		return path.Join(uri, opts.Name), nil
 	}
 
 	return "", errors.New("invalid lookup parameters")
 }
 
 func namekindNamedUrlFunc(uri string, opts urlOpts) (string, error) {
-	if IsValueProvided(opts.Id) {
-		return path.Join(uri, opts.Id.String()), nil
+	if opts.Id != 0 {
+		return path.Join(uri, strconv.FormatInt(opts.Id, 10)), nil
 	}
-	if IsValueProvided(opts.Name) && IsValueProvided(opts.Kind) {
-		namedUrl := fmt.Sprintf("%s++%s", opts.Name.ValueString(), opts.Kind.ValueString())
+	if opts.Name != "" && opts.Kind != "" {
+		namedUrl := fmt.Sprintf("%s++%s", opts.Name, opts.Kind)
 		return path.Join(uri, namedUrl), nil
 	}
 
@@ -79,11 +78,11 @@ func namekindNamedUrlFunc(uri string, opts urlOpts) (string, error) {
 }
 
 func nameorgNamedUrlFunc(uri string, opts urlOpts) (string, error) {
-	if IsValueProvided(opts.Id) {
-		return path.Join(uri, opts.Id.String()), nil
+	if opts.Id != 0 {
+		return path.Join(uri, strconv.FormatInt(opts.Id, 10)), nil
 	}
-	if IsValueProvided(opts.Name) && IsValueProvided(opts.OrganizationName) {
-		namedUrl := fmt.Sprintf("%s++%s", opts.Name.ValueString(), opts.OrganizationName.ValueString())
+	if opts.Name != "" && opts.OrganizationName != "" {
+		namedUrl := fmt.Sprintf("%s++%s", opts.Name, opts.OrganizationName)
 		return path.Join(uri, namedUrl), nil
 	}
 
@@ -91,13 +90,13 @@ func nameorgNamedUrlFunc(uri string, opts urlOpts) (string, error) {
 }
 
 func nameinvorgNamedUrlFunc(uri string, opts urlOpts) (string, error) {
-	if IsValueProvided(opts.Id) {
-		return path.Join(uri, opts.Id.String()), nil
+	if opts.Id != 0 {
+		return path.Join(uri, strconv.FormatInt(opts.Id, 10)), nil
 	}
-	if IsValueProvided(opts.Name) && IsValueProvided(opts.InventoryName) &&
-		IsValueProvided(opts.OrganizationName) {
-		namedUrl := fmt.Sprintf("%s++%s++%s", opts.Name.ValueString(), opts.InventoryName.ValueString(),
-			opts.OrganizationName.ValueString())
+	if opts.Name != "" && opts.InventoryName != "" &&
+		opts.OrganizationName != "" {
+		namedUrl := fmt.Sprintf("%s++%s++%s", opts.Name, opts.InventoryName,
+			opts.OrganizationName)
 		return path.Join(uri, namedUrl), nil
 	}
 
@@ -105,14 +104,12 @@ func nameinvorgNamedUrlFunc(uri string, opts urlOpts) (string, error) {
 }
 
 func namecredkindorgNamedUrlFunc(uri string, opts urlOpts) (string, error) {
-	if IsValueProvided(opts.Id) {
-		return path.Join(uri, opts.Id.String()), nil
+	if opts.Id != 0 {
+		return path.Join(uri, strconv.FormatInt(opts.Id, 10)), nil
 	}
-	if IsValueProvided(opts.Name) && IsValueProvided(opts.CredentialTypeName) &&
-		IsValueProvided(opts.CredentialTypeKind) && IsValueProvided(opts.OrganizationName) {
+	if opts.Name != "" && opts.CredentialTypeName != "" && opts.CredentialTypeKind != "" && opts.OrganizationName != "" {
 		namedUrl := fmt.Sprintf("%s++%s++%s++%s",
-			opts.Name.ValueString(), opts.CredentialTypeName.ValueString(),
-			opts.CredentialTypeKind.ValueString(), opts.OrganizationName.ValueString())
+			opts.Name, opts.CredentialTypeName, opts.CredentialTypeKind, opts.OrganizationName)
 		return path.Join(uri, namedUrl), nil
 	}
 
@@ -120,30 +117,30 @@ func namecredkindorgNamedUrlFunc(uri string, opts urlOpts) (string, error) {
 }
 
 func idNamedUrlFunc(uri string, opts urlOpts) (string, error) {
-	if IsValueProvided(opts.Id) {
-		return path.Join(uri, opts.Id.String()), nil
+	if opts.Id != 0 {
+		return path.Join(uri, strconv.FormatInt(opts.Id, 10)), nil
 	}
 
 	return "", errors.New("invalid lookup parameters")
 }
 
 func usernameNamedUrlFunc(uri string, opts urlOpts) (string, error) {
-	if IsValueProvided(opts.Id) {
-		return path.Join(uri, opts.Id.String()), nil
+	if opts.Id != 0 {
+		return path.Join(uri, strconv.FormatInt(opts.Id, 10)), nil
 	}
-	if IsValueProvided(opts.Username) {
-		return path.Join(uri, opts.Username.ValueString()), nil
+	if opts.Username != "" {
+		return path.Join(uri, opts.Username), nil
 	}
 
 	return "", errors.New("invalid lookup parameters")
 }
 
 func hostnameNamedUrlFunc(uri string, opts urlOpts) (string, error) {
-	if IsValueProvided(opts.Id) {
-		return path.Join(uri, opts.Id.String()), nil
+	if opts.Id != 0 {
+		return path.Join(uri, strconv.FormatInt(opts.Id, 10)), nil
 	}
-	if IsValueProvided(opts.Hostname) {
-		return path.Join(uri, opts.Hostname.ValueString()), nil
+	if opts.Hostname != "" {
+		return path.Join(uri, opts.Hostname), nil
 	}
 
 	return "", errors.New("invalid lookup parameters")

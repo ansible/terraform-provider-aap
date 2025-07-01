@@ -444,8 +444,8 @@ func (d *BaseDataSourceWithNamedUrl) Read(ctx context.Context, req datasource.Re
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
 	resourceURL, err := GetEndpointNamedUrl(d.ApiEntitySlug, uri, urlOpts{
-		Id:   state.Id,
-		Name: state.Name,
+		Id:   state.Id.ValueInt64(),
+		Name: state.Name.ValueString(),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Error during API lookup", "Expected either [id] or [name]")
@@ -486,9 +486,9 @@ func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadReq
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
 	resourceURL, err := GetEndpointNamedUrl(d.ApiEntitySlug, uri, urlOpts{
-		Id:               state.Id,
-		Name:             state.Name,
-		OrganizationName: state.OrganizationName,
+		Id:               state.Id.ValueInt64(),
+		Name:             state.Name.ValueString(),
+		OrganizationName: state.OrganizationName.ValueString(),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Error during API lookup", "Expected either [id] or [name + organization_name] pair")
