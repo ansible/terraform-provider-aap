@@ -285,22 +285,16 @@ func (r *InventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics
 
 	inventory := InventoryAPIModel{
 		BaseDetailAPIModelWithOrg: BaseDetailAPIModelWithOrg{
-			BaseDetailAPIModel: BaseDetailAPIModel{
-				Id:  r.Id.ValueInt64(),
-				URL: r.Url.ValueString(),
-			},
-			BaseDetailAPIModelDescription: BaseDetailAPIModelDescription{
+			BaseDetailAPIModelCommon: BaseDetailAPIModelCommon{
+				BaseDetailAPIModel: BaseDetailAPIModel{
+					Id:  r.Id.ValueInt64(),
+					URL: r.Url.ValueString(),
+				},
 				Description: r.Description.ValueString(),
-			},
-			BaseDetailAPIModelName: BaseDetailAPIModelName{
-				Name: r.Name.ValueString(),
-			},
-			BaseDetailAPIModelRelated: BaseDetailAPIModelRelated{
+				Name:        r.Name.ValueString(),
 				Related: RelatedAPIModel{
 					NamedUrl: r.NamedUrl.ValueString(),
 				},
-			},
-			BaseDetailAPIModelSummaryFields: BaseDetailAPIModelSummaryFields{
 				SummaryFields: SummaryFieldsAPIModel{
 					Organization: SummaryField{
 						Id:   organizationId,
@@ -311,8 +305,6 @@ func (r *InventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics
 						Name: r.Name.ValueString(),
 					},
 				},
-			},
-			BaseDetailAPIModelVariables: BaseDetailAPIModelVariables{
 				Variables: r.Variables.ValueString(),
 			},
 			Organization: organizationId,

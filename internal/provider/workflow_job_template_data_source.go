@@ -11,7 +11,7 @@ type WorkflowJobTemplateAPIModel struct {
 
 // WorkflowJobTemplateDataSourceModel maps the data source schema data.
 type WorkflowJobTemplateDataSourceModel struct {
-	BaseDetailDataSourceModelWithOrg
+	BaseDetailSourceModelWithOrg
 }
 
 // WorkflowJobTemplateDataSource is the data source implementation.

@@ -11,7 +11,7 @@ type JobTemplateAPIModel struct {
 
 // JobTemplateDataSourceModel maps the data source schema data.
 type JobTemplateDataSourceModel struct {
-	BaseDetailDataSourceModelWithOrg
+	BaseDetailSourceModelWithOrg
 }
 
 // JobTemplateDataSource is the data source implementation.

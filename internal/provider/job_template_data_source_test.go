@@ -55,22 +55,16 @@ func TestJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			name:  "missing values",
 			input: []byte(`{"id":1,"organization":2,"url":"/job_templates/1/"}`),
 			expected: JobTemplateDataSourceModel{
-				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
-					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:  types.Int64Value(1),
-						URL: types.StringValue("/job_templates/1/"),
-					},
-					BaseDetailDataSourceModelDescription: BaseDetailDataSourceModelDescription{
+				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
+					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
+						BaseDetailSourceModel: BaseDetailSourceModel{
+							Id:  types.Int64Value(1),
+							URL: types.StringValue("/job_templates/1/"),
+						},
 						Description: types.StringNull(),
-					},
-					BaseDetailDataSourceModelName: BaseDetailDataSourceModelName{
-						Name: types.StringNull(),
-					},
-					BaseDetailDataSourceModelNamedUrl: BaseDetailDataSourceModelNamedUrl{
-						NamedUrl: types.StringNull(),
-					},
-					BaseDetailDataSourceModelVariables: BaseDetailDataSourceModelVariables{
-						Variables: customtypes.NewAAPCustomStringNull(),
+						Name:        types.StringNull(),
+						NamedUrl:    types.StringNull(),
+						Variables:   customtypes.NewAAPCustomStringNull(),
 					},
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),
@@ -84,22 +78,16 @@ func TestJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 				`{"id":1,"organization":2,"url":"/job_templates/1/","name":"my job template","description":"My Test Job Template","variables":"{\"foo\":\"bar\"}"}`,
 			),
 			expected: JobTemplateDataSourceModel{
-				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
-					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:  types.Int64Value(1),
-						URL: types.StringValue("/job_templates/1/"),
-					},
-					BaseDetailDataSourceModelDescription: BaseDetailDataSourceModelDescription{
+				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
+					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
+						BaseDetailSourceModel: BaseDetailSourceModel{
+							Id:  types.Int64Value(1),
+							URL: types.StringValue("/job_templates/1/"),
+						},
 						Description: types.StringValue("My Test Job Template"),
-					},
-					BaseDetailDataSourceModelName: BaseDetailDataSourceModelName{
-						Name: types.StringValue("my job template"),
-					},
-					BaseDetailDataSourceModelNamedUrl: BaseDetailDataSourceModelNamedUrl{
-						NamedUrl: types.StringNull(),
-					},
-					BaseDetailDataSourceModelVariables: BaseDetailDataSourceModelVariables{
-						Variables: customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
+						Name:        types.StringValue("my job template"),
+						NamedUrl:    types.StringNull(),
+						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),

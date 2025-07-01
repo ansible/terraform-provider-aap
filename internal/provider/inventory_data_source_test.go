@@ -55,22 +55,16 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 			name:  "missing values",
 			input: []byte(`{"id":1,"organization":2,"url":"/inventories/1/"}`),
 			expected: InventoryDataSourceModel{
-				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
-					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:  types.Int64Value(1),
-						URL: types.StringValue("/inventories/1/"),
-					},
-					BaseDetailDataSourceModelDescription: BaseDetailDataSourceModelDescription{
+				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
+					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
+						BaseDetailSourceModel: BaseDetailSourceModel{
+							Id:  types.Int64Value(1),
+							URL: types.StringValue("/inventories/1/"),
+						},
 						Description: types.StringNull(),
-					},
-					BaseDetailDataSourceModelName: BaseDetailDataSourceModelName{
-						Name: types.StringNull(),
-					},
-					BaseDetailDataSourceModelNamedUrl: BaseDetailDataSourceModelNamedUrl{
-						NamedUrl: types.StringNull(),
-					},
-					BaseDetailDataSourceModelVariables: BaseDetailDataSourceModelVariables{
-						Variables: customtypes.NewAAPCustomStringNull(),
+						Name:        types.StringNull(),
+						NamedUrl:    types.StringNull(),
+						Variables:   customtypes.NewAAPCustomStringNull(),
 					},
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),
@@ -84,22 +78,16 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 				`{"id":1,"organization":2,"url":"/inventories/1/","name":"my inventory","description":"My Test Inventory","variables":"{\"foo\":\"bar\"}"}`,
 			),
 			expected: InventoryDataSourceModel{
-				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
-					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:  types.Int64Value(1),
-						URL: types.StringValue("/inventories/1/"),
-					},
-					BaseDetailDataSourceModelDescription: BaseDetailDataSourceModelDescription{
+				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
+					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
+						BaseDetailSourceModel: BaseDetailSourceModel{
+							Id:  types.Int64Value(1),
+							URL: types.StringValue("/inventories/1/"),
+						},
 						Description: types.StringValue("My Test Inventory"),
-					},
-					BaseDetailDataSourceModelName: BaseDetailDataSourceModelName{
-						Name: types.StringValue("my inventory"),
-					},
-					BaseDetailDataSourceModelNamedUrl: BaseDetailDataSourceModelNamedUrl{
-						NamedUrl: types.StringNull(),
-					},
-					BaseDetailDataSourceModelVariables: BaseDetailDataSourceModelVariables{
-						Variables: customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
+						Name:        types.StringValue("my inventory"),
+						NamedUrl:    types.StringNull(),
+						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),

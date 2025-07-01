@@ -55,22 +55,16 @@ func TestWorkflowJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			name:  "missing values",
 			input: []byte(`{"id":1,"organization":2,"url":"/workflow_job_templates/1/"}`),
 			expected: WorkflowJobTemplateDataSourceModel{
-				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
-					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:  types.Int64Value(1),
-						URL: types.StringValue("/workflow_job_templates/1/"),
-					},
-					BaseDetailDataSourceModelDescription: BaseDetailDataSourceModelDescription{
+				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
+					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
+						BaseDetailSourceModel: BaseDetailSourceModel{
+							Id:  types.Int64Value(1),
+							URL: types.StringValue("/workflow_job_templates/1/"),
+						},
 						Description: types.StringNull(),
-					},
-					BaseDetailDataSourceModelName: BaseDetailDataSourceModelName{
-						Name: types.StringNull(),
-					},
-					BaseDetailDataSourceModelNamedUrl: BaseDetailDataSourceModelNamedUrl{
-						NamedUrl: types.StringNull(),
-					},
-					BaseDetailDataSourceModelVariables: BaseDetailDataSourceModelVariables{
-						Variables: customtypes.NewAAPCustomStringNull(),
+						Name:        types.StringNull(),
+						NamedUrl:    types.StringNull(),
+						Variables:   customtypes.NewAAPCustomStringNull(),
 					},
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),
@@ -85,22 +79,16 @@ func TestWorkflowJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 					`"description":"My Test Job Template","variables":"{\"foo\":\"bar\"}"}`,
 			),
 			expected: WorkflowJobTemplateDataSourceModel{
-				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
-					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:  types.Int64Value(1),
-						URL: types.StringValue("/workflow_job_templates/1/"),
-					},
-					BaseDetailDataSourceModelDescription: BaseDetailDataSourceModelDescription{
+				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
+					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
+						BaseDetailSourceModel: BaseDetailSourceModel{
+							Id:  types.Int64Value(1),
+							URL: types.StringValue("/workflow_job_templates/1/"),
+						},
 						Description: types.StringValue("My Test Job Template"),
-					},
-					BaseDetailDataSourceModelName: BaseDetailDataSourceModelName{
-						Name: types.StringValue("my job template"),
-					},
-					BaseDetailDataSourceModelNamedUrl: BaseDetailDataSourceModelNamedUrl{
-						NamedUrl: types.StringNull(),
-					},
-					BaseDetailDataSourceModelVariables: BaseDetailDataSourceModelVariables{
-						Variables: customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
+						NamedUrl:    types.StringNull(),
+						Name:        types.StringValue("my job template"),
+						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),

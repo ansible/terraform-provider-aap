@@ -36,6 +36,7 @@ type BaseDetailAPIModel struct {
 	Id  int64  `json:"id"`
 	URL string `json:"url"`
 }
+
 type BaseDetailAPIModelDescription struct {
 	Description string `json:"description,omitempty"`
 }
@@ -55,52 +56,60 @@ type BaseDetailAPIModelVariables struct {
 	Variables string `json:"variables,omitempty"`
 }
 
-type BaseDetailAPIModelWithOrg struct {
+type BaseDetailAPIModelCommon struct {
 	BaseDetailAPIModel
-	BaseDetailAPIModelDescription
-	BaseDetailAPIModelName
-	BaseDetailAPIModelRelated
-	BaseDetailAPIModelSummaryFields
-	BaseDetailAPIModelVariables
+	Description   string                `json:"description,omitempty"`
+	Name          string                `json:"name,omitempty"`
+	Related       RelatedAPIModel       `json:"related"`
+	SummaryFields SummaryFieldsAPIModel `json:"summary_fields"`
+	Variables     string                `json:"variables,omitempty"`
+}
+
+type BaseDetailAPIModelWithOrg struct {
+	BaseDetailAPIModelCommon
 	Organization int64 `json:"organization"`
 }
 
 // ---------------------------------------------------------------------------
 
-type BaseDetailDataSourceModel struct {
+type BaseDetailSourceModel struct {
 	Id  tftypes.Int64  `tfsdk:"id"`
 	URL tftypes.String `tfsdk:"url"`
 }
 
-type BaseDetailDataSourceModelDescription struct {
+type BaseDetailSourceModelDescription struct {
 	Description tftypes.String `tfsdk:"description"`
 }
 
-type BaseDetailDataSourceModelName struct {
+type BaseDetailSourceModelName struct {
 	Name tftypes.String `tfsdk:"name"`
 }
 
-type BaseDetailDataSourceModelNamedUrl struct {
+type BaseDetailSourceModelNamedUrl struct {
 	NamedUrl tftypes.String `tfsdk:"named_url"`
 }
 
-type BaseDetailDataSourceModelVariables struct {
+type BaseDetailSourceModelVariables struct {
 	Variables customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
-type BaseDetailDataSourceModelWithOrg struct {
-	BaseDetailDataSourceModel
-	BaseDetailDataSourceModelDescription
-	BaseDetailDataSourceModelName
-	BaseDetailDataSourceModelNamedUrl
-	BaseDetailDataSourceModelVariables
+type BaseDetailSourceModelCommon struct {
+	BaseDetailSourceModel
+	Description tftypes.String                   `tfsdk:"description"`
+	Name        tftypes.String                   `tfsdk:"name"`
+	NamedUrl    tftypes.String                   `tfsdk:"named_url"`
+	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
+}
+
+type BaseDetailSourceModelWithOrg struct {
+	BaseDetailSourceModelCommon
 	Organization     tftypes.Int64  `tfsdk:"organization"`
 	OrganizationName tftypes.String `tfsdk:"organization_name"`
 }
 
 // This function allows us to parse the incoming data in HTTP requests from the API
-// into the BaseDetailDataSourceModel instances.
-func (d *BaseDetailDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
+// into the BaseDetailSourceModel instances.
+func (d *BaseDetailSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	// Unmarshal the JSON response
@@ -111,7 +120,7 @@ func (d *BaseDetailDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnost
 		return diags
 	}
 
-	// Map the response to the BaseDetailDataSourceModel datasource schema
+	// Map the response to the BaseDetailSourceModel datasource schema
 	d.Id = tftypes.Int64Value(apiModel.Id)
 	d.URL = ParseStringValue(apiModel.URL)
 
@@ -119,10 +128,10 @@ func (d *BaseDetailDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnost
 }
 
 // This function allows us to parse the incoming data in HTTP requests from the API
-// into the BaseDetailDataSourceModelWithOrg instances.
-func (d *BaseDetailDataSourceModelWithOrg) ParseHttpResponse(body []byte) diag.Diagnostics {
+// into the BaseDetailSourceModelWithOrg instances.
+func (d *BaseDetailSourceModelCommon) ParseHttpResponse(body []byte) diag.Diagnostics {
 	// Let my parent's ParseHttpResponse method handle the base fields
-	diags := d.BaseDetailDataSourceModel.ParseHttpResponse(body)
+	diags := d.BaseDetailSourceModel.ParseHttpResponse(body)
 	if diags.HasError() {
 		return diags
 	}
@@ -135,13 +144,35 @@ func (d *BaseDetailDataSourceModelWithOrg) ParseHttpResponse(body []byte) diag.D
 		return diags
 	}
 
-	// Map the response to the BaseDetailDataSourceModelWithOrg datasource schema
+	// Map the response to the BaseDetailSourceModelWithOrg datasource schema
 	d.Description = ParseStringValue(apiModel.Description)
 	d.Name = ParseStringValue(apiModel.Name)
 	d.Variables = ParseAAPCustomStringValue(apiModel.Variables)
-	d.Organization = tftypes.Int64Value(apiModel.Organization)
 	// Parse the related fields
 	d.NamedUrl = ParseStringValue(apiModel.Related.NamedUrl)
+
+	return diags
+}
+
+// This function allows us to parse the incoming data in HTTP requests from the API
+// into the BaseDetailSourceModelWithOrg instances.
+func (d *BaseDetailSourceModelWithOrg) ParseHttpResponse(body []byte) diag.Diagnostics {
+	// Let my parent's ParseHttpResponse method handle the base fields
+	diags := d.BaseDetailSourceModelCommon.ParseHttpResponse(body)
+	if diags.HasError() {
+		return diags
+	}
+
+	// Unmarshal the JSON response
+	var apiModel BaseDetailAPIModelWithOrg
+	err := json.Unmarshal(body, &apiModel)
+	if err != nil {
+		diags.AddError("Error parsing JSON response from AAP", err.Error())
+		return diags
+	}
+
+	// Map the response to the BaseDetailSourceModelWithOrg datasource schema
+	d.Organization = tftypes.Int64Value(apiModel.Organization)
 	// Parse the summary fields
 	d.OrganizationName = ParseStringValue(apiModel.SummaryFields.Organization.Name)
 
@@ -241,7 +272,7 @@ func doReadPreconditionsMeet(ctx context.Context, resp *datasource.ReadResponse,
 
 // Read refreshes the Terraform state with the latest data.
 func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state BaseDetailDataSourceModel
+	var state BaseDetailSourceModel
 
 	// Check Read preconditions
 	if !doReadPreconditionsMeet(ctx, resp, d.client) {
@@ -281,7 +312,7 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 // Read refreshes the Terraform state with the latest data.
 func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state BaseDetailDataSourceModelWithOrg
+	var state BaseDetailSourceModelWithOrg
 
 	// Check Read preconditions
 	if !doReadPreconditionsMeet(ctx, resp, d.client) {
@@ -383,7 +414,7 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 		return
 	}
 
-	var data BaseDetailDataSourceModel
+	var data BaseDetailSourceModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
@@ -416,7 +447,7 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 		return
 	}
 
-	var data BaseDetailDataSourceModelWithOrg
+	var data BaseDetailSourceModelWithOrg
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
