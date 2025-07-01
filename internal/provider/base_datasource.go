@@ -16,60 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
-// This function allows us to parse the incoming data in HTTP requests from the API
-// into the BaseDetailDataSourceModel instances.
-func (d *BaseDetailDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
-	var diags diag.Diagnostics
-
-	// Unmarshal the JSON response
-	var apiModel BaseDetailAPIModel
-	err := json.Unmarshal(body, &apiModel)
-	if err != nil {
-		diags.AddError("Error parsing JSON response from AAP", err.Error())
-		return diags
-	}
-
-	// Map the response to the BaseDetailDataSourceModel datasource schema
-	d.Id = tftypes.Int64Value(apiModel.Id)
-	d.Name = ParseStringValue(apiModel.Name)
-	d.Description = ParseStringValue(apiModel.Description)
-	d.URL = ParseStringValue(apiModel.URL)
-	d.Variables = ParseAAPCustomStringValue(apiModel.Variables)
-	// Parse the related fields
-	d.NamedUrl = ParseStringValue(apiModel.Related.NamedUrl)
-	// Parse the summary fields
-
-	return diags
-}
-
-// This function allows us to parse the incoming data in HTTP requests from the API
-// into the BaseDetailDataSourceModelWithOrg instances.
-func (d *BaseDetailDataSourceModelWithOrg) ParseHttpResponse(body []byte) diag.Diagnostics {
-	// Let my parent's ParseHttpResponse method handle the base fields
-	diags := d.BaseDetailDataSourceModel.ParseHttpResponse(body)
-	if diags.HasError() {
-		return diags
-	}
-
-	// Unmarshal the JSON response
-	var apiModel BaseDetailAPIModelWithOrg
-	err := json.Unmarshal(body, &apiModel)
-	if err != nil {
-		diags.AddError("Error parsing JSON response from AAP", err.Error())
-		return diags
-	}
-
-	// Map the response to the BaseDetailDataSourceModelWithOrg datasource schema
-	d.Organization = tftypes.Int64Value(apiModel.Organization)
-	d.OrganizationName = ParseStringValue(apiModel.SummaryFields.Organization.Name)
-	// Parse the related fields
-	// Parse the summary fields
-
-	return diags
-}
-
-// ---------------------------------------------------------------------------
-
 // Ensure the implementation satisfies the expected interfaces.
 var (
 	_ datasource.DataSource                     = &BaseDataSource{}
@@ -82,6 +28,10 @@ var (
 	_ datasource.DataSourceWithConfigValidators = &BaseDataSourceWithOrg{}
 	_ datasource.DataSourceWithValidateConfig   = &BaseDataSourceWithOrg{}
 )
+
+// ---------------------------------------------------------------------------
+// Constructors
+// ---------------------------------------------------------------------------
 
 // Constructs a new BaseDataSource object provided with a client instance (usually
 // initialized to nil, it will be later configured calling the Configure function)
@@ -105,151 +55,86 @@ func NewBaseDataSourceWithOrg(client ProviderHTTPClient, stringDescriptions Stri
 	}
 }
 
-func IsContextActive(operationName string, ctx context.Context, diagnostics diag.Diagnostics) bool {
-	if ctx.Err() == nil {
-		if diagnostics != nil {
-			diagnostics.AddError(
-				fmt.Sprintf("Aborting %s operation", operationName),
-				"Context is not active, we cannot continue with the execution",
-			)
-		} else {
-			tflog.Error(ctx, fmt.Sprintf("Aborting %s operation. "+
-				"Context is not active, we cannot continue with the execution", operationName))
-		}
-	}
-	return ctx.Err() == nil
+// ---------------------------------------------------------------------------
+// Metadata
+// ---------------------------------------------------------------------------
+
+// Metadata returns the data source type name composing it from the provider type name and the
+// entity slug string passed in the constructor.
+func (d *BaseDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = fmt.Sprintf("%s_%s", req.ProviderTypeName, d.MetadataEntitySlug)
 }
 
-func doReadPreconditionsMeet(ctx context.Context, resp *datasource.ReadResponse, client ProviderHTTPClient) bool {
-	if resp == nil {
-		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
-		return false
-	}
+// ---------------------------------------------------------------------------
+// Schema
+// ---------------------------------------------------------------------------
 
-	// Check that the current context is active
-	if !IsContextActive("Read", ctx, resp.Diagnostics) {
-		return false
-	}
-
-	// Check that the HTTP Client is defined
-	if client == nil {
-		resp.Diagnostics.AddError(
-			"Aborting Read operation",
-			"HTTP Client not configured, we cannot continue with the execution",
-		)
-		return false
-	}
-	return true
-}
-
-// Read refreshes the Terraform state with the latest data.
-func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state BaseDetailDataSourceModel
-
-	// Check Read preconditions
-	if !doReadPreconditionsMeet(ctx, resp, d.client) {
-		return
-	}
-
-	// Read Terraform configuration data into the model
-	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
-	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
-
-	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, tftypes.StringValue(""), uri)
-	if err != nil {
-		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id]")
-		return
-	}
-
-	var diags diag.Diagnostics
-	readResponseBody, diags := d.client.Get(resourceURL)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	diags = state.ParseHttpResponse(readResponseBody)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	// Set state
-	// Save updated data into Terraform state
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
+// Schema defines the schema fields for the data source.
+func (d *BaseDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"id": schema.Int64Attribute{
+				Optional:    true,
+				Description: fmt.Sprintf("%s id", d.DescriptiveEntityName),
+			},
+			"url": schema.StringAttribute{
+				Computed:    true,
+				Description: fmt.Sprintf("Url of the %s", d.DescriptiveEntityName),
+			},
+		},
+		Description: fmt.Sprintf("Get an existing %s.", d.DescriptiveEntityName),
 	}
 }
 
-// Read refreshes the Terraform state with the latest data.
-func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state BaseDetailDataSourceModelWithOrg
-
-	// Check Read preconditions
-	if !doReadPreconditionsMeet(ctx, resp, d.client) {
-		return
-	}
-
-	// Read Terraform configuration data into the model
-	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
-	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
-	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, uri)
-	if err != nil {
-		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected either [id] or [name + organization_name] pair")
-		return
-	}
-
-	var diags diag.Diagnostics
-	readResponseBody, diags := d.client.Get(resourceURL)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	diags = state.ParseHttpResponse(readResponseBody)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	// Set state
-	// Save updated data into Terraform state
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
+// Schema defines the schema fields for the data source.
+func (d *BaseDataSourceWithOrg) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"id": schema.Int64Attribute{
+				Optional:    true,
+				Description: fmt.Sprintf("%s id", d.DescriptiveEntityName),
+			},
+			"organization": schema.Int64Attribute{
+				Computed:    true,
+				Description: fmt.Sprintf("Identifier for the organization to which the %s belongs", d.DescriptiveEntityName),
+			},
+			"organization_name": schema.StringAttribute{
+				Computed:    true,
+				Optional:    true,
+				Description: fmt.Sprintf("The name for the organization to which the %s belongs", d.DescriptiveEntityName),
+			},
+			"url": schema.StringAttribute{
+				Computed:    true,
+				Description: fmt.Sprintf("Url of the %s", d.DescriptiveEntityName),
+			},
+			"named_url": schema.StringAttribute{
+				Computed:    true,
+				Description: fmt.Sprintf("The Named Url of the %s", d.DescriptiveEntityName),
+			},
+			"name": schema.StringAttribute{
+				Computed:    true,
+				Optional:    true,
+				Description: fmt.Sprintf("Name of the %s", d.DescriptiveEntityName),
+			},
+			"description": schema.StringAttribute{
+				Computed:    true,
+				Description: fmt.Sprintf("Description of the %s", d.DescriptiveEntityName),
+			},
+			"variables": schema.StringAttribute{
+				Computed:   true,
+				CustomType: customtypes.AAPCustomStringType{},
+				Description: fmt.Sprintf("Variables of the %s. Will be either JSON or YAML string depending on how the "+
+					"variables were entered into AAP.", d.DescriptiveEntityName),
+				DeprecationMessage: "This attribute is deprecated and will be removed in a future version.",
+			},
+		},
+		Description: fmt.Sprintf("Get an existing %s.", d.DescriptiveEntityName),
 	}
 }
 
-// Configure adds the provider configured client to the data source.
-func (d *BaseDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	// Check that the response and diagnostics pointer is defined
-	if resp == nil {
-		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
-		return
-	}
-
-	// Check that the current context is active
-	if !IsContextActive("Configure", ctx, resp.Diagnostics) {
-		return
-	}
-
-	// Check that the provider data is configured
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*AAPClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *AAPClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-		return
-	}
-
-	d.client = client
-}
+// ---------------------------------------------------------------------------
+// ConfigValidators
+// ---------------------------------------------------------------------------
 
 func (d *BaseDataSource) ConfigValidators(_ context.Context) []datasource.ConfigValidator {
 	// You have at least an id
@@ -273,6 +158,10 @@ func (d *BaseDataSourceWithOrg) ConfigValidators(_ context.Context) []datasource
 		),
 	}
 }
+
+// ---------------------------------------------------------------------------
+// ValidateConfig
+// ---------------------------------------------------------------------------
 
 func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, resp *datasource.ValidateConfigResponse) {
 	// Check that the response and diagnostics pointer is defined
@@ -360,54 +249,174 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 	}
 }
 
-// Schema defines the schema fields for the data source.
-func (d *BaseDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Attributes: map[string]schema.Attribute{
-			"id": schema.Int64Attribute{
-				Optional:    true,
-				Description: fmt.Sprintf("%s id", d.DescriptiveEntityName),
-			},
-			"organization": schema.Int64Attribute{
-				Computed:    true,
-				Description: fmt.Sprintf("Identifier for the organization to which the %s belongs", d.DescriptiveEntityName),
-			},
-			"organization_name": schema.StringAttribute{
-				Computed:    true,
-				Optional:    true,
-				Description: fmt.Sprintf("The name for the organization to which the %s belongs", d.DescriptiveEntityName),
-			},
-			"url": schema.StringAttribute{
-				Computed:    true,
-				Description: fmt.Sprintf("Url of the %s", d.DescriptiveEntityName),
-			},
-			"named_url": schema.StringAttribute{
-				Computed:    true,
-				Description: fmt.Sprintf("The Named Url of the %s", d.DescriptiveEntityName),
-			},
-			"name": schema.StringAttribute{
-				Computed:    true,
-				Optional:    true,
-				Description: fmt.Sprintf("Name of the %s", d.DescriptiveEntityName),
-			},
-			"description": schema.StringAttribute{
-				Computed:    true,
-				Description: fmt.Sprintf("Description of the %s", d.DescriptiveEntityName),
-			},
-			"variables": schema.StringAttribute{
-				Computed:   true,
-				CustomType: customtypes.AAPCustomStringType{},
-				Description: fmt.Sprintf("Variables of the %s. Will be either JSON or YAML string depending on how the "+
-					"variables were entered into AAP.", d.DescriptiveEntityName),
-				DeprecationMessage: "This attribute is deprecated and will be removed in a future version.",
-			},
-		},
-		Description: fmt.Sprintf("Get an existing %s.", d.DescriptiveEntityName),
+// ---------------------------------------------------------------------------
+// Configure
+// ---------------------------------------------------------------------------
+
+// Configure adds the provider configured client to the data source.
+func (d *BaseDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	// Check that the response and diagnostics pointer is defined
+	if resp == nil {
+		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
+		return
+	}
+
+	// Check that the current context is active
+	if !IsContextActive("Configure", ctx, resp.Diagnostics) {
+		return
+	}
+
+	// Check that the provider data is configured
+	if req.ProviderData == nil {
+		return
+	}
+
+	client, ok := req.ProviderData.(*AAPClient)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Data Source Configure Type",
+			fmt.Sprintf("Expected *AAPClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+		return
+	}
+
+	d.client = client
+}
+
+// ---------------------------------------------------------------------------
+// Read
+// ---------------------------------------------------------------------------
+
+// Read refreshes the Terraform state with the latest data.
+func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var state BaseDetailDataSourceModel
+	var diags diag.Diagnostics
+
+	// Check Read preconditions
+	if !DoReadPreconditionsMeet(ctx, resp, d.client) {
+		return
+	}
+
+	// Read Terraform configuration data into the model
+	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
+	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug, state.Id.String())
+
+	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, tftypes.StringValue(""), uri)
+	if err != nil {
+		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id]")
+		return
+	}
+
+	readResponseBody, diags := d.client.Get(resourceURL)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	diags = state.ParseHttpResponse(readResponseBody)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Set state
+	// Save updated data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 }
 
-// Metadata returns the data source type name composing it from the provider type name and the
-// entity slug string passed in the constructor.
-func (d *BaseDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = fmt.Sprintf("%s_%s", req.ProviderTypeName, d.MetadataEntitySlug)
+// Read refreshes the Terraform state with the latest data.
+func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var state BaseDetailDataSourceModelWithOrg
+	var diags diag.Diagnostics
+
+	// Check Read preconditions
+	if !DoReadPreconditionsMeet(ctx, resp, d.client) {
+		return
+	}
+
+	// Read Terraform configuration data into the model
+	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
+	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
+	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, uri)
+	if err != nil {
+		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected either [id] or [name + organization_name] pair")
+		return
+	}
+
+	readResponseBody, diags := d.client.Get(resourceURL)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	diags = state.ParseHttpResponse(readResponseBody)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Set state
+	// Save updated data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ParseHttpResponse
+// ---------------------------------------------------------------------------
+
+// This function allows us to parse the incoming data in HTTP requests from the API
+// into the BaseDetailDataSourceModel instances.
+func (d *BaseDetailDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	// Unmarshal the JSON response
+	var apiModel BaseDetailAPIModel
+	err := json.Unmarshal(body, &apiModel)
+	if err != nil {
+		diags.AddError("Error parsing JSON response from AAP", err.Error())
+		return diags
+	}
+
+	// Map the response to the BaseDetailDataSourceModel datasource schema
+	d.Id = tftypes.Int64Value(apiModel.Id)
+	d.URL = ParseStringValue(apiModel.URL)
+	// Parse the summary fields
+
+	return diags
+}
+
+// This function allows us to parse the incoming data in HTTP requests from the API
+// into the BaseDetailDataSourceModelWithOrg instances.
+func (d *BaseDetailDataSourceModelWithOrg) ParseHttpResponse(body []byte) diag.Diagnostics {
+	// Let my parent's ParseHttpResponse method handle the base fields
+	diags := d.BaseDetailDataSourceModel.ParseHttpResponse(body)
+	if diags.HasError() {
+		return diags
+	}
+
+	// Unmarshal the JSON response
+	var apiModel BaseDetailAPIModelWithOrg
+	err := json.Unmarshal(body, &apiModel)
+	if err != nil {
+		diags.AddError("Error parsing JSON response from AAP", err.Error())
+		return diags
+	}
+
+	// Map the response to the BaseDetailDataSourceModelWithOrg datasource schema
+	d.Name = ParseStringValue(apiModel.Name)
+	d.Description = ParseStringValue(apiModel.Description)
+	d.Organization = tftypes.Int64Value(apiModel.Organization)
+	d.Variables = ParseAAPCustomStringValue(apiModel.Variables)
+	// Parse the related fields
+	d.NamedUrl = ParseStringValue(apiModel.Related.NamedUrl)
+	// Parse the summary fields
+	d.OrganizationName = ParseStringValue(apiModel.SummaryFields.Organization.Name)
+
+	return diags
 }
