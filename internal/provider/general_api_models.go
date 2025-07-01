@@ -3,6 +3,7 @@ package provider
 import (
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // ---------------------------------------------------------------------------
@@ -45,20 +46,24 @@ type BaseDetailDataSourceModel struct {
 
 type BaseDetailDataSourceModelWithNamedUrl struct {
 	BaseDetailDataSourceModel
-	Name        types.String                     `tfsdk:"name"`
-	Description types.String                     `tfsdk:"description"`
-	NamedUrl    types.String                     `tfsdk:"named_url"`
+	Id          tftypes.Int64                    `tfsdk:"id"`
+	Name        tftypes.String                   `tfsdk:"name"`
+	Description tftypes.String                   `tfsdk:"description"`
+	URL         tftypes.String                   `tfsdk:"url"`
+	NamedUrl    tftypes.String                   `tfsdk:"named_url"`
 	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
 type BaseDetailDataSourceModelWithOrg struct {
 	BaseDetailDataSourceModel
-	Name             types.String                     `tfsdk:"name"`
-	Description      types.String                     `tfsdk:"description"`
-	NamedUrl         types.String                     `tfsdk:"named_url"`
+	Id               tftypes.Int64                    `tfsdk:"id"`
+	Name             tftypes.String                   `tfsdk:"name"`
+	Description      tftypes.String                   `tfsdk:"description"`
+	URL              tftypes.String                   `tfsdk:"url"`
+	NamedUrl         tftypes.String                   `tfsdk:"named_url"`
 	Variables        customtypes.AAPCustomStringValue `tfsdk:"variables"`
-	Organization     types.Int64                      `tfsdk:"organization"`
-	OrganizationName types.String                     `tfsdk:"organization_name"`
+	Organization     tftypes.Int64                    `tfsdk:"organization"`
+	OrganizationName tftypes.String                   `tfsdk:"organization_name"`
 }
 
 type StringDescriptions struct {

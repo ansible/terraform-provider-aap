@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tfpath "github.com/hashicorp/terraform-plugin-framework/path"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -533,7 +533,7 @@ func (d *BaseDetailDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnost
 	}
 
 	// Map the response to the BaseDetailDataSourceModel datasource schema
-	d.Id = types.Int64Value(apiModel.Id)
+	d.Id = tftypes.Int64Value(apiModel.Id)
 	d.URL = ParseStringValue(apiModel.URL)
 	// Parse the summary fields
 
@@ -588,7 +588,7 @@ func (d *BaseDetailDataSourceModelWithOrg) ParseHttpResponse(body []byte) diag.D
 	// Map the response to the BaseDetailDataSourceModelWithOrg datasource schema
 	d.Name = ParseStringValue(apiModel.Name)
 	d.Description = ParseStringValue(apiModel.Description)
-	d.Organization = types.Int64Value(apiModel.Organization)
+	d.Organization = tftypes.Int64Value(apiModel.Organization)
 	d.Variables = ParseAAPCustomStringValue(apiModel.Variables)
 	// Parse the related fields
 	d.NamedUrl = ParseStringValue(apiModel.Related.NamedUrl)
