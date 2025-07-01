@@ -2,7 +2,6 @@ package provider
 
 import (
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -40,8 +39,8 @@ type BaseDetailAPIModelWithOrg struct {
 // ---------------------------------------------------------------------------
 
 type BaseDetailDataSourceModel struct {
-	Id  types.Int64  `tfsdk:"id"`
-	URL types.String `tfsdk:"url"`
+	Id  tftypes.Int64  `tfsdk:"id"`
+	URL tftypes.String `tfsdk:"url"`
 }
 
 type BaseDetailDataSourceModelWithNamedUrl struct {
