@@ -57,12 +57,20 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 			expected: InventoryDataSourceModel{
 				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
 					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:          types.Int64Value(1),
-						Name:        types.StringNull(),
+						Id:  types.Int64Value(1),
+						URL: types.StringValue("/inventories/1/"),
+					},
+					BaseDetailDataSourceModelDescription: BaseDetailDataSourceModelDescription{
 						Description: types.StringNull(),
-						Variables:   customtypes.NewAAPCustomStringNull(),
-						URL:         types.StringValue("/inventories/1/"),
-						NamedUrl:    types.StringNull(),
+					},
+					BaseDetailDataSourceModelName: BaseDetailDataSourceModelName{
+						Name: types.StringNull(),
+					},
+					BaseDetailDataSourceModelNamedUrl: BaseDetailDataSourceModelNamedUrl{
+						NamedUrl: types.StringNull(),
+					},
+					BaseDetailDataSourceModelVariables: BaseDetailDataSourceModelVariables{
+						Variables: customtypes.NewAAPCustomStringNull(),
 					},
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),
@@ -78,12 +86,20 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 			expected: InventoryDataSourceModel{
 				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
 					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:          types.Int64Value(1),
-						Name:        types.StringValue("my inventory"),
+						Id:  types.Int64Value(1),
+						URL: types.StringValue("/inventories/1/"),
+					},
+					BaseDetailDataSourceModelDescription: BaseDetailDataSourceModelDescription{
 						Description: types.StringValue("My Test Inventory"),
-						URL:         types.StringValue("/inventories/1/"),
-						NamedUrl:    types.StringNull(),
-						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
+					},
+					BaseDetailDataSourceModelName: BaseDetailDataSourceModelName{
+						Name: types.StringValue("my inventory"),
+					},
+					BaseDetailDataSourceModelNamedUrl: BaseDetailDataSourceModelNamedUrl{
+						NamedUrl: types.StringNull(),
+					},
+					BaseDetailDataSourceModelVariables: BaseDetailDataSourceModelVariables{
+						Variables: customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),

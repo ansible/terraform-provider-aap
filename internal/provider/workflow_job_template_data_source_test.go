@@ -57,12 +57,20 @@ func TestWorkflowJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			expected: WorkflowJobTemplateDataSourceModel{
 				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
 					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:          types.Int64Value(1),
-						Name:        types.StringNull(),
+						Id:  types.Int64Value(1),
+						URL: types.StringValue("/workflow_job_templates/1/"),
+					},
+					BaseDetailDataSourceModelDescription: BaseDetailDataSourceModelDescription{
 						Description: types.StringNull(),
-						NamedUrl:    types.StringNull(),
-						URL:         types.StringValue("/workflow_job_templates/1/"),
-						Variables:   customtypes.NewAAPCustomStringNull(),
+					},
+					BaseDetailDataSourceModelName: BaseDetailDataSourceModelName{
+						Name: types.StringNull(),
+					},
+					BaseDetailDataSourceModelNamedUrl: BaseDetailDataSourceModelNamedUrl{
+						NamedUrl: types.StringNull(),
+					},
+					BaseDetailDataSourceModelVariables: BaseDetailDataSourceModelVariables{
+						Variables: customtypes.NewAAPCustomStringNull(),
 					},
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),
@@ -79,12 +87,20 @@ func TestWorkflowJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			expected: WorkflowJobTemplateDataSourceModel{
 				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
 					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:          types.Int64Value(1),
-						Name:        types.StringValue("my job template"),
+						Id:  types.Int64Value(1),
+						URL: types.StringValue("/workflow_job_templates/1/"),
+					},
+					BaseDetailDataSourceModelDescription: BaseDetailDataSourceModelDescription{
 						Description: types.StringValue("My Test Job Template"),
-						URL:         types.StringValue("/workflow_job_templates/1/"),
-						NamedUrl:    types.StringNull(),
-						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
+					},
+					BaseDetailDataSourceModelName: BaseDetailDataSourceModelName{
+						Name: types.StringValue("my job template"),
+					},
+					BaseDetailDataSourceModelNamedUrl: BaseDetailDataSourceModelNamedUrl{
+						NamedUrl: types.StringNull(),
+					},
+					BaseDetailDataSourceModelVariables: BaseDetailDataSourceModelVariables{
+						Variables: customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),

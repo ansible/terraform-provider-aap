@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tfpath "github.com/hashicorp/terraform-plugin-framework/path"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -33,35 +33,69 @@ type SummaryFieldsAPIModel struct {
 }
 
 type BaseDetailAPIModel struct {
-	Id            int64                 `json:"id"`
-	Name          string                `json:"name,omitempty"`
-	Description   string                `json:"description,omitempty"`
-	URL           string                `json:"url"`
-	Related       RelatedAPIModel       `json:"related"`
+	Id  int64  `json:"id"`
+	URL string `json:"url"`
+}
+type BaseDetailAPIModelDescription struct {
+	Description string `json:"description,omitempty"`
+}
+
+type BaseDetailAPIModelName struct {
+	Name string `json:"name,omitempty"`
+}
+type BaseDetailAPIModelRelated struct {
+	Related RelatedAPIModel `json:"related"`
+}
+
+type BaseDetailAPIModelSummaryFields struct {
 	SummaryFields SummaryFieldsAPIModel `json:"summary_fields"`
-	Variables     string                `json:"variables,omitempty"`
+}
+
+type BaseDetailAPIModelVariables struct {
+	Variables string `json:"variables,omitempty"`
 }
 
 type BaseDetailAPIModelWithOrg struct {
 	BaseDetailAPIModel
+	BaseDetailAPIModelDescription
+	BaseDetailAPIModelName
+	BaseDetailAPIModelRelated
+	BaseDetailAPIModelSummaryFields
+	BaseDetailAPIModelVariables
 	Organization int64 `json:"organization"`
 }
 
 // ---------------------------------------------------------------------------
 
 type BaseDetailDataSourceModel struct {
-	Id          types.Int64                      `tfsdk:"id"`
-	Name        types.String                     `tfsdk:"name"`
-	Description types.String                     `tfsdk:"description"`
-	URL         types.String                     `tfsdk:"url"`
-	NamedUrl    types.String                     `tfsdk:"named_url"`
-	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
+	Id  tftypes.Int64  `tfsdk:"id"`
+	URL tftypes.String `tfsdk:"url"`
+}
+
+type BaseDetailDataSourceModelDescription struct {
+	Description tftypes.String `tfsdk:"description"`
+}
+
+type BaseDetailDataSourceModelName struct {
+	Name tftypes.String `tfsdk:"name"`
+}
+
+type BaseDetailDataSourceModelNamedUrl struct {
+	NamedUrl tftypes.String `tfsdk:"named_url"`
+}
+
+type BaseDetailDataSourceModelVariables struct {
+	Variables customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
 type BaseDetailDataSourceModelWithOrg struct {
 	BaseDetailDataSourceModel
-	Organization     types.Int64  `tfsdk:"organization"`
-	OrganizationName types.String `tfsdk:"organization_name"`
+	BaseDetailDataSourceModelDescription
+	BaseDetailDataSourceModelName
+	BaseDetailDataSourceModelNamedUrl
+	BaseDetailDataSourceModelVariables
+	Organization     tftypes.Int64  `tfsdk:"organization"`
+	OrganizationName tftypes.String `tfsdk:"organization_name"`
 }
 
 // This function allows us to parse the incoming data in HTTP requests from the API
@@ -78,14 +112,8 @@ func (d *BaseDetailDataSourceModel) ParseHttpResponse(body []byte) diag.Diagnost
 	}
 
 	// Map the response to the BaseDetailDataSourceModel datasource schema
-	d.Id = types.Int64Value(apiModel.Id)
-	d.Name = ParseStringValue(apiModel.Name)
-	d.Description = ParseStringValue(apiModel.Description)
+	d.Id = tftypes.Int64Value(apiModel.Id)
 	d.URL = ParseStringValue(apiModel.URL)
-	d.Variables = ParseAAPCustomStringValue(apiModel.Variables)
-	// Parse the related fields
-	d.NamedUrl = ParseStringValue(apiModel.Related.NamedUrl)
-	// Parse the summary fields
 
 	return diags
 }
@@ -108,10 +136,14 @@ func (d *BaseDetailDataSourceModelWithOrg) ParseHttpResponse(body []byte) diag.D
 	}
 
 	// Map the response to the BaseDetailDataSourceModelWithOrg datasource schema
-	d.Organization = types.Int64Value(apiModel.Organization)
-	d.OrganizationName = ParseStringValue(apiModel.SummaryFields.Organization.Name)
+	d.Description = ParseStringValue(apiModel.Description)
+	d.Name = ParseStringValue(apiModel.Name)
+	d.Variables = ParseAAPCustomStringValue(apiModel.Variables)
+	d.Organization = tftypes.Int64Value(apiModel.Organization)
 	// Parse the related fields
+	d.NamedUrl = ParseStringValue(apiModel.Related.NamedUrl)
 	// Parse the summary fields
+	d.OrganizationName = ParseStringValue(apiModel.SummaryFields.Organization.Name)
 
 	return diags
 }
@@ -220,7 +252,7 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
 
-	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, types.StringValue(""), uri)
+	resourceURL, err := ReturnAAPNamedURL(state.Id, tftypes.StringNull(), tftypes.StringNull(), uri)
 	if err != nil {
 		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id]")
 		return
