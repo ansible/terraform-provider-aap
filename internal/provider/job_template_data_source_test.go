@@ -57,13 +57,13 @@ func TestJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			expected: JobTemplateDataSourceModel{
 				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
 					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:  types.Int64Value(1),
-						URL: types.StringValue("/job_templates/1/"),
+						Id:          types.Int64Value(1),
+						Name:        types.StringNull(),
+						Description: types.StringNull(),
+						URL:         types.StringValue("/job_templates/1/"),
+						NamedUrl:    types.StringNull(),
+						Variables:   customtypes.NewAAPCustomStringNull(),
 					},
-					Description:      types.StringNull(),
-					Name:             types.StringNull(),
-					NamedUrl:         types.StringNull(),
-					Variables:        customtypes.NewAAPCustomStringNull(),
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),
 				},
@@ -78,13 +78,13 @@ func TestJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			expected: JobTemplateDataSourceModel{
 				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
 					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:  types.Int64Value(1),
-						URL: types.StringValue("/job_templates/1/"),
+						Id:          types.Int64Value(1),
+						Name:        types.StringValue("my job template"),
+						Description: types.StringValue("My Test Job Template"),
+						URL:         types.StringValue("/job_templates/1/"),
+						NamedUrl:    types.StringNull(),
+						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
-					Description:      types.StringValue("My Test Job Template"),
-					Name:             types.StringValue("my job template"),
-					NamedUrl:         types.StringNull(),
-					Variables:        customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),
 				},

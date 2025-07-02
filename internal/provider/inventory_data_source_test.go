@@ -57,13 +57,13 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 			expected: InventoryDataSourceModel{
 				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
 					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:  types.Int64Value(1),
-						URL: types.StringValue("/inventories/1/"),
+						Id:          types.Int64Value(1),
+						Name:        types.StringNull(),
+						Description: types.StringNull(),
+						Variables:   customtypes.NewAAPCustomStringNull(),
+						URL:         types.StringValue("/inventories/1/"),
+						NamedUrl:    types.StringNull(),
 					},
-					Description:      types.StringNull(),
-					Name:             types.StringNull(),
-					NamedUrl:         types.StringNull(),
-					Variables:        customtypes.NewAAPCustomStringNull(),
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),
 				},
@@ -78,13 +78,13 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 			expected: InventoryDataSourceModel{
 				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
 					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:  types.Int64Value(1),
-						URL: types.StringValue("/inventories/1/"),
+						Id:          types.Int64Value(1),
+						Name:        types.StringValue("my inventory"),
+						Description: types.StringValue("My Test Inventory"),
+						URL:         types.StringValue("/inventories/1/"),
+						NamedUrl:    types.StringNull(),
+						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
-					Description:      types.StringValue("My Test Inventory"),
-					Name:             types.StringValue("my inventory"),
-					NamedUrl:         types.StringNull(),
-					Variables:        customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					Organization:     types.Int64Value(2),
 					OrganizationName: types.StringNull(),
 				},
