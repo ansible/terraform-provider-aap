@@ -5,12 +5,11 @@ import (
 	"testing"
 )
 
-func TestNameNamedUrlFunc(t *testing.T) {
+func TestCreateNamedURLBaseDetailAPIModel(t *testing.T) {
 	var testTable = []struct {
 		testName    string
 		id          int64
 		name        string
-		orgName     string
 		URI         string
 		expectError error
 		expectedUrl string
@@ -46,13 +45,17 @@ func TestNameNamedUrlFunc(t *testing.T) {
 			id:          0,
 			name:        "",
 			URI:         "localhost:44925/api/organizations",
-			expectError: errors.New("invalid lookup parameters"),
+			expectError: errors.New("invalid lookup parameters: id or name required"),
 			expectedUrl: "",
 		},
 	}
 	for _, test := range testTable {
 		t.Run("test_"+test.testName, func(t *testing.T) {
-			url, err := nameNamedUrlFunc(test.URI, urlOpts{Id: test.id, Name: test.name, OrganizationName: test.orgName})
+			apiModel := &BaseDetailAPIModel{
+				Id:   test.id,
+				Name: test.name,
+			}
+			url, err := apiModel.CreateNamedURL(test.URI)
 			if err != nil && err.Error() != test.expectError.Error() {
 				t.Errorf("Expected error: %v but got %v", test.expectError.Error(), err.Error())
 			}
@@ -63,7 +66,7 @@ func TestNameNamedUrlFunc(t *testing.T) {
 	}
 }
 
-func TestNameOrgNamedUrlFunc(t *testing.T) {
+func TestCreateNamedURLBaseDetailAPIModelWithOrg(t *testing.T) {
 	var testTable = []struct {
 		testName    string
 		id          int64
@@ -127,7 +130,7 @@ func TestNameOrgNamedUrlFunc(t *testing.T) {
 			name:        "",
 			orgName:     "",
 			URI:         "localhost:44925/api/inventories",
-			expectError: errors.New("invalid lookup parameters"),
+			expectError: errors.New("invalid lookup parameters: id or [name and organization_name] required"),
 			expectedUrl: "",
 		},
 		{
@@ -136,7 +139,7 @@ func TestNameOrgNamedUrlFunc(t *testing.T) {
 			name:        "test",
 			orgName:     "",
 			URI:         "localhost:44925/api/inventories",
-			expectError: errors.New("invalid lookup parameters"),
+			expectError: errors.New("invalid lookup parameters: id or [name and organization_name] required"),
 			expectedUrl: "",
 		},
 		{
@@ -145,13 +148,25 @@ func TestNameOrgNamedUrlFunc(t *testing.T) {
 			name:        "",
 			orgName:     "org1",
 			URI:         "localhost:44925/api/inventories",
-			expectError: errors.New("invalid lookup parameters"),
+			expectError: errors.New("invalid lookup parameters: id or [name and organization_name] required"),
 			expectedUrl: "",
 		},
 	}
 	for _, test := range testTable {
 		t.Run("test_"+test.testName, func(t *testing.T) {
-			url, err := nameorgNamedUrlFunc(test.URI, urlOpts{Id: test.id, Name: test.name, OrganizationName: test.orgName})
+			apiModel := &BaseDetailAPIModelWithOrg{
+				BaseDetailAPIModel: BaseDetailAPIModel{
+					Id:   test.id,
+					Name: test.name,
+					SummaryFields: SummaryFieldsAPIModel{
+						Organization: SummaryField{
+							Id:   test.id,
+							Name: test.orgName,
+						},
+					},
+				},
+			}
+			url, err := apiModel.CreateNamedURL(test.URI)
 			if err != nil && err.Error() != test.expectError.Error() {
 				t.Errorf("Expected error: %v but got %v", test.expectError.Error(), err.Error())
 			}
