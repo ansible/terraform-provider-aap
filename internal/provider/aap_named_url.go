@@ -7,6 +7,52 @@ import (
 	"strconv"
 )
 
+// ---------------------------------------------------------------------------
+// Option 1: Attaching this function to our API Models
+// ---------------------------------------------------------------------------
+
+// Here for reference will be removed
+// type BaseDetailAPIModel struct {
+// 	Id            int64                 `json:"id"`
+// 	Name          string                `json:"name,omitempty"`
+// 	Description   string                `json:"description,omitempty"`
+// 	URL           string                `json:"url"`
+// 	Related       RelatedAPIModel       `json:"related"`
+// 	SummaryFields SummaryFieldsAPIModel `json:"summary_fields"`
+// 	Variables     string                `json:"variables,omitempty"`
+// }
+
+// type BaseDetailAPIModelWithOrg struct {
+// 	BaseDetailAPIModel
+// 	Organization int64 `json:"organization"`
+// }
+
+// IdOnlyStrategy equivalent would need the refactor of our API models to be complete.
+// This helps show why Id and URL need to be pulled out.
+
+func (o *BaseDetailAPIModel) CreateNamedURL(uri string) (string, error) {
+	if o.Id != 0 {
+		return path.Join(uri, strconv.FormatInt(o.Id, 10)), nil
+	}
+	if o.Name != "" {
+		return path.Join(uri, o.Name), nil
+	}
+
+	return "", errors.New("invalid lookup parameters: id or name required")
+}
+
+func (o *BaseDetailAPIModelWithOrg) CreateNamedURL(uri string) (string, error) {
+	if o.Id != 0 {
+		return path.Join(uri, strconv.FormatInt(o.Id, 10)), nil
+	}
+	if o.Name != "" && o.SummaryFields.Organization.Name != "" {
+		namedUrl := fmt.Sprintf("%s++%s", o.Name, o.SummaryFields.Organization.Name)
+		return path.Join(uri, namedUrl), nil
+	}
+
+	return "", errors.New("invalid lookup parameters: id or [name and organization_name] required")
+}
+
 type urlOpts struct {
 	CredentialTypeName      string
 	CredentialTypeKind      string
@@ -19,6 +65,69 @@ type urlOpts struct {
 	Username                string
 	WorkflowJobTemplateName string
 }
+
+// ---------------------------------------------------------------------------
+// Option 2: Strategy Pattern
+// ---------------------------------------------------------------------------
+
+// NamedURLStrategy defines the interface for creating named URLs
+type NamedURLStrategy interface {
+	CreateNamedURL(uri string, opts urlOpts) (string, error)
+}
+
+// BaseNamedURLStrategy provides common functionality
+type BaseNamedURLStrategy struct{}
+
+// IDOnlyStrategy creates URLs using only id
+type IdOnlyStrategy struct {
+	BaseNamedURLStrategy
+}
+
+// NameOnlyStrategy creates URLs using id or name
+type IdOrNameStrategy struct {
+	BaseNamedURLStrategy
+}
+
+type IdOrNameOrgStrategy struct {
+	BaseNamedURLStrategy
+}
+
+func (s *BaseNamedURLStrategy) CreateNamedURL(uri string, opts urlOpts) (string, error) {
+	return "", errors.New("CreateNamedURL must be implemented by concrete strategies")
+}
+
+func (s *IdOnlyStrategy) CreateNamedURL(uri string, opts urlOpts) (string, error) {
+	if opts.Id != 0 {
+		return path.Join(uri, strconv.FormatInt(opts.Id, 10)), nil
+	}
+	return "", errors.New("invalid lookup parameters: id required")
+}
+
+func (s *IdOrNameStrategy) CreateNamedURL(uri string, opts urlOpts) (string, error) {
+	if opts.Id != 0 {
+		return path.Join(uri, strconv.FormatInt(opts.Id, 10)), nil
+	}
+	if opts.Name != "" {
+		return path.Join(uri, opts.Name), nil
+	}
+	return "", errors.New("invalid lookup parameters: id or name required")
+}
+
+func (s *IdOrNameOrgStrategy) CreateNamedURL(uri string, opts urlOpts) (string, error) {
+	if opts.Id != 0 {
+		return path.Join(uri, strconv.FormatInt(opts.Id, 10)), nil
+	}
+	if opts.Name != "" && opts.OrganizationName != "" {
+		namedUrl := fmt.Sprintf("%s++%s", opts.Name, opts.OrganizationName)
+		return path.Join(uri, namedUrl), nil
+	}
+
+	return "", errors.New("invalid lookup parameters: id or [name and organization_name] required")
+}
+
+// ---------------------------------------------------------------------------
+// Factory Pattern - Functions
+// ---------------------------------------------------------------------------
 
 type namedUrlFunc func(uri string, opts urlOpts) (string, error)
 
