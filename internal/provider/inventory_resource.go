@@ -15,18 +15,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // InventoryResourceModel maps the inventory resource schema to a Go struct.
 type InventoryResourceModel struct {
-	Id               types.Int64                      `tfsdk:"id"`
-	Organization     types.Int64                      `tfsdk:"organization"`
-	OrganizationName types.String                     `tfsdk:"organization_name"`
-	Url              types.String                     `tfsdk:"url"`
-	NamedUrl         types.String                     `tfsdk:"named_url"`
-	Name             types.String                     `tfsdk:"name"`
-	Description      types.String                     `tfsdk:"description"`
+	Id               tftypes.Int64                    `tfsdk:"id"`
+	Organization     tftypes.Int64                    `tfsdk:"organization"`
+	OrganizationName tftypes.String                   `tfsdk:"organization_name"`
+	Url              tftypes.String                   `tfsdk:"url"`
+	NamedUrl         tftypes.String                   `tfsdk:"named_url"`
+	Name             tftypes.String                   `tfsdk:"name"`
+	Description      tftypes.String                   `tfsdk:"description"`
 	Variables        customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
@@ -279,7 +279,7 @@ func (r *InventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics
 		namedURL, err := ReturnAAPNamedURL(r.Id, r.Name, r.OrganizationName, "inventories")
 		// Squashing error here. If we can't generate the named url just leave it blank
 		if err == nil {
-			r.NamedUrl = types.StringValue(namedURL)
+			r.NamedUrl = tftypes.StringValue(namedURL)
 		}
 	}
 
@@ -339,12 +339,12 @@ func (r *InventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics
 	}
 
 	// Map response to the inventory resource schema and update attribute values
-	r.Id = types.Int64Value(apiInventory.Id)
-	r.Organization = types.Int64Value(apiInventory.Organization)
+	r.Id = tftypes.Int64Value(apiInventory.Id)
+	r.Organization = tftypes.Int64Value(apiInventory.Organization)
 	r.OrganizationName = ParseStringValue(apiInventory.SummaryFields.Organization.Name)
-	r.Url = types.StringValue(apiInventory.URL)
+	r.Url = tftypes.StringValue(apiInventory.URL)
 	r.NamedUrl = ParseStringValue(apiInventory.Related.NamedUrl)
-	r.Name = types.StringValue(apiInventory.Name)
+	r.Name = tftypes.StringValue(apiInventory.Name)
 	r.Description = ParseStringValue(apiInventory.Description)
 	r.Variables = ParseAAPCustomStringValue(apiInventory.Variables)
 

@@ -8,7 +8,7 @@ import (
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	fwdatasource "github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
@@ -58,16 +58,16 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
 					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
 						BaseDetailSourceModel: BaseDetailSourceModel{
-							Id:  types.Int64Value(1),
-							URL: types.StringValue("/inventories/1/"),
+							Id:  tftypes.Int64Value(1),
+							URL: tftypes.StringValue("/inventories/1/"),
 						},
-						Description: types.StringNull(),
-						Name:        types.StringNull(),
-						NamedUrl:    types.StringNull(),
+						Description: tftypes.StringNull(),
+						Name:        tftypes.StringNull(),
+						NamedUrl:    tftypes.StringNull(),
 						Variables:   customtypes.NewAAPCustomStringNull(),
 					},
-					Organization:     types.Int64Value(2),
-					OrganizationName: types.StringNull(),
+					Organization:     tftypes.Int64Value(2),
+					OrganizationName: tftypes.StringNull(),
 				},
 			},
 			errors: diag.Diagnostics{},
@@ -81,16 +81,16 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
 					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
 						BaseDetailSourceModel: BaseDetailSourceModel{
-							Id:  types.Int64Value(1),
-							URL: types.StringValue("/inventories/1/"),
+							Id:  tftypes.Int64Value(1),
+							URL: tftypes.StringValue("/inventories/1/"),
 						},
-						Description: types.StringValue("My Test Inventory"),
-						Name:        types.StringValue("my inventory"),
-						NamedUrl:    types.StringNull(),
+						Description: tftypes.StringValue("My Test Inventory"),
+						Name:        tftypes.StringValue("my inventory"),
+						NamedUrl:    tftypes.StringNull(),
 						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
-					Organization:     types.Int64Value(2),
-					OrganizationName: types.StringNull(),
+					Organization:     tftypes.Int64Value(2),
+					OrganizationName: tftypes.StringNull(),
 				},
 			},
 			errors: diag.Diagnostics{},
