@@ -2,7 +2,7 @@ package provider
 
 import (
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // ---------------------------------------------------------------------------
@@ -62,20 +62,20 @@ type BaseDetailAPIModelWithOrg struct {
 // ---------------------------------------------------------------------------
 
 type BaseDetailSourceModel struct {
-	Id  types.Int64  `tfsdk:"id"`
-	URL types.String `tfsdk:"url"`
+	Id  tftypes.Int64  `tfsdk:"id"`
+	URL tftypes.String `tfsdk:"url"`
 }
 
 type BaseDetailSourceModelDescription struct {
-	Description types.String `tfsdk:"description"`
+	Description tftypes.String `tfsdk:"description"`
 }
 
 type BaseDetailSourceModelName struct {
-	Name types.String `tfsdk:"name"`
+	Name tftypes.String `tfsdk:"name"`
 }
 
 type BaseDetailSourceModelNamedUrl struct {
-	NamedUrl types.String `tfsdk:"named_url"`
+	NamedUrl tftypes.String `tfsdk:"named_url"`
 }
 
 type BaseDetailSourceModelVariables struct {
@@ -84,16 +84,16 @@ type BaseDetailSourceModelVariables struct {
 
 type BaseDetailSourceModelCommon struct {
 	BaseDetailSourceModel
-	Description types.String                     `tfsdk:"description"`
-	Name        types.String                     `tfsdk:"name"`
-	NamedUrl    types.String                     `tfsdk:"named_url"`
+	Description tftypes.String                   `tfsdk:"description"`
+	Name        tftypes.String                   `tfsdk:"name"`
+	NamedUrl    tftypes.String                   `tfsdk:"named_url"`
 	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
 type BaseDetailSourceModelWithOrg struct {
 	BaseDetailSourceModelCommon
-	Organization     types.Int64  `tfsdk:"organization"`
-	OrganizationName types.String `tfsdk:"organization_name"`
+	Organization     tftypes.Int64  `tfsdk:"organization"`
+	OrganizationName tftypes.String `tfsdk:"organization_name"`
 }
 
 type StringDescriptions struct {
