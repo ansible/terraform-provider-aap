@@ -1,4 +1,4 @@
-name: Sonar Cloud Static Scans
+name: SonarCube Static Scans (PR)
 
 on:
   workflow_run:
@@ -7,39 +7,69 @@ on:
     types:
       - completed
 
+permissions: read-all
 jobs:
   sonarcloud:
-    name: Sonar Cloud Static Scans
+    name: SonarQube Static Scans (PR)
     runs-on: ubuntu-latest
-    env:
-        go_version: '1.23'
-        
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
-
     steps:
       - name: Checkout Provider
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Go ${{ env.go_version }}
-        uses: actions/setup-go@v5
+      - name: Fetch Code Coverage Report
+        uses: actions/download-artifact@v4
         with:
-          go-version: ${{ env.go_version }}
+          name: coverage-report
+          path: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Run unit tests with coverage
-        run: make testcov
+      - name: Fetch PR Number
+        uses: actions/download-artifact@v4
+        with:
+          name: pr_number
+          path: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
 
-      # - name: Fetch Code Coverage Report
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: coverage-report
-      #     path: .
+      - name: Extract PR Number
+        run: |
+          cat pr_number.txt
+          echo $(head -n1 pr_number.txt | awk '{print $2}')
+          echo "PR_NUMBER=$(head -n1 pr_number.txt | awk '{print $2}')" >> $GITHUB_ENV
 
-      - name: Sonar Cloud Scan
+      - name: Get Additional PR Information
+        uses: octokit/request-action@v2.x
+        id: pr_info
+        with:
+          route: GET /repos/{repo}/pulls/{number}
+          repo: ${{ github.event.repository.full_name }}
+          number: ${{ env.PR_NUMBER }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Additional PR Information
+        run: |
+          echo "PR_BASE=${{ fromJson(steps.pr_info.outputs.data).base.ref }}" >> $GITHUB_ENV
+          echo "PR_HEAD=${{ fromJson(steps.pr_info.outputs.data).head.ref }}" >> $GITHUB_ENV
+
+      - name: Checkout Code for PR
+        run: |
+          gh pr checkout ${{ env.PR_NUMBER }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: SonarCube Scan
         uses: SonarSource/sonarqube-scan-action@v5.2.0
         env:
-          SONAR_TOKEN: ${{ secrets.CICD_ORG_SONAR_TOKEN_CICD_BOT }}
+          SONAR_TOKEN: ${{ secrets[format('{0}', vars.SONAR_TOKEN_SECRET_NAME)] }}
         with:
           args: >
             -Dsonar.go.coverage.reportPaths=unit-testing.cov
+            -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }}
+            -Dsonar.pullrequest.key=${{ env.PR_NUMBER }}
+            -Dsonar.pullrequest.branch=${{ env.PR_HEAD }}
+            -Dsonar.pullrequest.base=${{ env.PR_BASE }}
