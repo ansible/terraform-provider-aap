@@ -58,16 +58,16 @@ type BaseDetailAPIModelVariables struct {
 
 type BaseDetailAPIModelCommon struct {
 	BaseDetailAPIModel
-	Description   string                `json:"description,omitempty"`
-	Name          string                `json:"name,omitempty"`
-	Related       RelatedAPIModel       `json:"related"`
-	SummaryFields SummaryFieldsAPIModel `json:"summary_fields"`
-	Variables     string                `json:"variables,omitempty"`
+	Description string          `json:"description,omitempty"`
+	Name        string          `json:"name,omitempty"`
+	Related     RelatedAPIModel `json:"related"`
+	Variables   string          `json:"variables,omitempty"`
 }
 
 type BaseDetailAPIModelWithOrg struct {
 	BaseDetailAPIModelCommon
-	Organization int64 `json:"organization"`
+	SummaryFields SummaryFieldsAPIModel `json:"summary_fields"`
+	Organization  int64                 `json:"organization"`
 }
 
 // ---------------------------------------------------------------------------
@@ -137,7 +137,7 @@ func (d *BaseDetailSourceModelCommon) ParseHttpResponse(body []byte) diag.Diagno
 	}
 
 	// Unmarshal the JSON response
-	var apiModel BaseDetailAPIModelWithOrg
+	var apiModel BaseDetailAPIModelCommon
 	err := json.Unmarshal(body, &apiModel)
 	if err != nil {
 		diags.AddError("Error parsing JSON response from AAP", err.Error())

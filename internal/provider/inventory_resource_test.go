@@ -88,8 +88,8 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 			},
 			expected: []byte(
 				`{"id":1,"url":"/inventories/1/","description":"A test inventory for testing","name":"test inventory","related":{"named_url":"inventories/1"},` +
-					`"summary_fields":{"organization":{"id":2,"name":"test organization"},"inventory":{"id":1,"name":"test inventory"}},` +
-					`"variables":"{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}","organization":2}`,
+					`"variables":"{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}","summary_fields":{"organization":{"id":2,"name":"test organization"},` +
+					`"inventory":{"id":1,"name":"test inventory"}},"organization":2}`,
 			),
 		},
 	}

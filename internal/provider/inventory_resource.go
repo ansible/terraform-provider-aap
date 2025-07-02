@@ -295,17 +295,18 @@ func (r *InventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics
 				Related: RelatedAPIModel{
 					NamedUrl: r.NamedUrl.ValueString(),
 				},
-				SummaryFields: SummaryFieldsAPIModel{
-					Organization: SummaryField{
-						Id:   organizationId,
-						Name: r.OrganizationName.ValueString(),
-					},
-					Inventory: SummaryField{
-						Id:   r.Id.ValueInt64(),
-						Name: r.Name.ValueString(),
-					},
-				},
+
 				Variables: r.Variables.ValueString(),
+			},
+			SummaryFields: SummaryFieldsAPIModel{
+				Organization: SummaryField{
+					Id:   organizationId,
+					Name: r.OrganizationName.ValueString(),
+				},
+				Inventory: SummaryField{
+					Id:   r.Id.ValueInt64(),
+					Name: r.Name.ValueString(),
+				},
 			},
 			Organization: organizationId,
 		},
