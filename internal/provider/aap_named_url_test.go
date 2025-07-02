@@ -55,7 +55,8 @@ func TestCreateNamedURLBaseDetailAPIModel(t *testing.T) {
 				Id:   test.id,
 				Name: test.name,
 			}
-			url, err := apiModel.CreateNamedURL(test.URI)
+			sourceModel := &BaseDetailDataSourceModel{}
+			url, err := sourceModel.CreateNamedURL(test.URI, apiModel)
 			if err != nil && err.Error() != test.expectError.Error() {
 				t.Errorf("Expected error: %v but got %v", test.expectError.Error(), err.Error())
 			}
@@ -166,7 +167,8 @@ func TestCreateNamedURLBaseDetailAPIModelWithOrg(t *testing.T) {
 					},
 				},
 			}
-			url, err := apiModel.CreateNamedURL(test.URI)
+			sourceModel := &BaseDetailDataSourceModelWithOrg{}
+			url, err := sourceModel.CreateNamedURL(test.URI, apiModel)
 			if err != nil && err.Error() != test.expectError.Error() {
 				t.Errorf("Expected error: %v but got %v", test.expectError.Error(), err.Error())
 			}
