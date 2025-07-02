@@ -449,26 +449,31 @@ func (d *BaseDataSourceWithNamedUrl) Read(ctx context.Context, req datasource.Re
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Error during API lookup", "Expected either [id] or [name]")
-		return
-	}
 
-	readResponseBody, diags := d.client.Get(resourceURL)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+		resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, tftypes.StringValue(""), uri)
+		if err != nil {
+			resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id]")
+			return
+		}
 
-	diags = state.ParseHttpResponse(readResponseBody)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+		readResponseBody, diags := d.client.Get(resourceURL)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
 
-	// Set state
-	// Save updated data into Terraform state
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
+		diags = state.ParseHttpResponse(readResponseBody)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		// Set state
+		// Save updated data into Terraform state
+		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
 	}
 }
 
