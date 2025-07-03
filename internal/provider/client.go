@@ -31,6 +31,7 @@ type AAPClient struct {
 	httpClient  *http.Client
 	ApiEndpoint string
 }
+
 type AAPApiEndpointResponse struct {
 	Apis struct {
 		Controller string `json:"controller"`
