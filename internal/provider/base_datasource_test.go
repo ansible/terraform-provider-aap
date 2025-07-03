@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/datasourcevalidator"
-	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	fwdatasource "github.com/hashicorp/terraform-plugin-framework/datasource"
 	tfpath "github.com/hashicorp/terraform-plugin-framework/path"
 )
@@ -63,8 +62,8 @@ func TestDataSourceConfigValidators(t *testing.T) {
 
 	var testTable = []struct {
 		name       string
-		datasource datasource.DataSourceWithConfigValidators
-		expected   []datasource.ConfigValidator
+		datasource fwdatasource.DataSourceWithConfigValidators
+		expected   []fwdatasource.ConfigValidator
 	}{
 		{
 			name: "base datasource",
@@ -73,7 +72,7 @@ func TestDataSourceConfigValidators(t *testing.T) {
 				DescriptiveEntityName: "datasource",
 				MetadataEntitySlug:    "datasource",
 			}),
-			expected: []datasource.ConfigValidator{
+			expected: []fwdatasource.ConfigValidator{
 				datasourcevalidator.Any(
 					datasourcevalidator.AtLeastOneOf(
 						tfpath.MatchRoot("id")),
@@ -87,7 +86,7 @@ func TestDataSourceConfigValidators(t *testing.T) {
 				DescriptiveEntityName: "datasource",
 				MetadataEntitySlug:    "datasource",
 			}),
-			expected: []datasource.ConfigValidator{
+			expected: []fwdatasource.ConfigValidator{
 				datasourcevalidator.Any(
 					datasourcevalidator.AtLeastOneOf(
 						tfpath.MatchRoot("id")),
