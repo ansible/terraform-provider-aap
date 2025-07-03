@@ -69,7 +69,6 @@ jobs:
         with:
           args: >
             -Dsonar.go.coverage.reportPaths=unit-testing.cov
-            -Dsonar.coverage.exclusions=**/*_test.go
             -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }}
             -Dsonar.pullrequest.key=${{ env.PR_NUMBER }}
             -Dsonar.pullrequest.branch=${{ env.PR_HEAD }}
