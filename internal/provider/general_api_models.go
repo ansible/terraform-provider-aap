@@ -30,25 +30,6 @@ type BaseDetailAPIModel struct {
 	Variables   string          `json:"variables,omitempty"`
 }
 
-type BaseDetailAPIModelDescription struct {
-	Description string `json:"description,omitempty"`
-}
-
-type BaseDetailAPIModelName struct {
-	Name string `json:"name,omitempty"`
-}
-type BaseDetailAPIModelRelated struct {
-	Related RelatedAPIModel `json:"related"`
-}
-
-type BaseDetailAPIModelSummaryFields struct {
-	SummaryFields SummaryFieldsAPIModel `json:"summary_fields"`
-}
-
-type BaseDetailAPIModelVariables struct {
-	Variables string `json:"variables,omitempty"`
-}
-
 type BaseDetailAPIModelWithOrg struct {
 	BaseDetailAPIModel
 	SummaryFields SummaryFieldsAPIModel `json:"summary_fields"`
@@ -64,22 +45,6 @@ type BaseDetailSourceModel struct {
 	Name        tftypes.String                   `tfsdk:"name"`
 	NamedUrl    tftypes.String                   `tfsdk:"named_url"`
 	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
-}
-
-type BaseDetailSourceModelDescription struct {
-	Description tftypes.String `tfsdk:"description"`
-}
-
-type BaseDetailSourceModelName struct {
-	Name tftypes.String `tfsdk:"name"`
-}
-
-type BaseDetailSourceModelNamedUrl struct {
-	NamedUrl tftypes.String `tfsdk:"named_url"`
-}
-
-type BaseDetailSourceModelVariables struct {
-	Variables customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
 type BaseDetailSourceModelWithOrg struct {

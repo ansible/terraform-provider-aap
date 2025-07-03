@@ -2,9 +2,13 @@ package provider
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/datasourcevalidator"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	fwdatasource "github.com/hashicorp/terraform-plugin-framework/datasource"
+	tfpath "github.com/hashicorp/terraform-plugin-framework/path"
 )
 
 func TestBaseDataSourceMetadata(t *testing.T) {
@@ -51,5 +55,56 @@ func TestBaseDataSourceSchema(t *testing.T) {
 
 	if diagnostics.HasError() {
 		t.Fatalf("Schema validation diagnostics: %+v", diagnostics)
+	}
+}
+
+func TestDataSourceConfigValidators(t *testing.T) {
+	t.Parallel()
+
+	var testTable = []struct {
+		name       string
+		datasource datasource.DataSourceWithConfigValidators
+		expected   []datasource.ConfigValidator
+	}{
+		{
+			name: "base datasource",
+			datasource: NewBaseDataSource(nil, StringDescriptions{
+				ApiEntitySlug:         "datasource",
+				DescriptiveEntityName: "datasource",
+				MetadataEntitySlug:    "datasource",
+			}),
+			expected: []datasource.ConfigValidator{
+				datasourcevalidator.Any(
+					datasourcevalidator.AtLeastOneOf(
+						tfpath.MatchRoot("id")),
+				),
+			},
+		},
+		{
+			name: "base datasource with org",
+			datasource: NewBaseDataSourceWithOrg(nil, StringDescriptions{
+				ApiEntitySlug:         "datasource",
+				DescriptiveEntityName: "datasource",
+				MetadataEntitySlug:    "datasource",
+			}),
+			expected: []datasource.ConfigValidator{
+				datasourcevalidator.Any(
+					datasourcevalidator.AtLeastOneOf(
+						tfpath.MatchRoot("id")),
+					datasourcevalidator.RequiredTogether(
+						tfpath.MatchRoot("name"),
+						tfpath.MatchRoot("organization_name")),
+				),
+			},
+		},
+	}
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			validator := test.datasource.ConfigValidators(ctx)
+			if !reflect.DeepEqual(validator, test.expected) {
+				t.Errorf("Expected (%s) not equal to actual (%s)", test.expected, validator)
+			}
+		})
 	}
 }
