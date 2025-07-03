@@ -9,7 +9,7 @@ import (
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	fwdatasource "github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
@@ -55,17 +55,18 @@ func TestJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			name:  "missing values",
 			input: []byte(`{"id":1,"organization":2,"url":"/job_templates/1/"}`),
 			expected: JobTemplateDataSourceModel{
-				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
-					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:          types.Int64Value(1),
-						Name:        types.StringNull(),
-						Description: types.StringNull(),
-						URL:         types.StringValue("/job_templates/1/"),
-						NamedUrl:    types.StringNull(),
+				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
+					BaseDetailSourceModel: BaseDetailSourceModel{
+						Id:  tftypes.Int64Value(1),
+						URL: tftypes.StringValue("/job_templates/1/"),
+
+						Description: tftypes.StringNull(),
+						Name:        tftypes.StringNull(),
+						NamedUrl:    tftypes.StringNull(),
 						Variables:   customtypes.NewAAPCustomStringNull(),
 					},
-					Organization:     types.Int64Value(2),
-					OrganizationName: types.StringNull(),
+					Organization:     tftypes.Int64Value(2),
+					OrganizationName: tftypes.StringNull(),
 				},
 			},
 			errors: diag.Diagnostics{},
@@ -76,17 +77,17 @@ func TestJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 				`{"id":1,"organization":2,"url":"/job_templates/1/","name":"my job template","description":"My Test Job Template","variables":"{\"foo\":\"bar\"}"}`,
 			),
 			expected: JobTemplateDataSourceModel{
-				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
-					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:          types.Int64Value(1),
-						Name:        types.StringValue("my job template"),
-						Description: types.StringValue("My Test Job Template"),
-						URL:         types.StringValue("/job_templates/1/"),
-						NamedUrl:    types.StringNull(),
+				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
+					BaseDetailSourceModel: BaseDetailSourceModel{
+						Id:          tftypes.Int64Value(1),
+						URL:         tftypes.StringValue("/job_templates/1/"),
+						Description: tftypes.StringValue("My Test Job Template"),
+						Name:        tftypes.StringValue("my job template"),
+						NamedUrl:    tftypes.StringNull(),
 						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
-					Organization:     types.Int64Value(2),
-					OrganizationName: types.StringNull(),
+					Organization:     tftypes.Int64Value(2),
+					OrganizationName: tftypes.StringNull(),
 				},
 			},
 			errors: diag.Diagnostics{},

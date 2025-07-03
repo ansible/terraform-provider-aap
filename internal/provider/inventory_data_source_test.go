@@ -8,7 +8,7 @@ import (
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	fwdatasource "github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
@@ -55,17 +55,16 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 			name:  "missing values",
 			input: []byte(`{"id":1,"organization":2,"url":"/inventories/1/"}`),
 			expected: InventoryDataSourceModel{
-				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
-					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:          types.Int64Value(1),
-						Name:        types.StringNull(),
-						Description: types.StringNull(),
-						Variables:   customtypes.NewAAPCustomStringNull(),
-						URL:         types.StringValue("/inventories/1/"),
-						NamedUrl:    types.StringNull(),
-					},
-					Organization:     types.Int64Value(2),
-					OrganizationName: types.StringNull(),
+				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
+					BaseDetailSourceModel: BaseDetailSourceModel{
+						Id:          tftypes.Int64Value(1),
+						URL:         tftypes.StringValue("/inventories/1/"),
+						Description: tftypes.StringNull(),
+						Name:        tftypes.StringNull(),
+						NamedUrl:    tftypes.StringNull(),
+						Variables:   customtypes.NewAAPCustomStringNull()},
+					Organization:     tftypes.Int64Value(2),
+					OrganizationName: tftypes.StringNull(),
 				},
 			},
 			errors: diag.Diagnostics{},
@@ -76,17 +75,17 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 				`{"id":1,"organization":2,"url":"/inventories/1/","name":"my inventory","description":"My Test Inventory","variables":"{\"foo\":\"bar\"}"}`,
 			),
 			expected: InventoryDataSourceModel{
-				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
-					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:          types.Int64Value(1),
-						Name:        types.StringValue("my inventory"),
-						Description: types.StringValue("My Test Inventory"),
-						URL:         types.StringValue("/inventories/1/"),
-						NamedUrl:    types.StringNull(),
+				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
+					BaseDetailSourceModel: BaseDetailSourceModel{
+						Id:          tftypes.Int64Value(1),
+						URL:         tftypes.StringValue("/inventories/1/"),
+						Description: tftypes.StringValue("My Test Inventory"),
+						Name:        tftypes.StringValue("my inventory"),
+						NamedUrl:    tftypes.StringNull(),
 						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
-					Organization:     types.Int64Value(2),
-					OrganizationName: types.StringNull(),
+					Organization:     tftypes.Int64Value(2),
+					OrganizationName: tftypes.StringNull(),
 				},
 			},
 			errors: diag.Diagnostics{},
