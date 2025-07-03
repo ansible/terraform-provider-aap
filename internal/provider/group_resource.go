@@ -138,7 +138,7 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 	requestData := bytes.NewReader(createRequestBody)
 
 	// Create new group in AAP
-	groupsURL := path.Join(r.client.getApiEndpoint(), "groups")
+	groupsURL := path.Join(r.client.GetApiEndpoint(), "groups")
 	createResponseBody, diags := r.client.Create(groupsURL, requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {

@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"path"
-	"slices"
+	"reflect"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
@@ -15,6 +14,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
+
+// DeepEqualJSONByte compares the JSON in two byte slices.
+func DeepEqualJSONByte(a, b []byte) (bool, error) {
+	var j1, j2 any
+	if err := json.Unmarshal(a, &j1); err != nil {
+		return false, err
+	}
+	if err := json.Unmarshal(b, &j2); err != nil {
+		return false, err
+	}
+	return reflect.DeepEqual(j2, j1), nil
+}
 
 func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, uri string) (string, error) {
 	if IsValueProvided(id) {
@@ -31,33 +42,6 @@ func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, 
 
 func IsValueProvided(value attr.Value) bool {
 	return !(value.IsNull() || value.IsUnknown())
-}
-
-func ValidateResponse(resp *http.Response, body []byte, err error, expected_statuses []int) diag.Diagnostics {
-	var diags diag.Diagnostics
-
-	if err != nil {
-		diags.AddError(
-			"Client request error",
-			err.Error(),
-		)
-		return diags
-	}
-	if resp == nil {
-		diags.AddError("HTTP response error", "No HTTP response from server")
-		return diags
-	}
-	if !slices.Contains(expected_statuses, resp.StatusCode) {
-		var info map[string]interface{}
-		_ = json.Unmarshal(body, &info)
-		diags.AddError(
-			fmt.Sprintf("Unexpected HTTP status code received for %s request to path %s", resp.Request.Method, resp.Request.URL),
-			fmt.Sprintf("Expected one of (%v), got (%d). Response details: %v", expected_statuses, resp.StatusCode, info),
-		)
-		return diags
-	}
-
-	return diags
 }
 
 func getURL(base string, paths ...string) (string, diag.Diagnostics) {

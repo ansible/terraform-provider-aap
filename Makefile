@@ -31,6 +31,13 @@ testacccov: ## Run Acceptance tests against aap instance (See README.md for env 
 	@echo "==> Running acceptance tests with coverage..."
 	TF_ACC=1 go test -count=1 -v ./... --coverprofile=./acceptance-testing.cov
 
+generate:
+	go generate  ./...
+
+generate-clean:
+	@echo "Removing existing mocks"
+	@find . -type d -name 'mock*' -prune -exec rm -rf {} +
+
 generatedocs: ## Format example Terraform configurations and generate plugin documentation.
 	@echo "==> Formatting examples and generating docs..."
 	terraform fmt -recursive ./examples/

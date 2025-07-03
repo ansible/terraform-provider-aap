@@ -402,15 +402,15 @@ func (r *JobResource) LaunchJob(data *JobResourceModel) diag.Diagnostics {
 	}
 
 	requestData := bytes.NewReader(requestBody)
-	var postURL = path.Join(r.client.getApiEndpoint(), "job_templates", data.GetTemplateID(), "launch")
-	resp, body, err := r.client.doRequest(http.MethodPost, postURL, requestData)
-	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
+	var uri = path.Join(r.client.GetApiEndpoint(), "job_templates", data.GetTemplateID(), "launch")
+	responseBody, responseDiags := r.client.Create(uri, requestData)
+	diags.Append(responseDiags...)
 	if diags.HasError() {
 		return diags
 	}
 
 	// Save new job data into job resource model
-	diags.Append(data.ParseHttpResponse(body)...)
+	diags.Append(data.ParseHttpResponse(responseBody)...)
 	if diags.HasError() {
 		return diags
 	}
