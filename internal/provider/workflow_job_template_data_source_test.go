@@ -56,11 +56,9 @@ func TestWorkflowJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			input: []byte(`{"id":1,"organization":2,"url":"/workflow_job_templates/1/"}`),
 			expected: WorkflowJobTemplateDataSourceModel{
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
-					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
-						BaseDetailSourceModel: BaseDetailSourceModel{
-							Id:  tftypes.Int64Value(1),
-							URL: tftypes.StringValue("/workflow_job_templates/1/"),
-						},
+					BaseDetailSourceModel: BaseDetailSourceModel{
+						Id:          tftypes.Int64Value(1),
+						URL:         tftypes.StringValue("/workflow_job_templates/1/"),
 						Description: tftypes.StringNull(),
 						Name:        tftypes.StringNull(),
 						NamedUrl:    tftypes.StringNull(),
@@ -80,11 +78,9 @@ func TestWorkflowJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			),
 			expected: WorkflowJobTemplateDataSourceModel{
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
-					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
-						BaseDetailSourceModel: BaseDetailSourceModel{
-							Id:  tftypes.Int64Value(1),
-							URL: tftypes.StringValue("/workflow_job_templates/1/"),
-						},
+					BaseDetailSourceModel: BaseDetailSourceModel{
+						Id:          tftypes.Int64Value(1),
+						URL:         tftypes.StringValue("/workflow_job_templates/1/"),
 						Description: tftypes.StringValue("My Test Job Template"),
 						NamedUrl:    tftypes.StringNull(),
 						Name:        tftypes.StringValue("my job template"),

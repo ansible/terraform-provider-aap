@@ -81,6 +81,26 @@ func (d *BaseDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 				Computed:    true,
 				Description: fmt.Sprintf("Url of the %s", d.DescriptiveEntityName),
 			},
+			"named_url": schema.StringAttribute{
+				Computed:    true,
+				Description: fmt.Sprintf("The Named Url of the %s", d.DescriptiveEntityName),
+			},
+			"name": schema.StringAttribute{
+				Computed:    true,
+				Optional:    true,
+				Description: fmt.Sprintf("Name of the %s", d.DescriptiveEntityName),
+			},
+			"description": schema.StringAttribute{
+				Computed:    true,
+				Description: fmt.Sprintf("Description of the %s", d.DescriptiveEntityName),
+			},
+			"variables": schema.StringAttribute{
+				Computed:   true,
+				CustomType: customtypes.AAPCustomStringType{},
+				Description: fmt.Sprintf("Variables of the %s. Will be either JSON or YAML string depending on how the "+
+					"variables were entered into AAP.", d.DescriptiveEntityName),
+				DeprecationMessage: "This attribute is deprecated and will be removed in a future version.",
+			},
 		},
 		Description: fmt.Sprintf("Get an existing %s.", d.DescriptiveEntityName),
 	}
@@ -386,7 +406,11 @@ func (d *BaseDetailSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics 
 	// Map the response to the BaseDetailSourceModel datasource schema
 	d.Id = tftypes.Int64Value(apiModel.Id)
 	d.URL = ParseStringValue(apiModel.URL)
-	// Parse the summary fields
+	d.Name = ParseStringValue(apiModel.Name)
+	d.Description = ParseStringValue(apiModel.Description)
+	d.Variables = ParseAAPCustomStringValue(apiModel.Variables)
+	// Parse the related fields
+	d.NamedUrl = ParseStringValue(apiModel.Related.NamedUrl)
 
 	return diags
 }

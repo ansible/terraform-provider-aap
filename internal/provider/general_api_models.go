@@ -22,8 +22,12 @@ type SummaryFieldsAPIModel struct {
 }
 
 type BaseDetailAPIModel struct {
-	Id  int64  `json:"id"`
-	URL string `json:"url"`
+	Id          int64           `json:"id"`
+	URL         string          `json:"url"`
+	Description string          `json:"description,omitempty"`
+	Name        string          `json:"name,omitempty"`
+	Related     RelatedAPIModel `json:"related"`
+	Variables   string          `json:"variables,omitempty"`
 }
 
 type BaseDetailAPIModelDescription struct {
@@ -45,16 +49,8 @@ type BaseDetailAPIModelVariables struct {
 	Variables string `json:"variables,omitempty"`
 }
 
-type BaseDetailAPIModelCommon struct {
-	BaseDetailAPIModel
-	Description string          `json:"description,omitempty"`
-	Name        string          `json:"name,omitempty"`
-	Related     RelatedAPIModel `json:"related"`
-	Variables   string          `json:"variables,omitempty"`
-}
-
 type BaseDetailAPIModelWithOrg struct {
-	BaseDetailAPIModelCommon
+	BaseDetailAPIModel
 	SummaryFields SummaryFieldsAPIModel `json:"summary_fields"`
 	Organization  int64                 `json:"organization"`
 }
@@ -62,8 +58,12 @@ type BaseDetailAPIModelWithOrg struct {
 // ---------------------------------------------------------------------------
 
 type BaseDetailSourceModel struct {
-	Id  tftypes.Int64  `tfsdk:"id"`
-	URL tftypes.String `tfsdk:"url"`
+	Id          tftypes.Int64                    `tfsdk:"id"`
+	URL         tftypes.String                   `tfsdk:"url"`
+	Description tftypes.String                   `tfsdk:"description"`
+	Name        tftypes.String                   `tfsdk:"name"`
+	NamedUrl    tftypes.String                   `tfsdk:"named_url"`
+	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
 type BaseDetailSourceModelDescription struct {
@@ -82,16 +82,8 @@ type BaseDetailSourceModelVariables struct {
 	Variables customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
-type BaseDetailSourceModelCommon struct {
-	BaseDetailSourceModel
-	Description tftypes.String                   `tfsdk:"description"`
-	Name        tftypes.String                   `tfsdk:"name"`
-	NamedUrl    tftypes.String                   `tfsdk:"named_url"`
-	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
-}
-
 type BaseDetailSourceModelWithOrg struct {
-	BaseDetailSourceModelCommon
+	BaseDetailSourceModel
 	Organization     tftypes.Int64  `tfsdk:"organization"`
 	OrganizationName tftypes.String `tfsdk:"organization_name"`
 }

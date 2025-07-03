@@ -56,16 +56,13 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 			input: []byte(`{"id":1,"organization":2,"url":"/inventories/1/"}`),
 			expected: InventoryDataSourceModel{
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
-					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
-						BaseDetailSourceModel: BaseDetailSourceModel{
-							Id:  tftypes.Int64Value(1),
-							URL: tftypes.StringValue("/inventories/1/"),
-						},
+					BaseDetailSourceModel: BaseDetailSourceModel{
+						Id:          tftypes.Int64Value(1),
+						URL:         tftypes.StringValue("/inventories/1/"),
 						Description: tftypes.StringNull(),
 						Name:        tftypes.StringNull(),
 						NamedUrl:    tftypes.StringNull(),
-						Variables:   customtypes.NewAAPCustomStringNull(),
-					},
+						Variables:   customtypes.NewAAPCustomStringNull()},
 					Organization:     tftypes.Int64Value(2),
 					OrganizationName: tftypes.StringNull(),
 				},
@@ -79,11 +76,9 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 			),
 			expected: InventoryDataSourceModel{
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
-					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
-						BaseDetailSourceModel: BaseDetailSourceModel{
-							Id:  tftypes.Int64Value(1),
-							URL: tftypes.StringValue("/inventories/1/"),
-						},
+					BaseDetailSourceModel: BaseDetailSourceModel{
+						Id:          tftypes.Int64Value(1),
+						URL:         tftypes.StringValue("/inventories/1/"),
 						Description: tftypes.StringValue("My Test Inventory"),
 						Name:        tftypes.StringValue("my inventory"),
 						NamedUrl:    tftypes.StringNull(),

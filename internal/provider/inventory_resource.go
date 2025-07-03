@@ -285,17 +285,14 @@ func (r *InventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics
 
 	inventory := InventoryAPIModel{
 		BaseDetailAPIModelWithOrg: BaseDetailAPIModelWithOrg{
-			BaseDetailAPIModelCommon: BaseDetailAPIModelCommon{
-				BaseDetailAPIModel: BaseDetailAPIModel{
-					Id:  r.Id.ValueInt64(),
-					URL: r.Url.ValueString(),
-				},
+			BaseDetailAPIModel: BaseDetailAPIModel{
+				Id:          r.Id.ValueInt64(),
+				URL:         r.Url.ValueString(),
 				Description: r.Description.ValueString(),
 				Name:        r.Name.ValueString(),
 				Related: RelatedAPIModel{
 					NamedUrl: r.NamedUrl.ValueString(),
 				},
-
 				Variables: r.Variables.ValueString(),
 			},
 			SummaryFields: SummaryFieldsAPIModel{

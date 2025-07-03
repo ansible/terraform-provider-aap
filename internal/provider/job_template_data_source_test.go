@@ -56,11 +56,10 @@ func TestJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			input: []byte(`{"id":1,"organization":2,"url":"/job_templates/1/"}`),
 			expected: JobTemplateDataSourceModel{
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
-					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
-						BaseDetailSourceModel: BaseDetailSourceModel{
-							Id:  tftypes.Int64Value(1),
-							URL: tftypes.StringValue("/job_templates/1/"),
-						},
+					BaseDetailSourceModel: BaseDetailSourceModel{
+						Id:  tftypes.Int64Value(1),
+						URL: tftypes.StringValue("/job_templates/1/"),
+
 						Description: tftypes.StringNull(),
 						Name:        tftypes.StringNull(),
 						NamedUrl:    tftypes.StringNull(),
@@ -79,11 +78,9 @@ func TestJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			),
 			expected: JobTemplateDataSourceModel{
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
-					BaseDetailSourceModelCommon: BaseDetailSourceModelCommon{
-						BaseDetailSourceModel: BaseDetailSourceModel{
-							Id:  tftypes.Int64Value(1),
-							URL: tftypes.StringValue("/job_templates/1/"),
-						},
+					BaseDetailSourceModel: BaseDetailSourceModel{
+						Id:          tftypes.Int64Value(1),
+						URL:         tftypes.StringValue("/job_templates/1/"),
 						Description: tftypes.StringValue("My Test Job Template"),
 						Name:        tftypes.StringValue("my job template"),
 						NamedUrl:    tftypes.StringNull(),
