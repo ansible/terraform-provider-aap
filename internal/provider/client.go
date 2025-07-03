@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"slices"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -32,26 +31,6 @@ type AAPClient struct {
 	httpClient  *http.Client
 	ApiEndpoint string
 }
-
-// NewClient - create new AAPClient instance
-func NewClient(host string, username *string, password *string, insecureSkipVerify bool, timeout int64) (*AAPClient, diag.Diagnostics) {
-	hostURL, _ := url.JoinPath(host, "/")
-	client := AAPClient{
-		HostURL:  hostURL,
-		Username: username,
-		Password: password,
-	}
-
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify},
-	}
-	client.httpClient = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
-
-	// Set AAP API endpoint
-	diags := client.setApiEndpoint()
-	return &client, diags
-}
-
 type AAPApiEndpointResponse struct {
 	Apis struct {
 		Controller string `json:"controller"`
@@ -93,6 +72,25 @@ func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
 		return "", diags
 	}
 	return response.CurrentVersion, diags
+}
+
+// NewClient - create new AAPClient instance
+func NewClient(host string, username *string, password *string, insecureSkipVerify bool, timeout int64) (*AAPClient, diag.Diagnostics) {
+	hostURL, _ := url.JoinPath(host, "/")
+	client := AAPClient{
+		HostURL:  hostURL,
+		Username: username,
+		Password: password,
+	}
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify},
+	}
+	client.httpClient = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
+
+	// Set AAP API endpoint
+	diags := client.setApiEndpoint()
+	return &client, diags
 }
 
 func (c *AAPClient) setApiEndpoint() diag.Diagnostics {
@@ -178,31 +176,4 @@ func (c *AAPClient) Delete(path string) ([]byte, diag.Diagnostics) {
 	// Once that bug is fixed we should be able to update this to just expect http.StatusNoContent.
 	diags := ValidateResponse(deleteResponse, body, err, []int{http.StatusAccepted, http.StatusNoContent})
 	return body, diags
-}
-
-func ValidateResponse(resp *http.Response, body []byte, err error, expected_statuses []int) diag.Diagnostics {
-	var diags diag.Diagnostics
-
-	if err != nil {
-		diags.AddError(
-			"Client request error",
-			err.Error(),
-		)
-		return diags
-	}
-	if resp == nil {
-		diags.AddError("HTTP response error", "No HTTP response from server")
-		return diags
-	}
-	if !slices.Contains(expected_statuses, resp.StatusCode) {
-		var info map[string]any
-		_ = json.Unmarshal(body, &info)
-		diags.AddError(
-			fmt.Sprintf("Unexpected HTTP status code received for %s request to path %s", resp.Request.Method, resp.Request.URL),
-			fmt.Sprintf("Expected one of (%v), got (%d). Response details: %v", expected_statuses, resp.StatusCode, info),
-		)
-		return diags
-	}
-
-	return diags
 }
