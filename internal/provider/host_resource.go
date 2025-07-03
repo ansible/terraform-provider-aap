@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"path"
 	"slices"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
@@ -17,13 +19,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
+
+// operationTimeoutDefault is the default timeout in seconds for delete and update operations when the host is being used by running jobs (HTTP 409 conflicts).
+const operationTimeoutDefault int64 = 600
 
 // Host AAP API model
 type HostAPIModel struct {
@@ -38,14 +45,15 @@ type HostAPIModel struct {
 
 // HostResourceModel maps the host resource schema to a Go struct
 type HostResourceModel struct {
-	InventoryId types.Int64                      `tfsdk:"inventory_id"`
-	Name        types.String                     `tfsdk:"name"`
-	URL         types.String                     `tfsdk:"url"`
-	Description types.String                     `tfsdk:"description"`
-	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
-	Groups      types.Set                        `tfsdk:"groups"`
-	Enabled     types.Bool                       `tfsdk:"enabled"`
-	Id          types.Int64                      `tfsdk:"id"`
+	InventoryId             types.Int64                      `tfsdk:"inventory_id"`
+	Name                    types.String                     `tfsdk:"name"`
+	URL                     types.String                     `tfsdk:"url"`
+	Description             types.String                     `tfsdk:"description"`
+	Variables               customtypes.AAPCustomStringValue `tfsdk:"variables"`
+	Groups                  types.Set                        `tfsdk:"groups"`
+	Enabled                 types.Bool                       `tfsdk:"enabled"`
+	Id                      types.Int64                      `tfsdk:"id"`
+	OperationTimeoutSeconds types.Int64                      `tfsdk:"operation_timeout_seconds"`
 }
 
 // HostResource is the resource implementation.
@@ -137,8 +145,21 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Validators:  []validator.Set{setvalidator.SizeAtLeast(1)},
 				Description: "The list of groups to assosicate with a host.",
 			},
+			"operation_timeout_seconds": schema.Int64Attribute{
+				Optional: true,
+				Computed: true,
+				Default:  int64default.StaticInt64(operationTimeoutDefault),
+				Description: "Timeout in seconds for delete and update operations when the host is being used by running jobs (HTTP 409 conflicts)." +
+					" Default value is " + strconv.FormatInt(operationTimeoutDefault, 10) + " seconds (" +
+					strconv.FormatInt(operationTimeoutDefault/60, 10) + " minutes).",
+			},
 		},
-		Description: `Creates a host.`,
+		Description: "Creates a host." +
+			"\n\nThis resource includes built-in retry logic to handle HTTP 409 (Conflict) errors that occur when the host is being used" +
+			" by running jobs. When a delete or update operation encounters a 409 error, the provider will automatically retry the operation until either" +
+			" (1) The operation succeeds or (2) The configured timeout is reached. The `operation_timeout_seconds` field controls how long the provider will wait" +
+			" before giving up. The default timeout is " + strconv.FormatInt(operationTimeoutDefault, 10) + " seconds (" +
+			strconv.FormatInt(operationTimeoutDefault/60, 10) + " minutes). You can adjust this value based on your typical job execution times.",
 	}
 }
 
@@ -276,8 +297,26 @@ func (r *HostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 	requestData := bytes.NewReader(updateRequestBody)
 
-	// Update host in AAP
-	updateResponseBody, diags := r.client.Update(data.URL.ValueString(), requestData)
+	// Get timeout value, default to 300 seconds if not set
+	timeout := time.Duration(data.OperationTimeoutSeconds.ValueInt64()) * time.Second
+
+	// Create operation function for retry logic
+	updateOperation := func() ([]byte, diag.Diagnostics, int) {
+		return r.client.UpdateWithStatus(data.URL.ValueString(), requestData)
+	}
+
+	// Use retry logic to handle HTTP 409 errors
+	err := retry.RetryContext(ctx, timeout, retryUntilHostUnused(updateOperation))
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error updating host",
+			fmt.Sprintf("Failed to update host after timeout (%v): %s", timeout, err.Error()),
+		)
+		return
+	}
+
+	// Get the response body after successful retry
+	updateResponseBody, diags, _ := r.client.UpdateWithStatus(data.URL.ValueString(), requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -315,7 +354,6 @@ func (r *HostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 // Delete deletes the host resource.
 func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var data HostResourceModel
-	var diags diag.Diagnostics
 
 	// Read current Terraform state data into host resource model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
@@ -323,10 +361,21 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	// Delete host from AAP
-	_, diags = r.client.Delete(data.URL.ValueString())
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
+	// Get timeout value, default to 300 seconds if not set
+	timeout := time.Duration(data.OperationTimeoutSeconds.ValueInt64()) * time.Second
+
+	// Create operation function for retry logic
+	deleteOperation := func() ([]byte, diag.Diagnostics, int) {
+		return r.client.DeleteWithStatus(data.URL.ValueString())
+	}
+
+	// Use retry logic to handle HTTP 409 errors
+	err := retry.RetryContext(ctx, timeout, retryUntilHostUnused(deleteOperation))
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error deleting host",
+			fmt.Sprintf("Failed to delete host after timeout (%v): %s", timeout, err.Error()),
+		)
 		return
 	}
 }
@@ -543,4 +592,22 @@ func (r *HostResource) AssociateGroups(ctx context.Context, data []int64, url st
 	}
 
 	return diags
+}
+
+// retryUntilHostUnused retries operations when the host is being used by running jobs (HTTP 409)
+func retryUntilHostUnused(operation func() ([]byte, diag.Diagnostics, int)) retry.RetryFunc {
+	return func() *retry.RetryError {
+		_, diags, statusCode := operation()
+
+		if statusCode == http.StatusConflict {
+			return retry.RetryableError(fmt.Errorf("host is currently being used by running jobs (HTTP 409)"))
+		}
+		if statusCode != http.StatusOK {
+			return retry.NonRetryableError(fmt.Errorf("unexpected status code: %d", statusCode))
+		}
+		if diags.HasError() {
+			return retry.NonRetryableError(fmt.Errorf("non-retryable error occurred: %v", diags))
+		}
+		return nil
+	}
 }
