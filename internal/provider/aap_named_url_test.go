@@ -1,10 +1,8 @@
-package provider_test
+package provider
 
 import (
 	"errors"
 	"testing"
-
-	"github.com/ansible/terraform-provider-aap/internal/provider"
 )
 
 func TestCreateNamedURLBaseDetailAPIModel(t *testing.T) {
@@ -53,11 +51,11 @@ func TestCreateNamedURLBaseDetailAPIModel(t *testing.T) {
 	}
 	for _, test := range testTable {
 		t.Run("test_"+test.testName, func(t *testing.T) {
-			apiModel := &provider.BaseDetailAPIModel{
+			apiModel := &BaseDetailAPIModel{
 				Id:   test.id,
 				Name: test.name,
 			}
-			sourceModel := &provider.BaseDetailDataSourceModel{}
+			sourceModel := &BaseDetailSourceModel{}
 			url, err := sourceModel.CreateNamedURL(test.URI, apiModel)
 			if err != nil && err.Error() != test.expectError.Error() {
 				t.Errorf("Expected error: %v but got %v", test.expectError.Error(), err.Error())
@@ -157,19 +155,19 @@ func TestCreateNamedURLBaseDetailAPIModelWithOrg(t *testing.T) {
 	}
 	for _, test := range testTable {
 		t.Run("test_"+test.testName, func(t *testing.T) {
-			apiModel := &provider.BaseDetailAPIModelWithOrg{
-				BaseDetailAPIModel: provider.BaseDetailAPIModel{
+			apiModel := &BaseDetailAPIModelWithOrg{
+				BaseDetailAPIModel: BaseDetailAPIModel{
 					Id:   test.id,
 					Name: test.name,
-					SummaryFields: provider.SummaryFieldsAPIModel{
-						Organization: provider.SummaryField{
-							Id:   test.id,
-							Name: test.orgName,
-						},
+				},
+				SummaryFields: SummaryFieldsAPIModel{
+					Organization: SummaryField{
+						Id:   test.id,
+						Name: test.orgName,
 					},
 				},
 			}
-			sourceModel := &provider.BaseDetailDataSourceModelWithOrg{}
+			sourceModel := &BaseDetailSourceModelWithOrg{}
 			url, err := sourceModel.CreateNamedURL(test.URI, apiModel)
 			if err != nil && err.Error() != test.expectError.Error() {
 				t.Errorf("Expected error: %v but got %v", test.expectError.Error(), err.Error())
