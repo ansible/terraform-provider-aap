@@ -13,7 +13,7 @@ import (
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
@@ -50,13 +50,13 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 		{
 			name: "unknown values",
 			input: InventoryResourceModel{
-				Id:               types.Int64Unknown(),
-				Organization:     types.Int64Unknown(),
-				OrganizationName: types.StringUnknown(),
-				Url:              types.StringUnknown(),
-				NamedUrl:         types.StringUnknown(),
-				Name:             types.StringUnknown(),
-				Description:      types.StringUnknown(),
+				Id:               tftypes.Int64Unknown(),
+				Organization:     tftypes.Int64Unknown(),
+				OrganizationName: tftypes.StringUnknown(),
+				Url:              tftypes.StringUnknown(),
+				NamedUrl:         tftypes.StringUnknown(),
+				Name:             tftypes.StringUnknown(),
+				Description:      tftypes.StringUnknown(),
 				Variables:        customtypes.NewAAPCustomStringUnknown(),
 			},
 			expected: []byte(`{"id":0,"url":"","related":{},"summary_fields":{"organization":{"id":1,"name":""},"inventory":{"id":0,"name":""}},"organization":1}`),
@@ -64,13 +64,13 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 		{
 			name: "null values",
 			input: InventoryResourceModel{
-				Id:               types.Int64Null(),
-				Organization:     types.Int64Null(),
-				OrganizationName: types.StringNull(),
-				Url:              types.StringNull(),
-				NamedUrl:         types.StringNull(),
-				Name:             types.StringNull(),
-				Description:      types.StringNull(),
+				Id:               tftypes.Int64Null(),
+				Organization:     tftypes.Int64Null(),
+				OrganizationName: tftypes.StringNull(),
+				Url:              tftypes.StringNull(),
+				NamedUrl:         tftypes.StringNull(),
+				Name:             tftypes.StringNull(),
+				Description:      tftypes.StringNull(),
 				Variables:        customtypes.NewAAPCustomStringNull(),
 			},
 			expected: []byte(`{"id":0,"url":"","related":{},"summary_fields":{"organization":{"id":1,"name":""},"inventory":{"id":0,"name":""}},"organization":1}`),
@@ -78,18 +78,18 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 		{
 			name: "provided values",
 			input: InventoryResourceModel{
-				Id:               types.Int64Value(1),
-				Organization:     types.Int64Value(2),
-				OrganizationName: types.StringValue("test organization"),
-				Url:              types.StringValue("/inventories/1/"),
-				Name:             types.StringValue("test inventory"),
-				Description:      types.StringValue("A test inventory for testing"),
+				Id:               tftypes.Int64Value(1),
+				Organization:     tftypes.Int64Value(2),
+				OrganizationName: tftypes.StringValue("test organization"),
+				Url:              tftypes.StringValue("/inventories/1/"),
+				Name:             tftypes.StringValue("test inventory"),
+				Description:      tftypes.StringValue("A test inventory for testing"),
 				Variables:        customtypes.NewAAPCustomStringValue("{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}"),
 			},
 			expected: []byte(
-				`{"id":1,"name":"test inventory","description":"A test inventory for testing","url":"","related":{"named_url":"inventories/1"},` +
-					`"summary_fields":{"organization":{"id":2,"name":"test organization"},"inventory":{"id":1,"name":"test inventory"}},` +
-					`"variables":"{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}","organization":2}`,
+				`{"id":1,"url":"/inventories/1/","description":"A test inventory for testing","name":"test inventory","related":{"named_url":"inventories/1"},` +
+					`"variables":"{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}","summary_fields":{"organization":{"id":2,"name":"test organization"},` +
+					`"inventory":{"id":1,"name":"test inventory"}},"organization":2}`,
 			),
 		},
 	}
@@ -127,11 +127,11 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 			name:  "missing values",
 			input: []byte(`{"id":1,"type":"inventory","name":"test inventory","organization":2,"url":"/inventories/1/"}`),
 			expected: InventoryResourceModel{
-				Id:           types.Int64Value(1),
-				Organization: types.Int64Value(2),
-				Url:          types.StringValue("/inventories/1/"),
-				Name:         types.StringValue("test inventory"),
-				Description:  types.StringNull(),
+				Id:           tftypes.Int64Value(1),
+				Organization: tftypes.Int64Value(2),
+				Url:          tftypes.StringValue("/inventories/1/"),
+				Name:         tftypes.StringValue("test inventory"),
+				Description:  tftypes.StringNull(),
 				Variables:    customtypes.NewAAPCustomStringNull(),
 			},
 			errors: diag.Diagnostics{},
@@ -143,11 +143,11 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 					`"type":"inventory","url":"/inventories/1/","variables":"{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"}`,
 			),
 			expected: InventoryResourceModel{
-				Id:           types.Int64Value(1),
-				Organization: types.Int64Value(2),
-				Url:          types.StringValue("/inventories/1/"),
-				Name:         types.StringValue("test inventory"),
-				Description:  types.StringValue("A test inventory for testing"),
+				Id:           tftypes.Int64Value(1),
+				Organization: tftypes.Int64Value(2),
+				Url:          tftypes.StringValue("/inventories/1/"),
+				Name:         tftypes.StringValue("test inventory"),
+				Description:  tftypes.StringValue("A test inventory for testing"),
 				Variables:    customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
 			},
 			errors: diag.Diagnostics{},

@@ -11,7 +11,7 @@ type InventoryAPIModel struct {
 
 // InventoryDataSourceModel maps the data source schema data.
 type InventoryDataSourceModel struct {
-	BaseDetailDataSourceModelWithOrg
+	BaseDetailSourceModelWithOrg
 }
 
 // InventoryDataSource is the data source implementation.

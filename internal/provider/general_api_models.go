@@ -2,7 +2,7 @@ package provider
 
 import (
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // ---------------------------------------------------------------------------
@@ -22,35 +22,35 @@ type SummaryFieldsAPIModel struct {
 }
 
 type BaseDetailAPIModel struct {
-	Id            int64                 `json:"id"`
-	Name          string                `json:"name,omitempty"`
-	Description   string                `json:"description,omitempty"`
-	URL           string                `json:"url"`
-	Related       RelatedAPIModel       `json:"related"`
-	SummaryFields SummaryFieldsAPIModel `json:"summary_fields"`
-	Variables     string                `json:"variables,omitempty"`
+	Id          int64           `json:"id"`
+	URL         string          `json:"url"`
+	Description string          `json:"description,omitempty"`
+	Name        string          `json:"name,omitempty"`
+	Related     RelatedAPIModel `json:"related"`
+	Variables   string          `json:"variables,omitempty"`
 }
 
 type BaseDetailAPIModelWithOrg struct {
 	BaseDetailAPIModel
-	Organization int64 `json:"organization"`
+	SummaryFields SummaryFieldsAPIModel `json:"summary_fields"`
+	Organization  int64                 `json:"organization"`
 }
 
 // ---------------------------------------------------------------------------
 
-type BaseDetailDataSourceModel struct {
-	Id          types.Int64                      `tfsdk:"id"`
-	Name        types.String                     `tfsdk:"name"`
-	Description types.String                     `tfsdk:"description"`
-	URL         types.String                     `tfsdk:"url"`
-	NamedUrl    types.String                     `tfsdk:"named_url"`
+type BaseDetailSourceModel struct {
+	Id          tftypes.Int64                    `tfsdk:"id"`
+	URL         tftypes.String                   `tfsdk:"url"`
+	Description tftypes.String                   `tfsdk:"description"`
+	Name        tftypes.String                   `tfsdk:"name"`
+	NamedUrl    tftypes.String                   `tfsdk:"named_url"`
 	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
-type BaseDetailDataSourceModelWithOrg struct {
-	BaseDetailDataSourceModel
-	Organization     types.Int64  `tfsdk:"organization"`
-	OrganizationName types.String `tfsdk:"organization_name"`
+type BaseDetailSourceModelWithOrg struct {
+	BaseDetailSourceModel
+	Organization     tftypes.Int64  `tfsdk:"organization"`
+	OrganizationName tftypes.String `tfsdk:"organization_name"`
 }
 
 type StringDescriptions struct {

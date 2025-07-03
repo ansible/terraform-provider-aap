@@ -38,10 +38,10 @@ func (o *BaseDetailAPIModelWithOrg) CreateNamedURL(uri string) (string, error) {
 // BaseDetailDataSourceModel Adapter
 // ---------------------------------------------------------------------------
 
-func (o *BaseDetailDataSourceModel) CreateNamedURL(uri string, apiModel *BaseDetailAPIModel) (string, error) {
+func (o *BaseDetailSourceModel) CreateNamedURL(uri string, apiModel *BaseDetailAPIModel) (string, error) {
 	return apiModel.CreateNamedURL(uri)
 }
 
-func (o *BaseDetailDataSourceModelWithOrg) CreateNamedURL(uri string, apiModel *BaseDetailAPIModelWithOrg) (string, error) {
+func (o *BaseDetailSourceModelWithOrg) CreateNamedURL(uri string, apiModel *BaseDetailAPIModelWithOrg) (string, error) {
 	return apiModel.CreateNamedURL(uri)
 }
