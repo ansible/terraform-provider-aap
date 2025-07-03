@@ -107,3 +107,72 @@ func TestDataSourceConfigValidators(t *testing.T) {
 		})
 	}
 }
+
+// func TestReadBaseDataSource(t *testing.T) {
+// 	var diags diag.Diagnostics
+
+// 	ctrl := gomock.NewController(t)
+// 	mockclient := mock_provider.NewMockProviderHTTPClient(ctrl)
+
+// 	testDataSource := NewBaseDataSource(mockclient, StringDescriptions{
+// 		MetadataEntitySlug:    "inventory",
+// 		DescriptiveEntityName: "Inventory",
+// 		ApiEntitySlug:         "inventories",
+// 	})
+// 	ctx := context.Background()
+// 	schemaRequest := fwdatasource.SchemaRequest{}
+// 	schemaResponse := &fwdatasource.SchemaResponse{}
+// 	testDataSource.Schema(ctx, schemaRequest, schemaResponse)
+
+// 	testVariables := customtypes.NewAAPCustomStringValue("")
+// 	testVariablesValue, err := testVariables.ToTerraformValue(ctx)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	rawStateObj := tftypes.NewValue(
+// 		tftypes.Object{
+// 			AttributeTypes: map[string]tftypes.Type{
+// 				"id":          tftypes.Number,
+// 				"name":        tftypes.String,
+// 				"description": tftypes.String,
+// 				"url":         tftypes.String,
+// 				"named_url":   tftypes.String,
+// 				"variables":   tftypes.DynamicPseudoType,
+// 			},
+// 		},
+// 		map[string]tftypes.Value{
+// 			"id":          tftypes.NewValue(tftypes.Number, int64(1)),
+// 			"name":        tftypes.NewValue(tftypes.String, ""),
+// 			"description": tftypes.NewValue(tftypes.String, ""),
+// 			"url":         tftypes.NewValue(tftypes.String, ""),
+// 			"named_url":   tftypes.NewValue(tftypes.String, ""),
+// 			"variables":   testVariablesValue,
+// 		},
+// 	)
+
+// 	readRequest := fwdatasource.ReadRequest{
+// 		Config: tfsdk.Config{
+// 			Raw:    rawStateObj,
+// 			Schema: schemaResponse.Schema,
+// 		},
+// 	}
+// 	readResponse := &fwdatasource.ReadResponse{
+// 		State: tfsdk.State{
+// 			Raw:    rawStateObj,
+// 			Schema: schemaResponse.Schema,
+// 		},
+// 	}
+// 	jsonResponse := []byte(
+// 		`{"id":1,"organization":2,"url":"/inventories/1/","name":"my inventory","description":"My Test Inventory","variables":"{\"foo\":\"bar\"}"}`,
+// 	)
+
+// 	mockclient.EXPECT().GetApiEndpoint().Return("localhost:44925/api")
+// 	mockclient.EXPECT().Get("localhost:44925/api/inventories/1").Return(jsonResponse, diags)
+// 	testDataSource.Read(ctx, readRequest, readResponse)
+
+// 	if readResponse.Diagnostics != nil {
+// 		if readResponse.Diagnostics.HasError() {
+// 			t.Fatalf("ReadResponse diagnostics has error: %+v", readResponse.Diagnostics)
+// 		}
+// 	}
+// }

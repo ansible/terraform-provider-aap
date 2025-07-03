@@ -319,11 +319,13 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
-	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug, state.Id.String())
-
-	resourceURL, err := ReturnAAPNamedURL(state.Id, tftypes.StringValue(""), tftypes.StringValue(""), uri)
+	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
+	resourceURL, err := state.CreateNamedURL(uri, &BaseDetailAPIModel{
+		Id:   state.Id.ValueInt64(),
+		Name: state.Name.ValueString(),
+	})
 	if err != nil {
-		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id]")
+		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id] or [name]")
 		return
 	}
 
@@ -360,7 +362,18 @@ func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadReq
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
-	resourceURL, err := ReturnAAPNamedURL(state.Id, state.Name, state.OrganizationName, uri)
+	resourceURL, err := state.CreateNamedURL(uri, &BaseDetailAPIModelWithOrg{
+		BaseDetailAPIModel: BaseDetailAPIModel{
+			Id:   state.Id.ValueInt64(),
+			Name: state.Name.ValueString(),
+		},
+		SummaryFields: SummaryFieldsAPIModel{
+			Organization: SummaryField{
+				Id:   state.Organization.ValueInt64(),
+				Name: state.OrganizationName.ValueString(),
+			},
+		},
+	})
 	if err != nil {
 		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected either [id] or [name + organization_name] pair")
 		return
