@@ -321,13 +321,7 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	uri := path.Join(d.client.GetApiEndpoint(), d.ApiEntitySlug, state.Id.String())
 
-	resourceURL, err := ReturnAAPNamedURL(state.Id, tftypes.StringValue(""), tftypes.StringValue(""), uri)
-	if err != nil {
-		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id]")
-		return
-	}
-
-	readResponseBody, diags := d.client.Get(resourceURL)
+	readResponseBody, diags := d.client.Get(uri)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
