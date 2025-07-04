@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"path"
 	"slices"
 	"sync"
@@ -163,7 +162,7 @@ func (r *HostResource) Create(ctx context.Context, req resource.CreateRequest, r
 	requestData := bytes.NewReader(createRequestBody)
 
 	// Create new host in AAP
-	hostsURL := path.Join(r.client.getApiEndpoint(), "hosts")
+	hostsURL := path.Join(r.client.GetApiEndpoint(), "hosts")
 	createResponseBody, diags := r.client.Create(hostsURL, requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -518,16 +517,16 @@ func (r *HostResource) AssociateGroups(ctx context.Context, data []int64, url st
 			if disassociate {
 				body["disassociate"] = 1
 			}
-			json_raw, err := json.Marshal(body)
+			jsonRaw, err := json.Marshal(body)
 			if err != nil {
 				diags.Append(diag.NewErrorDiagnostic("Body JSON Marshal Error", err.Error()))
 				cancel()
 				return
 			}
-			req_data := bytes.NewReader(json_raw)
+			requestData := bytes.NewReader(jsonRaw)
 
-			resp, bodyreq, err := r.client.doRequest(http.MethodPost, url, req_data)
-			diags.Append(ValidateResponse(resp, bodyreq, err, []int{http.StatusNoContent})...)
+			_, responseDiags := r.client.Create(url, requestData)
+			diags.Append(responseDiags...)
 			if diags.HasError() {
 				cancel()
 				return

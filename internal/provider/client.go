@@ -15,14 +15,12 @@ import (
 
 // Provider Http Client interface (will be useful for unit tests)
 type ProviderHTTPClient interface {
-	doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error)
 	Create(path string, data io.Reader) ([]byte, diag.Diagnostics)
 	Get(path string) ([]byte, diag.Diagnostics)
+	GetApiEndpoint() string
 	GetWithStatus(path string) ([]byte, diag.Diagnostics, int)
 	Update(path string, data io.Reader) ([]byte, diag.Diagnostics)
 	Delete(path string) ([]byte, diag.Diagnostics)
-	setApiEndpoint() diag.Diagnostics
-	getApiEndpoint() string
 }
 
 // Client -
@@ -105,7 +103,7 @@ func (c *AAPClient) setApiEndpoint() diag.Diagnostics {
 	return diags
 }
 
-func (c *AAPClient) getApiEndpoint() string {
+func (c *AAPClient) GetApiEndpoint() string {
 	return c.ApiEndpoint
 }
 

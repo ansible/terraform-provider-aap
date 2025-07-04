@@ -145,7 +145,7 @@ func (r *InventoryResource) Create(ctx context.Context, req resource.CreateReque
 	requestData := bytes.NewReader(createRequestBody)
 
 	// Create new inventory in AAP
-	inventoriesURL := path.Join(r.client.getApiEndpoint(), "inventories")
+	inventoriesURL := path.Join(r.client.GetApiEndpoint(), "inventories")
 	createResponseBody, diags := r.client.Create(inventoriesURL, requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {

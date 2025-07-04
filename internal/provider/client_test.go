@@ -73,7 +73,7 @@ func TestReadApiEndpoint(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			client, diags := NewClient(tc.URL, nil, nil, true, 0) // readApiEndpoint() is called when creating client
 			assert.Equal(t, false, diags.HasError(), fmt.Sprintf("readApiEndpoint() returns errors (%v)", diags))
-			assert.Equal(t, tc.expected, client.getApiEndpoint())
+			assert.Equal(t, tc.expected, client.GetApiEndpoint())
 		})
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"path"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
@@ -301,15 +300,15 @@ func (r *WorkflowJobResource) LaunchWorkflowJob(data *WorkflowJobResourceModel) 
 	}
 
 	requestData := bytes.NewReader(requestBody)
-	var postURL = path.Join(r.client.getApiEndpoint(), "workflow_job_templates", data.GetTemplateID(), "launch")
-	resp, body, err := r.client.doRequest(http.MethodPost, postURL, requestData)
-	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
+	var uri = path.Join(r.client.GetApiEndpoint(), "workflow_job_templates", data.GetTemplateID(), "launch")
+	responseBody, responseDiags := r.client.Create(uri, requestData)
+	diags.Append(responseDiags...)
 	if diags.HasError() {
 		return diags
 	}
 
 	// Save new workflow job data into workflow job resource model
-	diags.Append(data.ParseHttpResponse(body)...)
+	diags.Append(data.ParseHttpResponse(responseBody)...)
 	if diags.HasError() {
 		return diags
 	}
