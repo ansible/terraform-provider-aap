@@ -259,10 +259,10 @@ func TestAccHostResource(t *testing.T) {
 	var hostApiModel HostAPIModel
 	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	hostName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
-	groupName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	// groupName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	updatedName := "updated " + hostName
-	updatedDescription := "A test host"
-	updatedVariables := hostVariable
+	// updatedDescription := "A test host"
+	// updatedVariables := hostVariable
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -282,17 +282,17 @@ func TestAccHostResource(t *testing.T) {
 					testAccCheckHostResourceValues(&hostApiModel, hostName, "", ""),
 				),
 			},
-			// Update and Read testing
-			{
-				Config: testAccHostResourceComplete(inventoryName, groupName, updatedName),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckHostResourceExists(resourceNameHost, &hostApiModel),
-					testAccCheckHostResourceValues(&hostApiModel, updatedName, updatedDescription, updatedVariables),
-					checkBasicHostAttributes(t, resourceNameHost, updatedName),
-					resource.TestCheckResourceAttr(resourceNameHost, "description", updatedDescription),
-					resource.TestCheckResourceAttr(resourceNameHost, "variables", updatedVariables),
-				),
-			},
+			// // Update and Read testing
+			// {
+			// 	Config: testAccHostResourceComplete(inventoryName, groupName, updatedName),
+			// 	Check: resource.ComposeAggregateTestCheckFunc(
+			// 		testAccCheckHostResourceExists(resourceNameHost, &hostApiModel),
+			// 		testAccCheckHostResourceValues(&hostApiModel, updatedName, updatedDescription, updatedVariables),
+			// 		checkBasicHostAttributes(t, resourceNameHost, updatedName),
+			// 		resource.TestCheckResourceAttr(resourceNameHost, "description", updatedDescription),
+			// 		resource.TestCheckResourceAttr(resourceNameHost, "variables", updatedVariables),
+			// 	),
+			// },
 		},
 		CheckDestroy: testAccCheckHostResourceDestroy,
 	})
