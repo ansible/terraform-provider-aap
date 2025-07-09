@@ -17,7 +17,7 @@ import (
 )
 
 func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, uri string) (string, error) {
-	if IsValueProvided(id) {
+	if !id.IsNull() && !id.IsUnknown() {
 		return path.Join(uri, id.String()), nil
 	}
 
