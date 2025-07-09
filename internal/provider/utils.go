@@ -29,8 +29,11 @@ func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, 
 	return "", errors.New("invalid lookup parameters")
 }
 
+// It's considered provided if it's unknown or not null. (to be provided later).
+// It's considered NOT provided if it's null and supposed to be known.
+// TODO: Rename to IsValueKnownOrPromised.
 func IsValueProvided(value attr.Value) bool {
-	return !(value.IsNull() || value.IsUnknown())
+	return (!value.IsNull() || value.IsUnknown())
 }
 
 func ValidateResponse(resp *http.Response, body []byte, err error, expected_statuses []int) diag.Diagnostics {

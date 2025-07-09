@@ -47,6 +47,7 @@ type BaseDetailSourceModel struct {
 	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
+// TF representation of the BaseDetailSourceModel with organization information.
 type BaseDetailSourceModelWithOrg struct {
 	BaseDetailSourceModel
 	Organization     tftypes.Int64  `tfsdk:"organization"`

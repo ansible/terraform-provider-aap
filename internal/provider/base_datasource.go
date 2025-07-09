@@ -161,7 +161,8 @@ func (d *BaseDataSource) ConfigValidators(_ context.Context) []datasource.Config
 	return []datasource.ConfigValidator{
 		datasourcevalidator.Any(
 			datasourcevalidator.AtLeastOneOf(
-				tfpath.MatchRoot("id")),
+				tfpath.MatchRoot("id"),
+				tfpath.MatchRoot("name")),
 		),
 	}
 }
@@ -207,11 +208,15 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 		return
 	}
 
+	if IsValueProvided(data.Name) {
+		return
+	}
+
 	if !IsValueProvided(data.Id) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Attribute Configuration",
-			"Expected [id]",
+			"Expected [id] or [name]",
 		)
 	}
 }
