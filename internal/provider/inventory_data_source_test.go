@@ -117,11 +117,11 @@ func TestAccInventoryDataSource(t *testing.T) {
 			{
 				Config: testAccInventoryDataSource(randomName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrPair(resourceNameInventory, "name", "data.aap_inventory.test", "name"),
-					resource.TestCheckResourceAttrPair(resourceNameInventory, "organization", "data.aap_inventory.test", "organization"),
-					resource.TestCheckResourceAttrPair(resourceNameInventory, "description", "data.aap_inventory.test", "description"),
-					resource.TestCheckResourceAttrPair(resourceNameInventory, "variables", "data.aap_inventory.test", "variables"),
-					resource.TestCheckResourceAttrPair(resourceNameInventory, "url", "data.aap_inventory.test", "url"),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "name", "data.aap_inventory.test", "name"),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "organization", "data.aap_inventory.test", "organization"),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "description", "data.aap_inventory.test", "description"),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "variables", "data.aap_inventory.test", "variables"),
+					resource.TestCheckResourceAttrPair("aap_inventory.test", "url", "data.aap_inventory.test", "url"),
 				),
 			},
 			// Create and Read
@@ -133,6 +133,15 @@ func TestAccInventoryDataSource(t *testing.T) {
 					resource.TestCheckResourceAttrPair("aap_inventory.test", "description", "data.aap_inventory.test", "description"),
 					resource.TestCheckResourceAttrPair("aap_inventory.test", "variables", "data.aap_inventory.test", "variables"),
 					resource.TestCheckResourceAttrPair("aap_inventory.test", "url", "data.aap_inventory.test", "url"),
+				),
+			},
+			// Read
+			{
+				Config: testAccInventoryDataSourceVariable(),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.aap_inventory.test", "name"),
+					resource.TestCheckResourceAttrSet("data.aap_inventory.test", "organization"),
+					resource.TestCheckResourceAttrSet("data.aap_inventory.test", "url"),
 				),
 			},
 		},
@@ -170,4 +179,18 @@ data "aap_inventory" "test" {
   organization_name = "%s"
 }
 `, name, name, orgName)
+}
+
+func testAccInventoryDataSourceVariable() string {
+	return `
+variable "inventory_name" {
+  description = "Name of the AAP Inventory"
+  type        = string
+  default     = "Demo Inventory"
+}
+
+data "aap_inventory" "test" {
+  name = var.inventory_name
+  organization_name = "Default"
+}`
 }
