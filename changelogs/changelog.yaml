@@ -28,3 +28,12 @@ releases:
     - 20250507-fix-aap-job-disappear.yaml
     - 20250529.yaml
     release_date: '2025-06-03'
+  1.3.0-prerelease:
+    changes:
+      minor_changes:
+      - Adds support for Darwin arm64/amd64 and Linux arm64.
+      - Fixes issue where Inventory could become inconsistent.
+      release_summary: Feature release
+    fragments:
+    - v1.3.0-prerelease.yml
+    release_date: '2025-07-10'
