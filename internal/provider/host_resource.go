@@ -361,7 +361,7 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	// Get timeout value, default to 300 seconds if not set
+	// Get timeout value, default to 600 seconds if not set
 	timeout := time.Duration(data.OperationTimeoutSeconds.ValueInt64()) * time.Second
 
 	// Create operation function for retry logic
