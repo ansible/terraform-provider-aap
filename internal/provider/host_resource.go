@@ -602,7 +602,7 @@ func retryUntilHostUnused(operation func() ([]byte, diag.Diagnostics, int)) retr
 		if statusCode == http.StatusConflict {
 			return retry.RetryableError(fmt.Errorf("host is currently being used by running jobs (HTTP 409)"))
 		}
-		if statusCode != http.StatusOK {
+		if statusCode != http.StatusOK && statusCode != http.StatusNoContent {
 			return retry.NonRetryableError(fmt.Errorf("unexpected status code: %d", statusCode))
 		}
 		if diags.HasError() {
