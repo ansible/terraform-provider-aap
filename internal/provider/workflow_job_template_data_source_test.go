@@ -135,6 +135,15 @@ func TestAccWorkflowJobTemplateDataSource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("data.aap_workflow_job_template.test", "url"),
 				),
 			},
+			// Read
+			{
+				Config: testAccWorkflowJobTemplateDataSourceVariable(),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.aap_workflow_job_template.test", "name"),
+					resource.TestCheckResourceAttrSet("data.aap_workflow_job_template.test", "organization"),
+					resource.TestCheckResourceAttrSet("data.aap_workflow_job_template.test", "url"),
+				),
+			},
 		},
 		CheckDestroy: testAccCheckInventoryResourceDestroy,
 	})
@@ -156,4 +165,18 @@ data "aap_workflow_job_template" "test" {
   organization_name = "%s"
 }
 `, name, orgName)
+}
+
+func testAccWorkflowJobTemplateDataSourceVariable() string {
+	return `
+variable "workflow_job_template_name" {
+  description = "Name of the AAP Workflow Job Template to run"
+  type        = string
+  default     = "Demo Workflow Job Template"
+}
+
+data "aap_workflow_job_template" "test" {
+  name = var.workflow_job_template_name
+  organization_name = "Default"
+}`
 }
