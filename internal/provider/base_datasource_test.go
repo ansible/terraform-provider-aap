@@ -75,7 +75,8 @@ func TestDataSourceConfigValidators(t *testing.T) {
 			expected: []fwdatasource.ConfigValidator{
 				datasourcevalidator.Any(
 					datasourcevalidator.AtLeastOneOf(
-						tfpath.MatchRoot("id")),
+						tfpath.MatchRoot("id"),
+						tfpath.MatchRoot("name")),
 				),
 			},
 		},

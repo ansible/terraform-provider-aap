@@ -29,8 +29,9 @@ func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, 
 	return "", errors.New("invalid lookup parameters")
 }
 
+// IsValueProvided returns true only if the value is both present and has concrete data (not a placeholder)
 func IsValueProvided(value attr.Value) bool {
-	return !(value.IsNull() || value.IsUnknown())
+	return !value.IsNull() && !value.IsUnknown()
 }
 
 func ValidateResponse(resp *http.Response, body []byte, err error, expected_statuses []int) diag.Diagnostics {
