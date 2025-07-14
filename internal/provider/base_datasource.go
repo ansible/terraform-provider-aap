@@ -203,11 +203,11 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 		return
 	}
 
-	if IsValueProvided(data.Id) {
+	if IsValueProvidedOrPromised(data.Id) {
 		return
 	}
 
-	if !IsValueProvided(data.Id) {
+	if !IsValueProvidedOrPromised(data.Id) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Attribute Configuration",
@@ -236,15 +236,15 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 		return
 	}
 
-	if IsValueProvided(data.Id) {
+	if IsValueProvidedOrPromised(data.Id) {
 		return
 	}
 
-	if IsValueProvided(data.Name) && IsValueProvided(data.OrganizationName) {
+	if IsValueProvidedOrPromised(data.Name) && IsValueProvidedOrPromised(data.OrganizationName) {
 		return
 	}
 
-	if !IsValueProvided(data.Id) && !IsValueProvided(data.Name) {
+	if !IsValueProvidedOrPromised(data.Id) && !IsValueProvidedOrPromised(data.Name) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Attribute Configuration",
@@ -252,7 +252,7 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 		)
 	}
 
-	if IsValueProvided(data.Name) && !IsValueProvided(data.OrganizationName) {
+	if IsValueProvidedOrPromised(data.Name) && !IsValueProvidedOrPromised(data.OrganizationName) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("organization_name"),
 			"Missing Attribute Configuration",
@@ -260,7 +260,7 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 		)
 	}
 
-	if !IsValueProvided(data.Name) && IsValueProvided(data.OrganizationName) {
+	if !IsValueProvidedOrPromised(data.Name) && IsValueProvidedOrPromised(data.OrganizationName) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("name"),
 			"Missing Attribute Configuration",
