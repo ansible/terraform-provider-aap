@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
@@ -87,8 +88,57 @@ func checkBasicInventoryAttributes(
 	)
 }
 
+func TestIsValueProvidedOrPromised(t *testing.T) {
+	var testTable = []struct {
+		testName string
+		value    attr.Value
+		expected bool
+	}{
+		{
+			testName: "value is int64(1)",
+			value:    types.Int64Value(1),
+			expected: true,
+		},
+		{
+			testName: "value is int64 unknown",
+			value:    types.Int64Unknown(),
+			expected: true,
+		},
+		{
+			testName: "value is int64 null",
+			value:    types.Int64Null(),
+			expected: false,
+		},
+		{
+			testName: "value is string(test)",
+			value:    types.StringValue("test"),
+			expected: true,
+		},
+		{
+			testName: "value is string unknown",
+			value:    types.StringUnknown(),
+			expected: true,
+		},
+		{
+			testName: "value is string null",
+			value:    types.StringNull(),
+			expected: false,
+		},
+	}
+	for _, test := range testTable {
+		t.Run(test.testName, func(t *testing.T) {
+			actual := IsValueProvidedOrPromised(test.value)
+			if actual != test.expected {
+				t.Errorf("Expected %v but got %v", test.expected, actual)
+			}
+		})
+	}
+}
+
+// TODO: Replace ReturnAAPNamedURL with CreateNamedURL during Resource refactor
 func TestReturnAAPNamedURL(t *testing.T) {
 	var testTable = []struct {
+		testName    string
 		id          types.Int64
 		name        types.String
 		orgName     types.String
@@ -97,6 +147,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 		expectedUrl string
 	}{
 		{
+			testName:    "id only",
 			id:          types.Int64Value(1),
 			name:        types.StringNull(),
 			orgName:     types.StringNull(),
@@ -106,6 +157,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 		},
 		{
 
+			testName:    "all values",
 			id:          types.Int64Value(1),
 			name:        types.StringValue("test"),
 			orgName:     types.StringValue("org1"),
@@ -114,6 +166,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			expectedUrl: "inventories/1",
 		},
 		{
+			testName:    "id and org name",
 			id:          types.Int64Value(1),
 			name:        types.StringNull(),
 			orgName:     types.StringValue("org1"),
@@ -122,6 +175,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			expectedUrl: "inventories/1",
 		},
 		{
+			testName:    "id and name",
 			id:          types.Int64Value(1),
 			name:        types.StringValue("test"),
 			orgName:     types.StringNull(),
@@ -131,6 +185,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 		},
 		{
 
+			testName:    "name and org name",
 			id:          types.Int64Null(),
 			name:        types.StringValue("test"),
 			orgName:     types.StringValue("org1"),
@@ -140,6 +195,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 		},
 		{
 
+			testName:    "id unknown, name and org name",
 			id:          types.Int64Unknown(),
 			name:        types.StringValue("test"),
 			orgName:     types.StringValue("org1"),
@@ -149,6 +205,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 		},
 		{
 
+			testName:    "unknown name, id and org name null",
 			id:          types.Int64Null(),
 			name:        types.StringUnknown(),
 			orgName:     types.StringNull(),
@@ -158,6 +215,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 		},
 		{
 
+			testName:    "all null values",
 			id:          types.Int64Null(),
 			name:        types.StringNull(),
 			orgName:     types.StringNull(),
@@ -166,6 +224,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			expectedUrl: "",
 		},
 		{
+			testName:    "id and org name null, name provided",
 			id:          types.Int64Null(),
 			name:        types.StringValue("test"),
 			orgName:     types.StringNull(),
@@ -174,6 +233,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			expectedUrl: "",
 		},
 		{
+			testName:    "id and name null, org name provided",
 			id:          types.Int64Null(),
 			name:        types.StringNull(),
 			orgName:     types.StringValue("org1"),
@@ -183,7 +243,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 		},
 	}
 	for _, test := range testTable {
-		t.Run("test_test", func(t *testing.T) {
+		t.Run(test.testName, func(t *testing.T) {
 			url, err := ReturnAAPNamedURL(test.id, test.name, test.orgName, test.URI)
 			if err != nil && err.Error() != test.expectError.Error() {
 				t.Errorf("Expected error: %v but got %v", test.expectError.Error(), err.Error())
