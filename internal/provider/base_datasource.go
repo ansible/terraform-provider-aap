@@ -75,7 +75,6 @@ func (d *BaseDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
 				Optional:    true,
-				Computed:    true,
 				Description: fmt.Sprintf("%s id", d.DescriptiveEntityName),
 			},
 			"url": schema.StringAttribute{
@@ -87,7 +86,6 @@ func (d *BaseDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 				Description: fmt.Sprintf("The Named Url of the %s", d.DescriptiveEntityName),
 			},
 			"name": schema.StringAttribute{
-				Computed:    true,
 				Optional:    true,
 				Description: fmt.Sprintf("Name of the %s", d.DescriptiveEntityName),
 			},
@@ -113,15 +111,13 @@ func (d *BaseDataSourceWithOrg) Schema(_ context.Context, _ datasource.SchemaReq
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
 				Optional:    true,
-				Computed:    true,
 				Description: fmt.Sprintf("%s id", d.DescriptiveEntityName),
 			},
 			"organization": schema.Int64Attribute{
-				Computed:    true,
+				Optional:    true,
 				Description: fmt.Sprintf("Identifier for the organization to which the %s belongs", d.DescriptiveEntityName),
 			},
 			"organization_name": schema.StringAttribute{
-				Computed:    true,
 				Optional:    true,
 				Description: fmt.Sprintf("The name for the organization to which the %s belongs", d.DescriptiveEntityName),
 			},
@@ -134,7 +130,6 @@ func (d *BaseDataSourceWithOrg) Schema(_ context.Context, _ datasource.SchemaReq
 				Description: fmt.Sprintf("The Named Url of the %s", d.DescriptiveEntityName),
 			},
 			"name": schema.StringAttribute{
-				Computed:    true,
 				Optional:    true,
 				Description: fmt.Sprintf("Name of the %s", d.DescriptiveEntityName),
 			},
