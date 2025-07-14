@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+// TODO: Replace ReturnAAPNamedURL with CreateNamedURL during Resource refactor
 func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, uri string) (string, error) {
 	if id.ValueInt64() != 0 {
 		return path.Join(uri, id.String()), nil
@@ -29,7 +30,7 @@ func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, 
 	return "", errors.New("invalid lookup parameters")
 }
 
-func IsValueProvided(value attr.Value) bool {
+func IsValueProvidedOrPromised(value attr.Value) bool {
 	return (!value.IsNull() || value.IsUnknown())
 }
 

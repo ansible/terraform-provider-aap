@@ -127,7 +127,7 @@ func TestIsValueProvided(t *testing.T) {
 	}
 	for _, test := range testTable {
 		t.Run(test.testName, func(t *testing.T) {
-			actual := IsValueProvided(test.value)
+			actual := IsValueProvidedOrPromised(test.value)
 			if actual != test.expected {
 				t.Errorf("Expected %v but got %v", test.expected, actual)
 			}
@@ -135,6 +135,7 @@ func TestIsValueProvided(t *testing.T) {
 	}
 }
 
+// TODO: Replace ReturnAAPNamedURL with CreateNamedURL during Resource refactor
 func TestReturnAAPNamedURL(t *testing.T) {
 	var testTable = []struct {
 		testName    string
