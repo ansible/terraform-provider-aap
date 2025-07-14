@@ -14,6 +14,7 @@ func TestAccInventoryResourceWithOrganizationDataSource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckInventoryResourceDestroy,
 		Steps: []resource.TestStep{
 			// Create an inventory using the organization data source
 			{
