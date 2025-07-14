@@ -175,32 +175,49 @@ func TestAccInventoryResource(t *testing.T) {
 	updatedName := "updated " + randomName
 	updatedDescription := "A test inventory"
 	updatedVariables := "{\"foo\": \"bar\"}"
+
+	// Define test steps based on whether we have a valid organization ID for testing
+	var testSteps []resource.TestStep
+
+	// Always include invalid variables and basic create/read tests
+	testSteps = append(testSteps,
+		// Invalid variables testing
+		resource.TestStep{
+			Config:      testAccInventoryResourceBadVariables(updatedName),
+			ExpectError: regexp.MustCompile("Input type `str` is not a dictionary"),
+		},
+		// Create and Read testing
+		resource.TestStep{
+			Config: testAccInventoryResourceMinimal(randomName),
+			Check:  checkBasicInventoryAttributes(t, resourceNameInventory, inventory, randomName, "1", "Default", "", ""),
+		},
+	)
+
+	// Only include organization update tests if we have a valid organization ID
+	if updatedOrgId != "" {
+		testSteps = append(testSteps,
+			// Update with new org and Read testing
+			resource.TestStep{
+				Config: testAccInventoryResourceWithOrg(updatedName, updatedOrgId),
+				Check:  checkBasicInventoryAttributes(t, resourceNameInventory, inventory, updatedName, updatedOrgId, "Default", updatedDescription, updatedVariables),
+			},
+		)
+	}
+
+	// Always include the final update test
+	testSteps = append(testSteps,
+		// Update without new org and Read testing
+		resource.TestStep{
+			Config: testAccInventoryResourceComplete(updatedName),
+			Check:  checkBasicInventoryAttributes(t, resourceNameInventory, inventory, updatedName, "1", "Default", updatedDescription, updatedVariables),
+		},
+	)
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		Steps: []resource.TestStep{
-			// Invalid variables testing
-			{
-				Config:      testAccInventoryResourceBadVariables(updatedName),
-				ExpectError: regexp.MustCompile("Input type `str` is not a dictionary"),
-			},
-			// Create and Read testing
-			{
-				Config: testAccInventoryResourceMinimal(randomName),
-				Check:  checkBasicInventoryAttributes(t, resourceNameInventory, inventory, randomName, "1", "Default", "", ""),
-			},
-			// Update with new org and Read testing
-			{
-				Config: testAccInventoryResourceWithOrg(updatedName, updatedOrgId),
-				Check:  checkBasicInventoryAttributes(t, resourceNameInventory, inventory, updatedName, updatedOrgId, "Non-Default", updatedDescription, updatedVariables),
-			},
-			// Update without new org and Read testing
-			{
-				Config: testAccInventoryResourceComplete(updatedName),
-				Check:  checkBasicInventoryAttributes(t, resourceNameInventory, inventory, updatedName, "1", "Default", updatedDescription, updatedVariables),
-			},
-		},
-		CheckDestroy: testAccCheckInventoryResourceDestroy,
+		Steps:                    testSteps,
+		CheckDestroy:             testAccCheckInventoryResourceDestroy,
 	})
 }
 

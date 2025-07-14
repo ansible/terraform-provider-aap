@@ -75,6 +75,7 @@ func (d *BaseDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
 				Optional:    true,
+				Computed:    true,
 				Description: fmt.Sprintf("%s id", d.DescriptiveEntityName),
 			},
 			"url": schema.StringAttribute{
@@ -112,6 +113,7 @@ func (d *BaseDataSourceWithOrg) Schema(_ context.Context, _ datasource.SchemaReq
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
 				Optional:    true,
+				Computed:    true,
 				Description: fmt.Sprintf("%s id", d.DescriptiveEntityName),
 			},
 			"organization": schema.Int64Attribute{
