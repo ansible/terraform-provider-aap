@@ -18,7 +18,7 @@ func TestAccInventoryResourceWithOrganizationDataSource(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Create an inventory using the organization data source
 			{
-				Config: createTestAccOrganizationDataSourceNamedUrlCreateInventoryHCL("Default", randomInventoryName),
+				Config: createOrganizationAndInventory("Default", randomInventoryName),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "id", "1"),
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "name", "Default"),
@@ -35,7 +35,7 @@ func TestAccInventoryResourceWithOrganizationDataSource(t *testing.T) {
 	})
 }
 
-func createTestAccOrganizationDataSourceNamedUrlCreateInventoryHCL(organizationName string, inventoryName string) string {
+func createOrganizationAndInventory(organizationName string, inventoryName string) string {
 	return fmt.Sprintf(`
 data "aap_organization" "default_org" {
   name = "%s"
