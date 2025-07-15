@@ -158,8 +158,7 @@ func (d *BaseDataSource) ConfigValidators(_ context.Context) []datasource.Config
 	return []datasource.ConfigValidator{
 		datasourcevalidator.Any(
 			datasourcevalidator.AtLeastOneOf(
-				tfpath.MatchRoot("id"),
-				tfpath.MatchRoot("name")),
+				tfpath.MatchRoot("id")),
 		),
 	}
 }
@@ -205,15 +204,11 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 		return
 	}
 
-	if IsValueProvidedOrPromised(data.Name) {
-		return
-	}
-
 	if !IsValueProvidedOrPromised(data.Id) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Attribute Configuration",
-			"Expected [id] or [name]",
+			"Expected [id]",
 		)
 	}
 }
@@ -327,7 +322,7 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		Name: state.Name.ValueString(),
 	})
 	if err != nil {
-		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id] or [name]")
+		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id]")
 		return
 	}
 
