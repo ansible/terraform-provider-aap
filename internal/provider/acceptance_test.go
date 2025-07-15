@@ -35,7 +35,7 @@ func TestAccInventoryResourceWithOrganizationDataSource(t *testing.T) {
 	})
 }
 
-func createTestAccOrganizationDataSourceNamedUrlCreateInventoryHCL(organizationName string, inventoryName string) string {
+func createOrganizationAndInventory(organizationName string, inventoryName string) string {
 	return fmt.Sprintf(`
 data "aap_organization" "default_org" {
   name = "%s"
