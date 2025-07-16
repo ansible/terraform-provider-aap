@@ -280,17 +280,21 @@ func TestAccAAPWorkflowJob_Basic(t *testing.T) {
 	})
 }
 
-
 // Create a Config that:
 // 1. Create a new Inventory and get the ID.
 // 2. Create & Execute a job workflow resource and add the new Inventory Id
 // 3. Make sure the return response contains the new inventory id
-// 4. Make sure 
+// 4. Make sure
 
 func TestAccAAPWorkflowJobWithNoInventoryID(t *testing.T) {
 
 	jobTemplateID := os.Getenv("AAP_49554_JOB_TEMPLATE_ID")
 	inventoryID := os.Getenv("AAP_49554_INVENTORY_ID")
+
+	// if inventoryID == "1" {
+	// 	t.Errorf("Inventory ID should be 1. Got %s", inventoryID)
+	// 	return
+	// }
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) }, // TODO Does this need to change?
@@ -303,6 +307,12 @@ func TestAccAAPWorkflowJobWithNoInventoryID(t *testing.T) {
 					resource.TestMatchResourceAttr("aap_workflow_job.wf_job", "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr("aap_workflow_job.wf_job", "url", regexp.MustCompile("^/api(/controller)?/v2/workflow_jobs/[0-9]*/$")),
 					resource.TestCheckResourceAttr("aap_workflow_job.wf_job", "inventory_id", inventoryID),
+					resource.TestCheckResourceAttrWith("aap_workflow_job.wf_job", "inventory_id", func(value string) error {
+						if value == "1" {
+							return fmt.Errorf("inventory_id should not be 1, got %s", value)
+						}
+						return nil
+					}),
 					testAccCheckWorkflowJobExists,
 					// assert that inventory id returned is not 1 and matches the new one.
 				),
@@ -411,7 +421,6 @@ func TestAccAAPWorkflowJob_UpdateWithNewInventoryIdPromptOnLaunch2(t *testing.T)
 	})
 }
 
-
 func TestAccAAPWorkflowJob_UpdateWithTrigger(t *testing.T) {
 	var jobURLBefore string
 
@@ -519,4 +528,3 @@ resource "aap_workflow_job" "test" {
 }
 `, jobTemplateID)
 }
-
