@@ -65,7 +65,18 @@ export AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID=<the ID of a workflow job template in y
 The inventory resource test requires the AAP instance to have a second organization with the name `Non-Default` and export that ID:
 
 ```bash
-export AAP_TEST_ORGANIZATION_ID=<the ID of the second organization in your AAP instance>
+export AAP_TEST_ORGANIZATION_ID=<the ID of Non-Default in your AAP instance>
+```
+Create inventory `49554 Inventory` on Default organization
+Create a Workflow Job Template called `49554 Workflow Job Template`
+  - Assign organization to `Default`
+  - Assign inventory to `49554 Inventory`
+  - Make sure `Prompt on launch` **is not checked** for the inventory
+  - Make sure `Prompt on launch` **is checked** for `Extra variables`
+  - Add a default step and save
+```bash
+export AAP_49554_JOB_TEMPLATE_ID=<the ID of `49554 Workflow Job Template`>
+export AAP_49554_INVENTORY_ID=<the ID of `49554 Inventory`>
 ```
 
 Then you can run acceptance tests with `make testacc`.
