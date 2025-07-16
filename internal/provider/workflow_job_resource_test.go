@@ -280,24 +280,12 @@ func TestAccAAPWorkflowJob_Basic(t *testing.T) {
 	})
 }
 
-// Create a Config that:
-// 1. Create a new Inventory and get the ID.
-// 2. Create & Execute a job workflow resource and add the new Inventory Id
-// 3. Make sure the return response contains the new inventory id
-// 4. Make sure
-
 func TestAccAAPWorkflowJobWithNoInventoryID(t *testing.T) {
-
 	jobTemplateID := os.Getenv("AAP_49554_JOB_TEMPLATE_ID")
 	inventoryID := os.Getenv("AAP_49554_INVENTORY_ID")
 
-	// if inventoryID == "1" {
-	// 	t.Errorf("Inventory ID should be 1. Got %s", inventoryID)
-	// 	return
-	// }
-
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) }, // TODO Does this need to change?
+		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			// Create and Read testing
