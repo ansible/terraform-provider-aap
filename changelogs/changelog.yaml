@@ -37,3 +37,5 @@ releases:
     fragments:
     - v1.3.0-prerelease.yml
     release_date: '2025-07-10'
+  1.3.0-prerelease2:
+    release_date: '2025-07-17'

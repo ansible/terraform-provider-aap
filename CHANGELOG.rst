@@ -4,6 +4,9 @@ Terraform Provider for AAP Release Notes
 
 .. contents:: Topics
 
+v1.3.0-prerelease2
+==================
+
 v1.3.0-prerelease
 =================
 
