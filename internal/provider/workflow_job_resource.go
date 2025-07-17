@@ -92,8 +92,7 @@ func (r *WorkflowJobResource) Schema(_ context.Context, _ resource.SchemaRequest
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
-				Description: "Identifier for the inventory the job will be run against. " +
-					"If not provided, the job will run against the default inventory.",
+				Description: "Identifier for the inventory the job will be run against.",
 			},
 			"workflow_job_template_id": schema.Int64Attribute{
 				Required:    true,
