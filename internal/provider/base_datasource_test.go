@@ -57,7 +57,7 @@ func TestBaseDataSourceSchema(t *testing.T) {
 	}
 }
 
-func TestDataSourceConfigValidators(t *testing.T) {
+func TestBaseDataSourceConfigValidators(t *testing.T) {
 	t.Parallel()
 
 	var testTable = []struct {
@@ -76,6 +76,17 @@ func TestDataSourceConfigValidators(t *testing.T) {
 				datasourcevalidator.Any(
 					datasourcevalidator.AtLeastOneOf(
 						tfpath.MatchRoot("id")),
+				),
+			},
+		},
+		{
+			name:       "organization datasource",
+			datasource: NewOrganizationDataSource().(fwdatasource.DataSourceWithConfigValidators),
+			expected: []fwdatasource.ConfigValidator{
+				datasourcevalidator.Any(
+					datasourcevalidator.AtLeastOneOf(
+						tfpath.MatchRoot("id"),
+						tfpath.MatchRoot("name")),
 				),
 			},
 		},

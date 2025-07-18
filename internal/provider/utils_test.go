@@ -88,7 +88,7 @@ func checkBasicInventoryAttributes(
 	)
 }
 
-func TestIsValueProvided(t *testing.T) {
+func TestIsValueProvidedOrPromised(t *testing.T) {
 	var testTable = []struct {
 		testName string
 		value    attr.Value

@@ -58,12 +58,12 @@ output "inventory_details_with_name_and_org_name" {
 
 - `id` (Number) Inventory id
 - `name` (String) Name of the Inventory
+- `organization` (Number) Identifier for the organization to which the Inventory belongs
 - `organization_name` (String) The name for the organization to which the Inventory belongs
 
 ### Read-Only
 
 - `description` (String) Description of the Inventory
 - `named_url` (String) The Named Url of the Inventory
-- `organization` (Number) Identifier for the organization to which the Inventory belongs
 - `url` (String) Url of the Inventory
 - `variables` (String, Deprecated) Variables of the Inventory. Will be either JSON or YAML string depending on how the variables were entered into AAP.

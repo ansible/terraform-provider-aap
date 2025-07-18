@@ -86,7 +86,6 @@ func (d *BaseDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 				Description: fmt.Sprintf("The Named Url of the %s", d.DescriptiveEntityName),
 			},
 			"name": schema.StringAttribute{
-				Computed:    true,
 				Optional:    true,
 				Description: fmt.Sprintf("Name of the %s", d.DescriptiveEntityName),
 			},
@@ -115,11 +114,10 @@ func (d *BaseDataSourceWithOrg) Schema(_ context.Context, _ datasource.SchemaReq
 				Description: fmt.Sprintf("%s id", d.DescriptiveEntityName),
 			},
 			"organization": schema.Int64Attribute{
-				Computed:    true,
+				Optional:    true,
 				Description: fmt.Sprintf("Identifier for the organization to which the %s belongs", d.DescriptiveEntityName),
 			},
 			"organization_name": schema.StringAttribute{
-				Computed:    true,
 				Optional:    true,
 				Description: fmt.Sprintf("The name for the organization to which the %s belongs", d.DescriptiveEntityName),
 			},
@@ -132,7 +130,6 @@ func (d *BaseDataSourceWithOrg) Schema(_ context.Context, _ datasource.SchemaReq
 				Description: fmt.Sprintf("The Named Url of the %s", d.DescriptiveEntityName),
 			},
 			"name": schema.StringAttribute{
-				Computed:    true,
 				Optional:    true,
 				Description: fmt.Sprintf("Name of the %s", d.DescriptiveEntityName),
 			},
@@ -325,7 +322,7 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		Name: state.Name.ValueString(),
 	})
 	if err != nil {
-		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id] or [name]")
+		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id]")
 		return
 	}
 
