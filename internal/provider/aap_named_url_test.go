@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 )
+
 func TestCreateNamedURLBaseDetailModelAPIModel(t *testing.T) {
 	var testTable = []struct {
 		testName    string
@@ -30,7 +31,7 @@ func TestCreateNamedURLBaseDetailModelAPIModel(t *testing.T) {
 	for _, test := range testTable {
 		t.Run("test_"+test.testName, func(t *testing.T) {
 			apiModel := &BaseDetailAPIModel{
-					Id:   test.id,
+				Id: test.id,
 			}
 			sourceModel := &BaseDetailSourceModel{}
 			url, err := sourceModel.CreateNamedURL(test.URI, apiModel)
