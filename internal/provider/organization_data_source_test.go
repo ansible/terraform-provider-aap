@@ -246,6 +246,7 @@ func TestAccOrganizationDataSource(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "id", "1"),
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "name", "Default"),
+					resource.TestCheckResourceAttr("data.aap_organization.default_org", "description", "The default organization for Ansible Automation Platform"),
 				),
 			},
 			// Read Default Organization by name
@@ -254,7 +255,7 @@ func TestAccOrganizationDataSource(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "id", "1"),
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "name", "Default"),
-					resource.TestCheckResourceAttr("data.aap_organization.default_org", "id", "1"),
+					resource.TestCheckResourceAttr("data.aap_organization.default_org", "description", "The default organization for Ansible Automation Platform"),
 				),
 			},
 		},
@@ -286,6 +287,7 @@ func TestAccOrganizationDataSourceWithIdAndName(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "id", "1"),
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "name", "Default"),
+					resource.TestCheckResourceAttr("data.aap_organization.default_org", "description", "The default organization for Ansible Automation Platform"),
 				),
 			},
 		},
