@@ -295,13 +295,14 @@ func (r *HostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	requestData := bytes.NewReader(updateRequestBody)
 
 	// Get timeout value, default to operationTimeoutDefault seconds if not set
 	timeout := time.Duration(data.OperationTimeoutSeconds.ValueInt64()) * time.Second
 
 	// Create operation function for retry logic
 	updateOperation := func() ([]byte, diag.Diagnostics, int) {
+		// Create a fresh reader for each retry attempt to avoid consuming the same reader multiple times
+		requestData := bytes.NewReader(updateRequestBody)
 		return r.client.UpdateWithStatus(data.URL.ValueString(), requestData)
 	}
 
@@ -316,7 +317,7 @@ func (r *HostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	// Get the response body after successful retry
-	updateResponseBody, diags, _ := r.client.UpdateWithStatus(data.URL.ValueString(), requestData)
+	updateResponseBody, diags, _ := updateOperation()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
