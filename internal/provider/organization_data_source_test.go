@@ -39,7 +39,7 @@ func TestOrganizationDataSourceSchema(t *testing.T) {
 func TestOrganizationDataSourceValidateConfig(t *testing.T) {
 	t.Parallel()
 
-	var testTable = []struct {
+	testTable := []struct {
 		name               string
 		hasId              bool
 		hasName            bool
@@ -177,7 +177,7 @@ func TestOrganizationDataSourceParseHttpResponse(t *testing.T) {
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
-	var testTable = []struct {
+	testTable := []struct {
 		name     string
 		input    []byte
 		expected OrganizationDataSourceModel
@@ -318,6 +318,7 @@ func createTestAccOrganizationDataSourceHCL(id string) string {
 	return fmt.Sprintf(`
 data "aap_organization" "default_org" {
   id = %s
+  description = "The default organization for Ansible Automation Platform"
 }
 `, id)
 }
@@ -326,6 +327,7 @@ func createTestAccOrganizationDataSourceNamedUrlHCL(name string) string {
 	return fmt.Sprintf(`
 data "aap_organization" "default_org" {
   name = "%s"
+  description = "The default organization for Ansible Automation Platform"
 }
 `, name)
 }
@@ -342,6 +344,7 @@ func testAccOrganizationDataSourceWithIdAndNameHCL(id string, name string) strin
 data "aap_organization" "default_org" {
   id   = %s
   name = "%s"
+  description = "The default organization for Ansible Automation Platform"
 }
 `, id, name)
 }
