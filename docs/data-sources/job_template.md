@@ -57,6 +57,7 @@ output "job_template_with_name_and_org_name" {
 
 ### Optional
 
+- `description` (String) Description of the JobTemplate
 - `id` (Number) JobTemplate id
 - `name` (String) Name of the JobTemplate
 - `organization` (Number) Identifier for the organization to which the JobTemplate belongs
@@ -64,7 +65,6 @@ output "job_template_with_name_and_org_name" {
 
 ### Read-Only
 
-- `description` (String) Description of the JobTemplate
 - `named_url` (String) The Named Url of the JobTemplate
 - `url` (String) Url of the JobTemplate
 - `variables` (String, Deprecated) Variables of the JobTemplate. Will be either JSON or YAML string depending on how the variables were entered into AAP.

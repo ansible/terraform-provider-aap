@@ -62,12 +62,12 @@ resource "aap_inventory" "example" {
 
 ### Optional
 
+- `description` (String) Description of the Organization
 - `id` (Number) Organization id
 - `name` (String) Name of the Organization
 
 ### Read-Only
 
-- `description` (String) Description of the Organization
 - `named_url` (String) The Named Url of the Organization
 - `url` (String) Url of the Organization
 - `variables` (String, Deprecated) Variables of the Organization. Will be either JSON or YAML string depending on how the variables were entered into AAP.
