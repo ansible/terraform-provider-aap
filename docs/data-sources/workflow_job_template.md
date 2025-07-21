@@ -59,12 +59,12 @@ output "workflow_job_template_with_name_and_org_name" {
 
 - `id` (Number) WorkflowJobTemplate id
 - `name` (String) Name of the WorkflowJobTemplate
+- `organization` (Number) Identifier for the organization to which the WorkflowJobTemplate belongs
 - `organization_name` (String) The name for the organization to which the WorkflowJobTemplate belongs
 
 ### Read-Only
 
 - `description` (String) Description of the WorkflowJobTemplate
 - `named_url` (String) The Named Url of the WorkflowJobTemplate
-- `organization` (Number) Identifier for the organization to which the WorkflowJobTemplate belongs
 - `url` (String) Url of the WorkflowJobTemplate
 - `variables` (String, Deprecated) Variables of the WorkflowJobTemplate. Will be either JSON or YAML string depending on how the variables were entered into AAP.

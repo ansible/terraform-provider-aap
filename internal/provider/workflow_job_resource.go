@@ -92,8 +92,7 @@ func (r *WorkflowJobResource) Schema(_ context.Context, _ resource.SchemaRequest
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
-				Description: "Identifier for the inventory the job will be run against. " +
-					"If not provided, the job will run against the default inventory.",
+				Description: "Identifier for the inventory the job will be run against.",
 			},
 			"workflow_job_template_id": schema.Int64Attribute{
 				Required:    true,
@@ -221,19 +220,15 @@ func (r WorkflowJobResource) Delete(_ context.Context, _ resource.DeleteRequest,
 // CreateRequestBody creates a JSON encoded request body from the workflow job resource data
 func (r *WorkflowJobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	var diags diag.Diagnostics
-	var inventoryID int64
-
-	// Use default inventory if not provided
-	if r.InventoryID.ValueInt64() == 0 {
-		inventoryID = 1
-	} else {
-		inventoryID = r.InventoryID.ValueInt64()
-	}
 
 	// Convert workflow job resource data to API data model
 	workflowJob := WorkflowJobAPIModel{
 		ExtraVars: r.ExtraVars.ValueString(),
-		Inventory: inventoryID,
+	}
+
+	// Set inventory id if provided
+	if r.InventoryID.ValueInt64() != 0 {
+		workflowJob.Inventory = r.InventoryID.ValueInt64()
 	}
 
 	// Create JSON encoded request body

@@ -9,7 +9,7 @@ import (
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	fwdatasource "github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
@@ -55,17 +55,17 @@ func TestWorkflowJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			name:  "missing values",
 			input: []byte(`{"id":1,"organization":2,"url":"/workflow_job_templates/1/"}`),
 			expected: WorkflowJobTemplateDataSourceModel{
-				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
-					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:          types.Int64Value(1),
-						Name:        types.StringNull(),
-						Description: types.StringNull(),
-						NamedUrl:    types.StringNull(),
-						URL:         types.StringValue("/workflow_job_templates/1/"),
+				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
+					BaseDetailSourceModel: BaseDetailSourceModel{
+						Id:          tftypes.Int64Value(1),
+						URL:         tftypes.StringValue("/workflow_job_templates/1/"),
+						Description: tftypes.StringNull(),
+						Name:        tftypes.StringNull(),
+						NamedUrl:    tftypes.StringNull(),
 						Variables:   customtypes.NewAAPCustomStringNull(),
 					},
-					Organization:     types.Int64Value(2),
-					OrganizationName: types.StringNull(),
+					Organization:     tftypes.Int64Value(2),
+					OrganizationName: tftypes.StringNull(),
 				},
 			},
 			errors: diag.Diagnostics{},
@@ -77,17 +77,17 @@ func TestWorkflowJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 					`"description":"My Test Job Template","variables":"{\"foo\":\"bar\"}"}`,
 			),
 			expected: WorkflowJobTemplateDataSourceModel{
-				BaseDetailDataSourceModelWithOrg: BaseDetailDataSourceModelWithOrg{
-					BaseDetailDataSourceModel: BaseDetailDataSourceModel{
-						Id:          types.Int64Value(1),
-						Name:        types.StringValue("my job template"),
-						Description: types.StringValue("My Test Job Template"),
-						URL:         types.StringValue("/workflow_job_templates/1/"),
-						NamedUrl:    types.StringNull(),
+				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
+					BaseDetailSourceModel: BaseDetailSourceModel{
+						Id:          tftypes.Int64Value(1),
+						URL:         tftypes.StringValue("/workflow_job_templates/1/"),
+						Description: tftypes.StringValue("My Test Job Template"),
+						NamedUrl:    tftypes.StringNull(),
+						Name:        tftypes.StringValue("my job template"),
 						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
-					Organization:     types.Int64Value(2),
-					OrganizationName: types.StringNull(),
+					Organization:     tftypes.Int64Value(2),
+					OrganizationName: tftypes.StringNull(),
 				},
 			},
 			errors: diag.Diagnostics{},
@@ -135,6 +135,15 @@ func TestAccWorkflowJobTemplateDataSource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("data.aap_workflow_job_template.test", "url"),
 				),
 			},
+			// Read
+			{
+				Config: testAccWorkflowJobTemplateDataSourceVariable(),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.aap_workflow_job_template.test", "name"),
+					resource.TestCheckResourceAttrSet("data.aap_workflow_job_template.test", "organization"),
+					resource.TestCheckResourceAttrSet("data.aap_workflow_job_template.test", "url"),
+				),
+			},
 		},
 		CheckDestroy: testAccCheckInventoryResourceDestroy,
 	})
@@ -156,4 +165,18 @@ data "aap_workflow_job_template" "test" {
   organization_name = "%s"
 }
 `, name, orgName)
+}
+
+func testAccWorkflowJobTemplateDataSourceVariable() string {
+	return `
+variable "workflow_job_template_name" {
+  description = "Name of the AAP Workflow Job Template to run"
+  type        = string
+  default     = "Demo Workflow Job Template"
+}
+
+data "aap_workflow_job_template" "test" {
+  name = var.workflow_job_template_name
+  organization_name = "Default"
+}`
 }

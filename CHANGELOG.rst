@@ -4,6 +4,29 @@ Terraform Provider for AAP Release Notes
 
 .. contents:: Topics
 
+v1.3.0-prerelease2
+==================
+
+Bugfixes
+--------
+
+- Fix issue with unknown values during plan phase.
+- Prevent workflow job from using a default inventory id.
+
+v1.3.0-prerelease
+=================
+
+Release Summary
+---------------
+
+Feature release
+
+Minor Changes
+-------------
+
+- Adds support for Darwin arm64/amd64 and Linux arm64.
+- Fixes issue where Inventory could become inconsistent.
+
 v1.2.0
 ======
 

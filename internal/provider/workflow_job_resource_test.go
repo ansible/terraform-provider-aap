@@ -57,7 +57,7 @@ func TestWorkflowJobResourceCreateRequestBody(t *testing.T) {
 				InventoryID: basetypes.NewInt64Unknown(),
 				TemplateID:  types.Int64Value(1),
 			},
-			expected: []byte(`{"inventory":1}`),
+			expected: []byte(`{}`),
 		},
 		{
 			name: "null values",
@@ -66,7 +66,7 @@ func TestWorkflowJobResourceCreateRequestBody(t *testing.T) {
 				InventoryID: basetypes.NewInt64Null(),
 				TemplateID:  types.Int64Value(1),
 			},
-			expected: []byte(`{"inventory":1}`),
+			expected: []byte(`{}`),
 		},
 		{
 			name: "extra vars only",
@@ -74,7 +74,7 @@ func TestWorkflowJobResourceCreateRequestBody(t *testing.T) {
 				ExtraVars:   customtypes.NewAAPCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Null(),
 			},
-			expected: []byte(`{"inventory":1,"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
+			expected: []byte(`{"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
 		},
 		{
 			name: "inventory vars only",
@@ -280,6 +280,35 @@ func TestAccAAPWorkflowJob_Basic(t *testing.T) {
 	})
 }
 
+func TestAccAAPWorkflowJobWithNoInventoryID(t *testing.T) {
+	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_INVENTORY_ID")
+	inventoryID := os.Getenv("AAP_TEST_INVENTORY_FOR_WF_ID")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create and Read testing
+			{
+				Config: testAccWorkflowJobWithNoInventoryID(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr("aap_workflow_job.wf_job", "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
+					resource.TestMatchResourceAttr("aap_workflow_job.wf_job", "url", regexp.MustCompile("^/api(/controller)?/v2/workflow_jobs/[0-9]*/$")),
+					resource.TestCheckResourceAttr("aap_workflow_job.wf_job", "inventory_id", inventoryID),
+					resource.TestCheckResourceAttrWith("aap_workflow_job.wf_job", "inventory_id", func(value string) error {
+						if value == "1" {
+							return fmt.Errorf("inventory_id should not be 1, got %s", value)
+						}
+						return nil
+					}),
+					testAccCheckWorkflowJobExists,
+					// assert that inventory id returned is not 1 and matches the new one.
+				),
+			},
+		},
+	})
+}
+
 func TestAccAAPWorkflowJob_UpdateWithSameParameters(t *testing.T) {
 	var jobURLBefore string
 
@@ -339,6 +368,7 @@ func TestAccAAPWorkflowJob_UpdateWithNewInventoryIdPromptOnLaunch(t *testing.T) 
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestMatchResourceAttr("aap_workflow_job.test", "status", regexp.MustCompile("^(failed|pending|running|complete|successful|waiting)$")),
 					resource.TestMatchResourceAttr("aap_workflow_job.test", "url", regexp.MustCompile("^/api(/controller)?/v2/workflow_jobs/[0-9]*/$")),
+
 					testAccCheckWorkflowJobUpdate(&jobURLBefore, true),
 					// Wait for the job to finish so the inventory can be deleted
 					testAccCheckWorkflowJobPause(ctx, "aap_workflow_job.test"),
@@ -418,6 +448,17 @@ resource "aap_workflow_job" "test" {
 	workflow_job_template_id   = %s
 }
 `, jobTemplateID)
+}
+
+func testAccWorkflowJobWithNoInventoryID(workflowJobTemplateID string) string {
+	return fmt.Sprintf(`
+resource "aap_workflow_job" "wf_job" {
+	workflow_job_template_id = %s
+	extra_vars = jsonencode({
+    "foo": "bar"
+	})
+}
+	`, workflowJobTemplateID)
 }
 
 func testAccUpdateWorkflowJobWithInventoryID(inventoryName, jobTemplateID string) string {

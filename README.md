@@ -53,7 +53,9 @@ export AAP_INSECURE_SKIP_VERIFY=true
 export AAP_HOST=<your aap instance host url> # "http://localhost:9080" or "https://localhost:8043"
 ```
 
-In order to run the acceptance tests for the job resource, you must have templates for job and worklow already in your AAP instance. The templates must be set to require an inventory on launch and the Workflow Template must be named "Demo Workflow Job Template". Export the IDs of these job templates:
+In order to run the acceptance tests for the job resource, you must have templates for job and worklow already in your AAP instance. The templates must be set to require an inventory on launch and the Workflow Template must be named "Demo Workflow Job Template". Then associate the Workflow Template with the "Default" organization.
+
+Export the IDs of these job templates:
 
 ```bash
 export AAP_TEST_JOB_TEMPLATE_ID=<the ID of a job template in your AAP instance>
@@ -63,7 +65,18 @@ export AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID=<the ID of a workflow job template in y
 The inventory resource test requires the AAP instance to have a second organization with the name `Non-Default` and export that ID:
 
 ```bash
-export AAP_TEST_ORGANIZATION_ID=<the ID of the second organization in your AAP instance>
+export AAP_TEST_ORGANIZATION_ID=<the ID of Non-Default in your AAP instance>
+```
+Create inventory `Inventory For Workflow"` on Default organization
+Create a Workflow Job Template called `Workflow with Inventory`
+  - Assign organization to `Default`
+  - Assign `Inventory For Workflow`
+  - Make sure `Prompt on launch` **is not checked** for the inventory
+  - Make sure `Prompt on launch` **is checked** for `Extra variables`
+  - Add a default step and save
+```bash
+export AAP_TEST_WORKFLOW_INVENTORY_ID=<the ID of `Workflow with Inventory`>
+export AAP_TEST_INVENTORY_FOR_WF_ID=<the ID of `Inventory For Workflow"`>
 ```
 
 Then you can run acceptance tests with `make testacc`.
@@ -90,7 +103,8 @@ To release a new version of the provider:
 
 ## Supported Platforms
 
-1. Linux / AMD64
+1. Linux AMD64 and ARM64
+2. Darwin AMD64 and ARM64
 
 ## Licensing
 
