@@ -176,7 +176,7 @@ func TestAccInventoryResource(t *testing.T) {
 	updatedDescription := "A test inventory"
 	updatedVariables := "{\"foo\": \"bar\"}"
 	resource.Test(t, resource.TestCase{
-		
+
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
