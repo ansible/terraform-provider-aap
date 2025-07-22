@@ -318,7 +318,6 @@ func createTestAccOrganizationDataSourceHCL(id string) string {
 	return fmt.Sprintf(`
 data "aap_organization" "default_org" {
   id = %s
-  description = "The default organization for Ansible Automation Platform"
 }
 `, id)
 }
@@ -327,7 +326,6 @@ func createTestAccOrganizationDataSourceNamedUrlHCL(name string) string {
 	return fmt.Sprintf(`
 data "aap_organization" "default_org" {
   name = "%s"
-  description = "The default organization for Ansible Automation Platform"
 }
 `, name)
 }
