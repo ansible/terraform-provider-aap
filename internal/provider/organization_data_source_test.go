@@ -39,7 +39,7 @@ func TestOrganizationDataSourceSchema(t *testing.T) {
 func TestOrganizationDataSourceValidateConfig(t *testing.T) {
 	t.Parallel()
 
-	testTable := []struct {
+	var testTable = []struct {
 		name               string
 		hasId              bool
 		hasName            bool
@@ -177,7 +177,7 @@ func TestOrganizationDataSourceParseHttpResponse(t *testing.T) {
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
-	testTable := []struct {
+	var testTable = []struct {
 		name     string
 		input    []byte
 		expected OrganizationDataSourceModel
