@@ -90,7 +90,6 @@ func (d *BaseDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 				Description: fmt.Sprintf("Name of the %s", d.DescriptiveEntityName),
 			},
 			"description": schema.StringAttribute{
-				Optional:    true,
 				Computed:    true,
 				Description: fmt.Sprintf("Description of the %s", d.DescriptiveEntityName),
 			},

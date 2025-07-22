@@ -74,6 +74,7 @@ export AAP_TEST_ORGANIZATION_ID=<the ID of Non-Default in your AAP instance>
   - Make sure `Prompt on launch` **is not checked** for the inventory
   - Make sure `Prompt on launch` **is checked** for `Extra variables`
   - Add a default step and save
+3. If 2.4 set the description for Default Organization to `The default organization for Ansible Automation Platform`
 ```bash
 export AAP_TEST_WORKFLOW_INVENTORY_ID=<the ID of `Workflow with Inventory`>
 export AAP_TEST_INVENTORY_FOR_WF_ID=<the ID of `Inventory For Workflow"`>
