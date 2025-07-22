@@ -342,7 +342,6 @@ func testAccOrganizationDataSourceWithIdAndNameHCL(id string, name string) strin
 data "aap_organization" "default_org" {
   id   = %s
   name = "%s"
-  description = "The default organization for Ansible Automation Platform"
 }
 `, id, name)
 }
