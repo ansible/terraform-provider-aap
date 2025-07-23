@@ -3,8 +3,10 @@ package provider
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/http"
 	"path"
 	"slices"
@@ -31,6 +33,20 @@ import (
 
 // operationTimeoutDefault is the default timeout in seconds for delete and update operations when the host is being used by running jobs (HTTP 409 conflicts).
 const operationTimeoutDefault int64 = 600
+
+// Retry state constants
+const (
+	retryStateRetrying = "retrying"
+	retryStateSuccess  = "success"
+)
+
+// Retry timing constants
+const (
+	minTimeoutSeconds      = 2
+	initialDelaySeconds    = 1
+	jitterTimeoutThreshold = 30
+	maxJitterSeconds       = 3
+)
 
 // Host AAP API model
 type HostAPIModel struct {
@@ -159,7 +175,9 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			" by running jobs. When a delete or update operation encounters a 409 error, the provider will automatically retry the operation until either" +
 			" (1) The operation succeeds or (2) The configured timeout is reached. The `operation_timeout_seconds` field controls how long the provider will wait" +
 			" before giving up. The default timeout is " + strconv.FormatInt(operationTimeoutDefault, 10) + " seconds (" +
-			strconv.FormatInt(operationTimeoutDefault/60, 10) + " minutes). You can adjust this value based on your typical job execution times.",
+			strconv.FormatInt(operationTimeoutDefault/60, 10) + " minutes). You can adjust this value based on your typical job execution times." +
+			"\n\nThe retry logic also handles other transient errors (408, 429, 500, 502, 503, 504) and includes" +
+			" exponential backoff with jitter to prevent API overload.",
 	}
 }
 
@@ -306,8 +324,15 @@ func (r *HostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return r.client.UpdateWithStatus(data.URL.ValueString(), requestData)
 	}
 
-	// Use retry logic to handle HTTP 409 errors
-	err := retry.RetryContext(ctx, timeout, retryUntilHostUnused(updateOperation))
+	// Use StateChangeConf for sophisticated retry logic with exponential backoff
+	stateConf := createRetryStateChangeConf(
+		updateOperation,
+		timeout,
+		[]int{http.StatusOK, http.StatusNoContent},
+		"update host",
+	)
+
+	result, err := stateConf.WaitForStateContext(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating host",
@@ -316,12 +341,8 @@ func (r *HostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	// Get the response body after successful retry
-	updateResponseBody, diags, _ := updateOperation()
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	// Extract the response body from the successful result
+	updateResponseBody := result.([]byte)
 
 	// Save updated host data into host resource model
 	diags = data.ParseHttpResponse(updateResponseBody)
@@ -370,8 +391,15 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return r.client.DeleteWithStatus(data.URL.ValueString())
 	}
 
-	// Use retry logic to handle HTTP 409 errors
-	err := retry.RetryContext(ctx, timeout, retryUntilHostUnused(deleteOperation))
+	// Use StateChangeConf for sophisticated retry logic with exponential backoff
+	stateConf := createRetryStateChangeConf(
+		deleteOperation,
+		timeout,
+		[]int{http.StatusNoContent, http.StatusAccepted},
+		"delete host",
+	)
+
+	_, err := stateConf.WaitForStateContext(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting host",
@@ -595,20 +623,58 @@ func (r *HostResource) AssociateGroups(ctx context.Context, data []int64, url st
 	return diags
 }
 
-// retryUntilHostUnused retries operations when the host is being used by running jobs (HTTP 409)
-func retryUntilHostUnused(operation func() ([]byte, diag.Diagnostics, int)) retry.RetryFunc {
-	return func() *retry.RetryError {
-		_, diags, statusCode := operation()
+// createRetryStateChangeConf creates a StateChangeConf for retrying operations with exponential backoff
+// when the host is being used by running jobs or encounters other transient errors
+func createRetryStateChangeConf(
+	operation func() ([]byte, diag.Diagnostics, int),
+	timeout time.Duration,
+	successStatusCodes []int,
+	operationName string,
+) *retry.StateChangeConf {
+	stateConf := &retry.StateChangeConf{
+		Pending: []string{retryStateRetrying},
+		Target:  []string{retryStateSuccess},
+		Refresh: func() (interface{}, string, error) {
+			body, diags, statusCode := operation()
 
-		if statusCode == http.StatusConflict {
-			return retry.RetryableError(fmt.Errorf("host is currently being used by running jobs (HTTP 409)"))
-		}
-		if statusCode != http.StatusOK && statusCode != http.StatusNoContent {
-			return retry.NonRetryableError(fmt.Errorf("unexpected status code: %d", statusCode))
-		}
-		if diags.HasError() {
-			return retry.NonRetryableError(fmt.Errorf("non-retryable error occurred: %v", diags))
-		}
-		return nil
+			// Check for retryable status codes
+			switch statusCode {
+			case http.StatusConflict:
+				return nil, retryStateRetrying, nil // Keep retrying
+			case http.StatusRequestTimeout, http.StatusTooManyRequests,
+				http.StatusInternalServerError, http.StatusBadGateway,
+				http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+				return nil, retryStateRetrying, nil // Keep retrying
+			}
+
+			// Check for success cases
+			for _, successCode := range successStatusCodes {
+				if statusCode == successCode {
+					if diags.HasError() {
+						return nil, "", fmt.Errorf("%s succeeded but diagnostics has errors: %v", operationName, diags)
+					}
+					return body, retryStateSuccess, nil
+				}
+			}
+
+			// Non-retryable error
+			return nil, "", fmt.Errorf("non-retryable HTTP status %d for %s", statusCode, operationName)
+		},
+		Timeout:    timeout,
+		MinTimeout: minTimeoutSeconds * time.Second,   // Minimum wait between retries
+		Delay:      initialDelaySeconds * time.Second, // Initial delay before first retry
 	}
+
+	// Add jitter to prevent thundering herd - randomize the MinTimeout
+	if timeout > jitterTimeoutThreshold*time.Second {
+		// For longer timeouts, add more jitter using crypto/rand for better security
+		maxJitter := big.NewInt(maxJitterSeconds)
+		jitterBig, err := rand.Int(rand.Reader, maxJitter)
+		if err == nil {
+			jitter := time.Duration(jitterBig.Int64()) * time.Second      // 0-2 seconds
+			stateConf.MinTimeout = minTimeoutSeconds*time.Second + jitter // 2-4 seconds total
+		}
+	}
+
+	return stateConf
 }

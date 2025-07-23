@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -118,7 +119,7 @@ func TestHostResourceSchema(t *testing.T) {
 }
 
 func TestHostResourceCreateRequestBody(t *testing.T) {
-	var testTable = []struct {
+	testTable := []struct {
 		name     string
 		input    HostResourceModel
 		expected []byte
@@ -214,7 +215,7 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
-	var testTable = []struct {
+	testTable := []struct {
 		name     string
 		input    []byte
 		expected HostResourceModel
@@ -433,4 +434,435 @@ func testAccCheckHostResourceDestroy(s *terraform.State) error {
 	}
 
 	return nil
+}
+
+// Unit tests for createRetryStateChangeConf function
+
+// Helper function to create test scenarios for successful operations
+func createSuccessTestScenarios() []struct {
+	name               string
+	operationResponses []operationResponse
+	timeout            time.Duration
+	successStatusCodes []int
+	operationName      string
+	expectSuccess      bool
+	expectedError      string
+} {
+	return []struct {
+		name               string
+		operationResponses []operationResponse
+		timeout            time.Duration
+		successStatusCodes []int
+		operationName      string
+		expectSuccess      bool
+		expectedError      string
+	}{
+		{
+			name: "successful operation - 200 OK",
+			operationResponses: []operationResponse{
+				{body: []byte("success"), diags: diag.Diagnostics{}, statusCode: 200},
+			},
+			timeout:            30 * time.Second,
+			successStatusCodes: []int{200, 204},
+			operationName:      "test operation",
+			expectSuccess:      true,
+		},
+		{
+			name: "successful operation - 204 No Content",
+			operationResponses: []operationResponse{
+				{body: []byte(""), diags: diag.Diagnostics{}, statusCode: 204},
+			},
+			timeout:            30 * time.Second,
+			successStatusCodes: []int{200, 204},
+			operationName:      "test operation",
+			expectSuccess:      true,
+		},
+		{
+			name: "successful operation - 202 Accepted (delete)",
+			operationResponses: []operationResponse{
+				{body: []byte(""), diags: diag.Diagnostics{}, statusCode: 202},
+			},
+			timeout:            30 * time.Second,
+			successStatusCodes: []int{202, 204},
+			operationName:      "delete operation",
+			expectSuccess:      true,
+		},
+	}
+}
+
+// Helper function to create retry test scenarios
+func createRetryTestScenarios() []struct {
+	name               string
+	operationResponses []operationResponse
+	timeout            time.Duration
+	successStatusCodes []int
+	operationName      string
+	expectSuccess      bool
+	expectedError      string
+} {
+	return []struct {
+		name               string
+		operationResponses []operationResponse
+		timeout            time.Duration
+		successStatusCodes []int
+		operationName      string
+		expectSuccess      bool
+		expectedError      string
+	}{
+		{
+			name: "retry on 409 conflict then success",
+			operationResponses: []operationResponse{
+				{body: []byte(""), diags: diag.Diagnostics{}, statusCode: 409},
+				{body: []byte("success"), diags: diag.Diagnostics{}, statusCode: 200},
+			},
+			timeout:            30 * time.Second,
+			successStatusCodes: []int{200, 204},
+			operationName:      "test operation",
+			expectSuccess:      true,
+		},
+		{
+			name: "retry on 429 rate limit then success",
+			operationResponses: []operationResponse{
+				{body: []byte(""), diags: diag.Diagnostics{}, statusCode: 429},
+				{body: []byte("success"), diags: diag.Diagnostics{}, statusCode: 200},
+			},
+			timeout:            30 * time.Second,
+			successStatusCodes: []int{200, 204},
+			operationName:      "test operation",
+			expectSuccess:      true,
+		},
+		{
+			name: "retry on 500 internal error then success",
+			operationResponses: []operationResponse{
+				{body: []byte(""), diags: diag.Diagnostics{}, statusCode: 500},
+				{body: []byte("success"), diags: diag.Diagnostics{}, statusCode: 200},
+			},
+			timeout:            30 * time.Second,
+			successStatusCodes: []int{200, 204},
+			operationName:      "test operation",
+			expectSuccess:      true,
+		},
+		{
+			name: "retry on 502 bad gateway then success",
+			operationResponses: []operationResponse{
+				{body: []byte(""), diags: diag.Diagnostics{}, statusCode: 502},
+				{body: []byte("success"), diags: diag.Diagnostics{}, statusCode: 200},
+			},
+			timeout:            30 * time.Second,
+			successStatusCodes: []int{200, 204},
+			operationName:      "test operation",
+			expectSuccess:      true,
+		},
+		{
+			name: "retry on 503 service unavailable then success",
+			operationResponses: []operationResponse{
+				{body: []byte(""), diags: diag.Diagnostics{}, statusCode: 503},
+				{body: []byte("success"), diags: diag.Diagnostics{}, statusCode: 200},
+			},
+			timeout:            30 * time.Second,
+			successStatusCodes: []int{200, 204},
+			operationName:      "test operation",
+			expectSuccess:      true,
+		},
+		{
+			name: "retry on 504 gateway timeout then success",
+			operationResponses: []operationResponse{
+				{body: []byte(""), diags: diag.Diagnostics{}, statusCode: 504},
+				{body: []byte("success"), diags: diag.Diagnostics{}, statusCode: 200},
+			},
+			timeout:            30 * time.Second,
+			successStatusCodes: []int{200, 204},
+			operationName:      "test operation",
+			expectSuccess:      true,
+		},
+		{
+			name: "retry on 408 request timeout then success",
+			operationResponses: []operationResponse{
+				{body: []byte(""), diags: diag.Diagnostics{}, statusCode: 408},
+				{body: []byte("success"), diags: diag.Diagnostics{}, statusCode: 200},
+			},
+			timeout:            30 * time.Second,
+			successStatusCodes: []int{200, 204},
+			operationName:      "test operation",
+			expectSuccess:      true,
+		},
+	}
+}
+
+// Helper function to create error test scenarios
+func createErrorTestScenarios() []struct {
+	name               string
+	operationResponses []operationResponse
+	timeout            time.Duration
+	successStatusCodes []int
+	operationName      string
+	expectSuccess      bool
+	expectedError      string
+} {
+	return []struct {
+		name               string
+		operationResponses []operationResponse
+		timeout            time.Duration
+		successStatusCodes []int
+		operationName      string
+		expectSuccess      bool
+		expectedError      string
+	}{
+		{
+			name: "non-retryable error - 400 bad request",
+			operationResponses: []operationResponse{
+				{body: []byte("bad request"), diags: diag.Diagnostics{}, statusCode: 400},
+			},
+			timeout:            30 * time.Second,
+			successStatusCodes: []int{200, 204},
+			operationName:      "test operation",
+			expectSuccess:      false,
+			expectedError:      "non-retryable HTTP status 400",
+		},
+		{
+			name: "non-retryable error - 404 not found",
+			operationResponses: []operationResponse{
+				{body: []byte("not found"), diags: diag.Diagnostics{}, statusCode: 404},
+			},
+			timeout:            30 * time.Second,
+			successStatusCodes: []int{200, 204},
+			operationName:      "test operation",
+			expectSuccess:      false,
+			expectedError:      "non-retryable HTTP status 404",
+		},
+		{
+			name: "success status but with diagnostics errors",
+			operationResponses: []operationResponse{
+				{
+					body: []byte("success"),
+					diags: func() diag.Diagnostics {
+						d := diag.Diagnostics{}
+						d.AddError("Test Error", "Something went wrong")
+						return d
+					}(),
+					statusCode: 200,
+				},
+			},
+			timeout:            30 * time.Second,
+			successStatusCodes: []int{200, 204},
+			operationName:      "diagnostics error operation",
+			expectSuccess:      false,
+			expectedError:      "diagnostics error operation succeeded but diagnostics has errors",
+		},
+	}
+}
+
+// Helper function to run a single test scenario
+func runRetryTestScenario(t *testing.T, test struct {
+	name               string
+	operationResponses []operationResponse
+	timeout            time.Duration
+	successStatusCodes []int
+	operationName      string
+	expectSuccess      bool
+	expectedError      string
+},
+) {
+	t.Run(test.name, func(t *testing.T) {
+		// Create mock operation that cycles through responses
+		callCount := 0
+		mockOperation := func() ([]byte, diag.Diagnostics, int) {
+			if callCount < len(test.operationResponses) {
+				response := test.operationResponses[callCount]
+				callCount++
+				return response.body, response.diags, response.statusCode
+			}
+			// If we've run out of responses, return the last one
+			response := test.operationResponses[len(test.operationResponses)-1]
+			return response.body, response.diags, response.statusCode
+		}
+
+		// Create the StateChangeConf
+		stateConf := createRetryStateChangeConf(
+			mockOperation,
+			test.timeout,
+			test.successStatusCodes,
+			test.operationName,
+		)
+
+		// Test the refresh function - call it as many times as we have responses
+		var finalResult interface{}
+		var finalState string
+		var finalErr error
+
+		for i := 0; i < len(test.operationResponses); i++ {
+			finalResult, finalState, finalErr = stateConf.Refresh()
+
+			// For retry scenarios, if we're not on the last call and state is "retrying", continue
+			if i < len(test.operationResponses)-1 && finalState == "retrying" {
+				continue
+			}
+			// Otherwise break (success or error on final attempt)
+			break
+		}
+
+		if test.expectSuccess {
+			if finalErr != nil {
+				t.Errorf("Expected success, but got error: %v", finalErr)
+			}
+			if finalState != "success" {
+				t.Errorf("Expected state 'success', got %s", finalState)
+			}
+			if finalResult == nil {
+				t.Error("Expected non-nil result for successful operation")
+			}
+		} else {
+			if finalErr == nil {
+				t.Error("Expected error, but got nil")
+			}
+			if test.expectedError != "" && !strings.Contains(finalErr.Error(), test.expectedError) {
+				t.Errorf("Expected error to contain '%s', got: %v", test.expectedError, finalErr)
+			}
+		}
+	})
+}
+
+func TestCreateRetryStateChangeConf(t *testing.T) {
+	// Test successful operations
+	successTests := createSuccessTestScenarios()
+	for _, test := range successTests {
+		runRetryTestScenario(t, test)
+	}
+
+	// Test retry scenarios
+	retryTests := createRetryTestScenarios()
+	for _, test := range retryTests {
+		runRetryTestScenario(t, test)
+	}
+
+	// Test error scenarios
+	errorTests := createErrorTestScenarios()
+	for _, test := range errorTests {
+		runRetryTestScenario(t, test)
+	}
+}
+
+// TestCreateRetryStateChangeConfTimeoutConfiguration verifies that the retry timing configuration
+// is set up correctly based on the total timeout duration, particularly testing the jitter behavior.
+//
+// This test validates the anti-thundering-herd mechanism where:
+// 1. Short/medium timeouts (≤30s): Use fixed 2-second MinTimeout (no jitter needed for short operations)
+// 2. Long timeouts (>30s): Add crypto-secure jitter (0-2s) to MinTimeout to spread out retry attempts
+//
+// The jitter prevents multiple clients from retrying simultaneously, which could overwhelm the API.
+// This is especially important for long-running operations where many terraform processes might
+// be waiting for the same resource to become available.
+//
+// Test scenarios:
+// - 10s timeout: MinTimeout = 2s (no jitter)
+// - 30s timeout: MinTimeout = 2s (no jitter)
+// - 60s timeout: MinTimeout = 2-4s (with jitter)
+//
+// Also verifies that Delay is consistently set to 1 second (initial delay before first retry).
+func TestCreateRetryStateChangeConfTimeoutConfiguration(t *testing.T) {
+	operation := func() ([]byte, diag.Diagnostics, int) {
+		return []byte("success"), diag.Diagnostics{}, 200
+	}
+
+	tests := []struct {
+		name                    string
+		timeout                 time.Duration
+		expectedMinTimeoutRange []time.Duration // [min, max] range for jitter
+	}{
+		{
+			name:                    "short timeout - no jitter",
+			timeout:                 10 * time.Second,
+			expectedMinTimeoutRange: []time.Duration{2 * time.Second, 2 * time.Second},
+		},
+		{
+			name:                    "medium timeout - no jitter",
+			timeout:                 30 * time.Second,
+			expectedMinTimeoutRange: []time.Duration{2 * time.Second, 2 * time.Second},
+		},
+		{
+			name:                    "long timeout - with jitter",
+			timeout:                 60 * time.Second,
+			expectedMinTimeoutRange: []time.Duration{2 * time.Second, 4 * time.Second},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stateConf := createRetryStateChangeConf(operation, test.timeout, []int{200}, "test")
+
+			// Verify basic timing configuration
+			if stateConf.Delay != 1*time.Second {
+				t.Errorf("Expected Delay 1s, got %v", stateConf.Delay)
+			}
+
+			// Verify MinTimeout is within expected range
+			minTimeout := stateConf.MinTimeout
+			if minTimeout < test.expectedMinTimeoutRange[0] || minTimeout > test.expectedMinTimeoutRange[1] {
+				t.Errorf("Expected MinTimeout between %v and %v, got %v",
+					test.expectedMinTimeoutRange[0], test.expectedMinTimeoutRange[1], minTimeout)
+			}
+		})
+	}
+}
+
+// TestCreateRetryStateChangeConfAllRetryableStatusCodes verifies that each individual HTTP status code
+// we consider "retryable" properly triggers retry behavior instead of failing immediately.
+//
+// This test is critical because it:
+// 1. Validates each retryable status code in isolation (409, 408, 429, 500, 502, 503, 504)
+// 2. Ensures the state machine transitions correctly: first call returns "retrying", second call succeeds
+// 3. Protects against regressions where someone accidentally removes a status code from retry logic
+// 4. Documents all retryable status codes in one place for maintainability
+//
+// Test pattern for each status code:
+// - First call: Returns the retryable status → Should get "retrying" state (no error)
+// - Second call: Returns HTTP 200 success → Should get "success" state with result
+func TestCreateRetryStateChangeConfAllRetryableStatusCodes(t *testing.T) {
+	retryableStatusCodes := []int{409, 408, 429, 500, 502, 503, 504}
+
+	for _, statusCode := range retryableStatusCodes {
+		t.Run(fmt.Sprintf("retryable_status_%d", statusCode), func(t *testing.T) {
+			callCount := 0
+			operation := func() ([]byte, diag.Diagnostics, int) {
+				callCount++
+				if callCount == 1 {
+					return []byte(""), diag.Diagnostics{}, statusCode
+				}
+				return []byte("success"), diag.Diagnostics{}, 200
+			}
+
+			stateConf := createRetryStateChangeConf(operation, 30*time.Second, []int{200}, "test")
+
+			// First call should return "retrying" state
+			result, state, err := stateConf.Refresh()
+			if err != nil {
+				t.Errorf("First call should not error for retryable status %d, got: %v", statusCode, err)
+			}
+			if state != "retrying" {
+				t.Errorf("Expected state 'retrying' for status %d, got %s", statusCode, state)
+			}
+			if result != nil {
+				t.Errorf("Expected nil result for retrying state, got %v", result)
+			}
+
+			// Second call should succeed
+			result, state, err = stateConf.Refresh()
+			if err != nil {
+				t.Errorf("Second call should succeed, got error: %v", err)
+			}
+			if state != "success" {
+				t.Errorf("Expected state 'success', got %s", state)
+			}
+			if result == nil {
+				t.Error("Expected non-nil result for successful operation")
+			}
+		})
+	}
+}
+
+// Helper struct for test data
+type operationResponse struct {
+	body       []byte
+	diags      diag.Diagnostics
+	statusCode int
 }
