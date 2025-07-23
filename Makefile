@@ -25,11 +25,11 @@ testcov: ## Execute all unit tests with verbose output and coverage output as ./
 
 testacc: ## Run Acceptance tests against aap instance (See README.md for env variables)
 	@echo "==> Running acceptance tests..."
-	TF_ACC=1 go test -count=1 -v ./...
+	TF_ACC=1 go test -count=1 -v -parallel=1 -p=1 -timeout=30m ./...
 
 testacccov: ## Run Acceptance tests against aap instance (See README.md for env variables) and coverage output as ./acc-cov.out
 	@echo "==> Running acceptance tests with coverage..."
-	TF_ACC=1 go test -count=1 -v ./... --coverprofile=./acceptance-testing.cov
+	TF_ACC=1 go test -count=1 -v -parallel=1 -p=1 -timeout=30m ./... --coverprofile=./acceptance-testing.cov
 
 generatedocs: ## Format example Terraform configurations and generate plugin documentation.
 	@echo "==> Formatting examples and generating docs..."

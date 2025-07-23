@@ -623,8 +623,15 @@ func (r *HostResource) AssociateGroups(ctx context.Context, data []int64, url st
 	return diags
 }
 
-// createRetryStateChangeConf creates a StateChangeConf for retrying operations with exponential backoff
-// when the host is being used by running jobs or encounters other transient errors
+// createRetryStateChangeConf creates a StateChangeConf for retrying operations with exponential backoff.
+// This follows Terraform provider best practices for handling transient API errors.
+//
+// Retryable scenarios based on RFC 7231 and industry standards:
+// - HTTP 409: Resource conflict (host in use by running jobs)
+// - HTTP 408/429: Client timeouts and rate limiting
+// - HTTP 5xx: Server-side transient errors
+//
+// Uses crypto/rand for jitter to prevent thundering herd in multi-client environments.
 func createRetryStateChangeConf(
 	operation func() ([]byte, diag.Diagnostics, int),
 	timeout time.Duration,
