@@ -67,17 +67,24 @@ The inventory resource test requires the AAP instance to have a second organizat
 ```bash
 export AAP_TEST_ORGANIZATION_ID=<the ID of Non-Default in your AAP instance>
 ```
-Create inventory `Inventory For Workflow"` on Default organization
-Create a Workflow Job Template called `Workflow with Inventory`
+The Workflow Job Template resource test requires the AAP instance to have an inventory named "Inventory For Workflow" and then a Workflow Job Template named "Workflow with Inventory".  Follow the below steps to get the data in AAP setup:
+
+1. Create inventory `Inventory For Workflow` on Default organization - make note of the ID for the Inventory
+2. Create a Workflow Job Template called `Workflow with Inventory` - make note of the ID of the Workflow Job Template.
   - Assign organization to `Default`
   - Assign `Inventory For Workflow`
   - Make sure `Prompt on launch` **is not checked** for the inventory
   - Make sure `Prompt on launch` **is checked** for `Extra variables`
   - Add a default step and save
+
+Export the following environment variables using the IDs from above:
+
 ```bash
 export AAP_TEST_WORKFLOW_INVENTORY_ID=<the ID of `Workflow with Inventory`>
-export AAP_TEST_INVENTORY_FOR_WF_ID=<the ID of `Inventory For Workflow"`>
+export AAP_TEST_INVENTORY_FOR_WF_ID=<the ID of `Inventory For Workflow`>
 ```
+
+AAP 2.4 version note - If you are running the tests against an AAP 2.4 version instance, set the description for Default Organization to `The default organization for Ansible Automation Platform`
 
 Then you can run acceptance tests with `make testacc`.
 
