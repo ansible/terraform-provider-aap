@@ -46,8 +46,6 @@ func TestIsContextActive(t *testing.T) {
 			}
 
 			if test.diagsShouldHaveErr {
-				// TODO Why doesn't HasError return true when there is a
-				// diag.ErrorDiagnostic in the list?
 				if !diags.HasError() {
 					t.Errorf("Expected error but received none.")
 				}
