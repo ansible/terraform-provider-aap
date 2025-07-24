@@ -22,6 +22,7 @@ func TestAccInventoryResourceWithOrganizationDataSource(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "id", "1"),
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "name", "Default"),
+					// if this fails on 2.4 you need to add this description to the Default organization.
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "description", "The default organization for Ansible Automation Platform"),
 					resource.TestCheckResourceAttr("aap_inventory.new_inventory", "name", randomInventoryName),
 					resource.TestCheckResourceAttr("data.aap_inventory.the_created_inventory", "name", randomInventoryName),
