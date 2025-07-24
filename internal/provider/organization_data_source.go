@@ -62,7 +62,7 @@ func (d *OrganizationDataSource) ValidateConfig(ctx context.Context, req datasou
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("ValidateConfig", ctx, resp.Diagnostics) {
+	if !IsContextActive("ValidateConfig", ctx, &resp.Diagnostics) {
 		return
 	}
 
