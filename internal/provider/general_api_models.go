@@ -82,3 +82,20 @@ type BaseResource struct {
 type BaseResourceWithOrg struct {
 	BaseResource
 }
+
+// BaseResourceModel describes fields in a Terraform resource.
+type BaseResourceModel struct {
+	Id          tftypes.Int64                    `tfsdk:"id"`
+	URL         tftypes.String                   `tfsdk:"url"`
+	Description tftypes.String                   `tfsdk:"description"`
+	Name        tftypes.String                   `tfsdk:"name"`
+	NamedUrl    tftypes.String                   `tfsdk:"named_url"`
+	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
+}
+
+// BaseResourceModelWithOrg represents a Terraform resource associated with an organization.
+type BaseResourceModelWithOrg struct {
+	BaseResourceModel
+	Organization     tftypes.Int64  `tfsdk:"organization"`
+	OrganizationName tftypes.String `tfsdk:"organization_name"`
+}
