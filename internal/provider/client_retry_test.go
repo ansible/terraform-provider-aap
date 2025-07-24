@@ -181,11 +181,11 @@ func TestCreateRetryStateChangeConfConfiguration(t *testing.T) {
 	if stateConf.Timeout != 30*time.Second {
 		t.Errorf("Expected timeout 30s, got %v", stateConf.Timeout)
 	}
-	if stateConf.MinTimeout != 2*time.Second {
-		t.Errorf("Expected MinTimeout 2s (no jitter for short timeout), got %v", stateConf.MinTimeout)
+	if stateConf.MinTimeout != 5*time.Second {
+		t.Errorf("Expected MinTimeout 5s (no jitter for short timeout), got %v", stateConf.MinTimeout)
 	}
-	if stateConf.Delay != 1*time.Second {
-		t.Errorf("Expected Delay 1s, got %v", stateConf.Delay)
+	if stateConf.Delay != 2*time.Second {
+		t.Errorf("Expected Delay 2s, got %v", stateConf.Delay)
 	}
 }
 

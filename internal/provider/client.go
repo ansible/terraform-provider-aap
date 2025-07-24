@@ -215,10 +215,10 @@ const (
 
 // Retry timing constants
 const (
-	minTimeoutSeconds      = 2  // Minimum wait between retries (seconds)
-	initialDelaySeconds    = 1  // Initial delay before first retry (seconds)
+	minTimeoutSeconds      = 5  // Minimum wait between retries (seconds)
+	initialDelaySeconds    = 2  // Initial delay before first retry (seconds)
 	jitterTimeoutThreshold = 60 // Add jitter for timeouts > 60 seconds
-	maxJitterSeconds       = 2  // Maximum jitter amount (seconds)
+	maxJitterSeconds       = 5  // Maximum jitter amount (seconds)
 )
 
 // CreateRetryStateChangeConf creates a StateChangeConf for retrying operations with exponential backoff.
