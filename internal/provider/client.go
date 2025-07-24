@@ -2,15 +2,18 @@ package provider
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
 
 // Provider Http Client interface (will be useful for unit tests)
@@ -202,4 +205,81 @@ func (c *AAPClient) DeleteWithStatus(path string) ([]byte, diag.Diagnostics, int
 		return body, diags, http.StatusInternalServerError
 	}
 	return body, diags, deleteResponse.StatusCode
+}
+
+// Retry state constants
+const (
+	retryStateRetrying = "retrying"
+	retryStateSuccess  = "success"
+)
+
+// Retry timing constants
+const (
+	minTimeoutSeconds      = 2  // Minimum wait between retries (seconds)
+	initialDelaySeconds    = 1  // Initial delay before first retry (seconds)
+	jitterTimeoutThreshold = 60 // Add jitter for timeouts > 60 seconds
+	maxJitterSeconds       = 2  // Maximum jitter amount (seconds)
+)
+
+// CreateRetryStateChangeConf creates a StateChangeConf for retrying operations with exponential backoff.
+// This follows Terraform provider best practices for handling transient API errors.
+//
+// Retryable scenarios based on RFC 7231 and industry standards:
+// - HTTP 409: Resource conflict (host in use by running jobs)
+// - HTTP 408/429: Client timeouts and rate limiting
+// - HTTP 5xx: Server-side transient errors
+//
+// Uses crypto/rand for jitter to prevent thundering herd in multi-client environments.
+func CreateRetryStateChangeConf(
+	operation func() ([]byte, diag.Diagnostics, int),
+	timeout time.Duration,
+	successStatusCodes []int,
+	operationName string,
+) *retry.StateChangeConf {
+	stateConf := &retry.StateChangeConf{
+		Pending: []string{retryStateRetrying},
+		Target:  []string{retryStateSuccess},
+		Refresh: func() (interface{}, string, error) {
+			body, diags, statusCode := operation()
+
+			// Check for retryable status codes
+			switch statusCode {
+			case http.StatusConflict:
+				return nil, retryStateRetrying, nil // Keep retrying
+			case http.StatusRequestTimeout, http.StatusTooManyRequests,
+				http.StatusInternalServerError, http.StatusBadGateway,
+				http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+				return nil, retryStateRetrying, nil // Keep retrying
+			}
+
+			// Check for success cases
+			for _, successCode := range successStatusCodes {
+				if statusCode == successCode {
+					if diags.HasError() {
+						return nil, "", fmt.Errorf("%s succeeded but diagnostics has errors: %v", operationName, diags)
+					}
+					return body, retryStateSuccess, nil
+				}
+			}
+
+			// Non-retryable error
+			return nil, "", fmt.Errorf("non-retryable HTTP status %d for %s", statusCode, operationName)
+		},
+		Timeout:    timeout,
+		MinTimeout: minTimeoutSeconds * time.Second,   // Minimum wait between retries
+		Delay:      initialDelaySeconds * time.Second, // Initial delay before first retry
+	}
+
+	// Add jitter to prevent thundering herd - randomize the MinTimeout
+	if timeout > jitterTimeoutThreshold*time.Second {
+		// For longer timeouts, add more jitter using crypto/rand for better security
+		maxJitter := big.NewInt(maxJitterSeconds)
+		jitterBig, err := rand.Int(rand.Reader, maxJitter)
+		if err == nil {
+			jitter := time.Duration(jitterBig.Int64()) * time.Second      // 0-2 seconds
+			stateConf.MinTimeout = minTimeoutSeconds*time.Second + jitter // 2-4 seconds total
+		}
+	}
+
+	return stateConf
 }
