@@ -288,7 +288,7 @@ func CalculateTimeout(ctx context.Context) int {
 			return minTimeoutSeconds
 		}
 
-		// Use 80% of the remaining time for the timeout
+		// Use 80% (1.0 - 0.20) of the remaining time for the timeout
 		calculatedTimeoutSeconds := remainingDuration * (1.0 - percentBuffer)
 
 		// Ensure the timeout is at least the minimum viable timeout
