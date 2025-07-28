@@ -214,10 +214,10 @@ const (
 
 // Retry timing constants
 const (
-	maxTimeoutSeconds = 60 * 20 // Maximum wait between retries (seconds)
-	minTimeoutSeconds = 5       // Minimum wait between retries (seconds)
-	delaySeconds      = 30      // Initial delay before first retry (seconds)
-	percentBuffer     = 0.2     // Percentage of remaining time to leave as buffer
+	maxTimeoutSeconds = 30 // Maximum wait between retries (seconds)
+	minTimeoutSeconds = 5  // Minimum wait between retries (seconds)
+	delaySeconds      = 2 // Initial delay before first retry (seconds)
+	percentBuffer     = 20 // Percentage of remaining time to leave as buffer
 )
 
 // CreateRetryStateChangeConf creates a StateChangeConf for retrying operations with exponential backoff.
@@ -246,11 +246,9 @@ func CreateRetryStateChangeConf(
 
 			// Check for retryable status codes
 			switch statusCode {
-			case http.StatusConflict:
-				return nil, retryStateRetrying, nil // Keep retrying
-			case http.StatusRequestTimeout, http.StatusTooManyRequests,
-				http.StatusInternalServerError, http.StatusBadGateway,
-				http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+			case http.StatusConflict, http.StatusRequestTimeout, http.StatusTooManyRequests,
+				http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable,
+				http.StatusGatewayTimeout:
 				return nil, retryStateRetrying, nil // Keep retrying
 			}
 
@@ -267,7 +265,7 @@ func CreateRetryStateChangeConf(
 			// Non-retryable error
 			return nil, "", fmt.Errorf("non-retryable HTTP status %d for %s", statusCode, operationName)
 		},
-		Timeout:    time.Duration(retryTimeout),
+		Timeout:    time.Duration(retryTimeout) * time.Second,
 		MinTimeout: minTimeoutSeconds * time.Second, // Minimum wait between retries
 		Delay:      delaySeconds * time.Second,      // Initial delay before first retry
 	}
@@ -289,7 +287,7 @@ func CalculateTimeout(ctx context.Context) int {
 		}
 
 		// Use 80% (1.0 - 0.20) of the remaining time for the timeout
-		calculatedTimeoutSeconds := remainingDuration * (1.0 - percentBuffer)
+		calculatedTimeoutSeconds := remainingDuration * (100.0 - percentBuffer) / 100
 
 		// Ensure the timeout is at least the minimum viable timeout
 		if calculatedTimeoutSeconds < float64(minTimeoutSeconds) {

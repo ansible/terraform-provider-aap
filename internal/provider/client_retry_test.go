@@ -76,6 +76,8 @@ func TestCalculateTimeout(t *testing.T) {
 
 // TestCreateRetryStateChangeConf_Success verifies the success path of the retry logic.
 func TestCreateRetryStateChangeConf_Success(t *testing.T) {
+	testInitialDelay := 10 * time.Millisecond // Use a short initial delay for testing
+	testRetryDelay := 5 * time.Millisecond    // Use a short retry delay for testing
 	t.Run("operation succeeds on the first attempt", func(t *testing.T) {
 		// --- Setup ---
 		ctx := context.Background()
@@ -94,14 +96,61 @@ func TestCreateRetryStateChangeConf_Success(t *testing.T) {
 		// --- Act ---
 		// Create the StateChangeConf using the function under test
 		stateConf := CreateRetryStateChangeConf(ctx, mockOperation, successCodes, operationName)
+		// Override delays for fast, self-contained testing.
+		// This is crucial to prevent the test from hitting the default 30s Go test timeout.
+		stateConf.Delay = testInitialDelay
+		stateConf.MinTimeout = testRetryDelay
 
 		// Directly call the Refresh function to test its logic
-		result, state, err := stateConf.Refresh()
+		result, err := stateConf.WaitForStateContext(ctx)
 
 		// --- Assert ---
 		// Use testify/assert for clear and concise assertions
 		assert.NoError(t, err, "Refresh function should not return an error on a successful operation")
-		assert.Equal(t, retryStateSuccess, state, "The state should be 'SUCCESS' after a successful operation")
 		assert.Equal(t, expectedBody, result, "The result body should match the one returned by the successful operation")
+	})
+	t.Run("operation succeeds after a conflict", func(t *testing.T) {
+		// --- Setup ---
+		expectedBody := []byte(`{"message": "operation eventually successful"}`)
+		operationName := "testConflictThenSuccessOperation"
+		callCount := 0
+
+		// Create a context that will not time out during this short test.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Define a mock operation that first returns a conflict, then succeeds
+		mockOperation := func() ([]byte, diag.Diagnostics, int) {
+			callCount++
+			if callCount == 1 {
+				// First call returns a conflict, which is a retryable state
+				return nil, nil, http.StatusConflict
+			}
+			// Second call succeeds
+			return expectedBody, nil, http.StatusOK
+		}
+
+		successCodes := []int{http.StatusOK}
+
+		// --- Act ---
+		// Create the config, but we will override the long delays for this unit test.
+		stateConf := CreateRetryStateChangeConf(ctx, mockOperation, successCodes, operationName)
+		stateConf.Delay = testInitialDelay
+		stateConf.MinTimeout = testRetryDelay
+
+		startTime := time.Now()
+		// WaitForStateContext will execute the retry loop, which includes delays.
+		result, err := stateConf.WaitForStateContext(ctx)
+		elapsedTime := time.Since(startTime)
+
+		// --- Assert ---
+		assert.NoError(t, err, "WaitForStateContext should not return an error on eventual success")
+		assert.Equal(t, expectedBody, result, "The result body should match the one from the successful call")
+		assert.Equal(t, 2, callCount, "The mock operation should have been called twice")
+
+		// The total time should be at least the initial delay plus one retry delay.
+		// This is a more robust check than comparing timestamps.
+		expectedMinDuration := testInitialDelay + testRetryDelay
+		assert.GreaterOrEqual(t, elapsedTime, expectedMinDuration, "The elapsed time should be at least the initial delay plus the retry delay")
 	})
 }
