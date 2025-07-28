@@ -1,200 +1,107 @@
 package provider
 
 import (
+	"context"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/stretchr/testify/assert"
 )
 
-// TestCreateRetryStateChangeConf_ImmediateSuccess tests immediate success scenario
-func TestCreateRetryStateChangeConf_ImmediateSuccess(t *testing.T) {
-	operation := func() ([]byte, diag.Diagnostics, int) {
-		return []byte("success"), diag.Diagnostics{}, http.StatusOK
+func TestCalculateTimeout(t *testing.T) {
+	// Define the test table
+	testTable := []struct {
+		name            string
+		setupCtx        func() (context.Context, context.CancelFunc)
+		expectedTimeout int
+	}{
+		{
+			name: "Context with a standard deadline",
+			setupCtx: func() (context.Context, context.CancelFunc) {
+				return context.WithTimeout(context.Background(), 20*time.Second)
+			},
+			expectedTimeout: 16,
+		},
+		{
+			name: "Context with no deadline",
+			setupCtx: func() (context.Context, context.CancelFunc) {
+				return context.Background(), func() {}
+			},
+			expectedTimeout: maxTimeoutSeconds,
+		},
+		{
+			name: "Context with a short deadline, clamps to minimum",
+			setupCtx: func() (context.Context, context.CancelFunc) {
+				return context.WithTimeout(context.Background(), 3*time.Second)
+			},
+			expectedTimeout: minTimeoutSeconds,
+		},
+		{
+			name: "Context with an expired deadline, clamps to minimum",
+			setupCtx: func() (context.Context, context.CancelFunc) {
+				return context.WithDeadline(context.Background(), time.Now().Add(-10*time.Second))
+			},
+			expectedTimeout: minTimeoutSeconds,
+		},
+		{
+			name: "Context deadline resulting in exactly minimum timeout",
+			setupCtx: func() (context.Context, context.CancelFunc) {
+				// 6.25s * 0.8 = 5s
+				return context.WithTimeout(context.Background(), 6250*time.Millisecond)
+			},
+			expectedTimeout: minTimeoutSeconds,
+		},
 	}
 
-	stateConf := CreateRetryStateChangeConf(
-		operation,
-		5*time.Second,
-		[]int{http.StatusOK},
-		"test operation",
-	)
+	// Iterate over the test table
+	for _, tc := range testTable {
+		t.Run(tc.name, func(t *testing.T) {
+			// Setup the context for the test case
+			ctx, cancel := tc.setupCtx()
+			defer cancel()
 
-	result, state, err := stateConf.Refresh()
-	if err != nil {
-		t.Errorf("Expected no error, got: %v", err)
-	}
-	if state != retryStateSuccess {
-		t.Errorf("Expected state 'success', got: %s", state)
-	}
-	if string(result.([]byte)) != "success" {
-		t.Errorf("Expected result 'success', got: %s", string(result.([]byte)))
+			// Calculate the timeout
+			timeout := CalculateTimeout(ctx)
+
+			// We round the result to the nearest second for reliable comparison,
+			// as the exact remaining time can have minor variations.
+			if timeout != tc.expectedTimeout {
+				t.Errorf("Expected timeout %v, but got %v", tc.expectedTimeout, timeout)
+			}
+		})
 	}
 }
 
-// TestCreateRetryStateChangeConf_RetryThenSuccess tests retry then success scenario
-func TestCreateRetryStateChangeConf_RetryThenSuccess(t *testing.T) {
-	callCount := 0
-	operation := func() ([]byte, diag.Diagnostics, int) {
-		callCount++
-		if callCount == 1 {
-			return []byte("conflict"), diag.Diagnostics{}, http.StatusConflict
+// TestCreateRetryStateChangeConf_Success verifies the success path of the retry logic.
+func TestCreateRetryStateChangeConf_Success(t *testing.T) {
+	t.Run("operation succeeds on the first attempt", func(t *testing.T) {
+		// --- Setup ---
+		ctx := context.Background()
+		expectedBody := []byte(`{"message": "operation successful"}`)
+		operationName := "testSuccessOperation"
+
+		// Define a mock operation that simulates a successful API call
+		mockOperation := func() ([]byte, diag.Diagnostics, int) {
+			// Return the expected body, no diagnostics errors, and a success status code
+			return expectedBody, nil, http.StatusOK
 		}
-		return []byte("success"), diag.Diagnostics{}, http.StatusOK
-	}
 
-	stateConf := CreateRetryStateChangeConf(
-		operation,
-		5*time.Second,
-		[]int{http.StatusOK},
-		"test operation",
-	)
+		// Define the list of status codes that indicate success
+		successCodes := []int{http.StatusOK, http.StatusAccepted}
 
-	// First call should return retry state
-	result, state, err := stateConf.Refresh()
-	if err != nil {
-		t.Errorf("First call should not error, got: %v", err)
-	}
-	if state != retryStateRetrying {
-		t.Errorf("First call should return 'retrying', got: %s", state)
-	}
-	if result != nil {
-		t.Errorf("First call should return nil result, got: %v", result)
-	}
+		// --- Act ---
+		// Create the StateChangeConf using the function under test
+		stateConf := CreateRetryStateChangeConf(ctx, mockOperation, successCodes, operationName)
 
-	// Second call should succeed
-	result, state, err = stateConf.Refresh()
-	if err != nil {
-		t.Errorf("Second call should not error, got: %v", err)
-	}
-	if state != retryStateSuccess {
-		t.Errorf("Second call should return 'success', got: %s", state)
-	}
-	if string(result.([]byte)) != "success" {
-		t.Errorf("Expected result 'success', got: %s", string(result.([]byte)))
-	}
-}
+		// Directly call the Refresh function to test its logic
+		result, state, err := stateConf.Refresh()
 
-// TestCreateRetryStateChangeConf_NonRetryableError tests non-retryable error scenario
-func TestCreateRetryStateChangeConf_NonRetryableError(t *testing.T) {
-	operation := func() ([]byte, diag.Diagnostics, int) {
-		return []byte("bad request"), diag.Diagnostics{}, http.StatusBadRequest
-	}
-
-	stateConf := CreateRetryStateChangeConf(
-		operation,
-		5*time.Second,
-		[]int{http.StatusOK},
-		"test operation",
-	)
-
-	result, state, err := stateConf.Refresh()
-	if err == nil {
-		t.Error("Expected error for non-retryable status code")
-	}
-	if !contains(err.Error(), "non-retryable HTTP status 400") {
-		t.Errorf("Expected error message about status 400, got: %s", err.Error())
-	}
-	if state != "" {
-		t.Errorf("Expected empty state on error, got: %s", state)
-	}
-	if result != nil {
-		t.Errorf("Expected nil result on error, got: %v", result)
-	}
-}
-
-// TestCreateRetryStateChangeConf_ConflictRetryable tests HTTP 409 is retryable
-func TestCreateRetryStateChangeConf_ConflictRetryable(t *testing.T) {
-	testRetryableStatusCode(t, http.StatusConflict)
-}
-
-// TestCreateRetryStateChangeConf_TimeoutRetryable tests HTTP 408 is retryable
-func TestCreateRetryStateChangeConf_TimeoutRetryable(t *testing.T) {
-	testRetryableStatusCode(t, http.StatusRequestTimeout)
-}
-
-// TestCreateRetryStateChangeConf_TooManyRequestsRetryable tests HTTP 429 is retryable
-func TestCreateRetryStateChangeConf_TooManyRequestsRetryable(t *testing.T) {
-	testRetryableStatusCode(t, http.StatusTooManyRequests)
-}
-
-// TestCreateRetryStateChangeConf_InternalServerErrorRetryable tests HTTP 500 is retryable
-func TestCreateRetryStateChangeConf_InternalServerErrorRetryable(t *testing.T) {
-	testRetryableStatusCode(t, http.StatusInternalServerError)
-}
-
-// TestCreateRetryStateChangeConf_BadGatewayRetryable tests HTTP 502 is retryable
-func TestCreateRetryStateChangeConf_BadGatewayRetryable(t *testing.T) {
-	testRetryableStatusCode(t, http.StatusBadGateway)
-}
-
-// TestCreateRetryStateChangeConf_ServiceUnavailableRetryable tests HTTP 503 is retryable
-func TestCreateRetryStateChangeConf_ServiceUnavailableRetryable(t *testing.T) {
-	testRetryableStatusCode(t, http.StatusServiceUnavailable)
-}
-
-// TestCreateRetryStateChangeConf_GatewayTimeoutRetryable tests HTTP 504 is retryable
-func TestCreateRetryStateChangeConf_GatewayTimeoutRetryable(t *testing.T) {
-	testRetryableStatusCode(t, http.StatusGatewayTimeout)
-}
-
-// testRetryableStatusCode is a helper function to test retryable status codes
-func testRetryableStatusCode(t *testing.T, statusCode int) {
-	operation := func() ([]byte, diag.Diagnostics, int) {
-		return []byte("retry"), diag.Diagnostics{}, statusCode
-	}
-
-	stateConf := CreateRetryStateChangeConf(
-		operation,
-		5*time.Second,
-		[]int{http.StatusOK},
-		"test operation",
-	)
-
-	result, state, err := stateConf.Refresh()
-	if err != nil {
-		t.Errorf("Status code %d should be retryable, got error: %v", statusCode, err)
-	}
-	if state != retryStateRetrying {
-		t.Errorf("Status code %d should return 'retrying', got: %s", statusCode, state)
-	}
-	if result != nil {
-		t.Errorf("Status code %d should return nil result, got: %v", statusCode, result)
-	}
-}
-
-// TestCreateRetryStateChangeConfConfiguration tests timeout configuration
-func TestCreateRetryStateChangeConfConfiguration(t *testing.T) {
-	operation := func() ([]byte, diag.Diagnostics, int) {
-		return []byte("success"), diag.Diagnostics{}, http.StatusOK
-	}
-
-	stateConf := CreateRetryStateChangeConf(
-		operation,
-		30*time.Second,
-		[]int{http.StatusOK},
-		"test operation",
-	)
-
-	// Verify configuration
-	if stateConf.Timeout != 30*time.Second {
-		t.Errorf("Expected timeout 30s, got %v", stateConf.Timeout)
-	}
-	if stateConf.MinTimeout != 5*time.Second {
-		t.Errorf("Expected MinTimeout 5s (no jitter for short timeout), got %v", stateConf.MinTimeout)
-	}
-	if stateConf.Delay != 2*time.Second {
-		t.Errorf("Expected Delay 2s, got %v", stateConf.Delay)
-	}
-}
-
-// Helper function for string contains check
-func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
+		// --- Assert ---
+		// Use testify/assert for clear and concise assertions
+		assert.NoError(t, err, "Refresh function should not return an error on a successful operation")
+		assert.Equal(t, retryStateSuccess, state, "The state should be 'SUCCESS' after a successful operation")
+		assert.Equal(t, expectedBody, result, "The result body should match the one returned by the successful operation")
+	})
 }

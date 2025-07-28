@@ -2,12 +2,11 @@ package provider
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/big"
+	"math"
 	"net/http"
 	"net/url"
 	"time"
@@ -215,10 +214,10 @@ const (
 
 // Retry timing constants
 const (
-	minTimeoutSeconds      = 5  // Minimum wait between retries (seconds)
-	initialDelaySeconds    = 2  // Initial delay before first retry (seconds)
-	jitterTimeoutThreshold = 60 // Add jitter for timeouts > 60 seconds
-	maxJitterSeconds       = 5  // Maximum jitter amount (seconds)
+	maxTimeoutSeconds = 60 * 20 // Maximum wait between retries (seconds)
+	minTimeoutSeconds = 5       // Minimum wait between retries (seconds)
+	delaySeconds      = 30      // Initial delay before first retry (seconds)
+	percentBuffer     = 0.2     // Percentage of remaining time to leave as buffer
 )
 
 // CreateRetryStateChangeConf creates a StateChangeConf for retrying operations with exponential backoff.
@@ -229,13 +228,16 @@ const (
 // - HTTP 408/429: Client timeouts and rate limiting
 // - HTTP 5xx: Server-side transient errors
 //
-// Uses crypto/rand for jitter to prevent thundering herd in multi-client environments.
+// The retry timeout is calculated from the context deadline, leaving a buffer to prevent conflicts.
 func CreateRetryStateChangeConf(
+	ctx context.Context,
 	operation func() ([]byte, diag.Diagnostics, int),
-	timeout time.Duration,
 	successStatusCodes []int,
 	operationName string,
 ) *retry.StateChangeConf {
+	// Calculate retry retryTimeout from context deadline
+	retryTimeout := CalculateTimeout(ctx)
+
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{retryStateRetrying},
 		Target:  []string{retryStateSuccess},
@@ -265,21 +267,37 @@ func CreateRetryStateChangeConf(
 			// Non-retryable error
 			return nil, "", fmt.Errorf("non-retryable HTTP status %d for %s", statusCode, operationName)
 		},
-		Timeout:    timeout,
-		MinTimeout: minTimeoutSeconds * time.Second,   // Minimum wait between retries
-		Delay:      initialDelaySeconds * time.Second, // Initial delay before first retry
-	}
-
-	// Add jitter to prevent thundering herd - randomize the MinTimeout
-	if timeout > jitterTimeoutThreshold*time.Second {
-		// For longer timeouts, add more jitter using crypto/rand for better security
-		maxJitter := big.NewInt(maxJitterSeconds)
-		jitterBig, err := rand.Int(rand.Reader, maxJitter)
-		if err == nil {
-			jitter := time.Duration(jitterBig.Int64()) * time.Second      // 0-2 seconds
-			stateConf.MinTimeout = minTimeoutSeconds*time.Second + jitter // 2-4 seconds total
-		}
+		Timeout:    time.Duration(retryTimeout),
+		MinTimeout: minTimeoutSeconds * time.Second, // Minimum wait between retries
+		Delay:      delaySeconds * time.Second,      // Initial delay before first retry
 	}
 
 	return stateConf
+}
+
+// CalculateTimeout returns the retry timeout in seconds, which is 80% of the context timeout.
+func CalculateTimeout(ctx context.Context) int {
+	// Default fallback timeout in seconds
+	timeout := maxTimeoutSeconds
+
+	if deadline, ok := ctx.Deadline(); ok {
+		remainingDuration := time.Until(deadline).Seconds()
+
+		// If the deadline has already passed, use the minimum timeout
+		if remainingDuration <= 0 {
+			return minTimeoutSeconds
+		}
+
+		// Use 80% of the remaining time for the timeout
+		calculatedTimeoutSeconds := remainingDuration * (1.0 - percentBuffer)
+
+		// Ensure the timeout is at least the minimum viable timeout
+		if calculatedTimeoutSeconds < float64(minTimeoutSeconds) {
+			timeout = minTimeoutSeconds
+		} else {
+			// Return the timeout as an integer, truncating any fractions of a second
+			timeout = int(math.Round(calculatedTimeoutSeconds))
+		}
+	}
+	return timeout
 }
