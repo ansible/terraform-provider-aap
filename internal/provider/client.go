@@ -218,6 +218,7 @@ const (
 	minTimeoutSeconds = 5  // Minimum wait between retries (seconds)
 	delaySeconds      = 2  // Initial delay before first retry (seconds)
 	percentBuffer     = 20 // Percentage of remaining time to leave as buffer
+	percentTotal      = 100.0
 )
 
 // CreateRetryStateChangeConf creates a StateChangeConf for retrying operations with exponential backoff.
@@ -287,7 +288,7 @@ func CalculateTimeout(ctx context.Context) int {
 		}
 
 		// Use 80% of the remaining time for the timeout
-		calculatedTimeoutSeconds := remainingDuration * (100.0 - percentBuffer) / 100 //nolint:gomnd
+		calculatedTimeoutSeconds := remainingDuration * (percentTotal - percentBuffer) / percentTotal
 
 		// Ensure the timeout is at least the minimum viable timeout
 		if calculatedTimeoutSeconds < float64(minTimeoutSeconds) {

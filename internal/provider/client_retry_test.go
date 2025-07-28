@@ -153,4 +153,37 @@ func TestCreateRetryStateChangeConf_Success(t *testing.T) {
 		expectedMinDuration := testInitialDelay + testRetryDelay
 		assert.GreaterOrEqual(t, elapsedTime, expectedMinDuration, "The elapsed time should be at least the initial delay plus the retry delay")
 	})
+	t.Run("operation_fails_immediately_on_non_retryable_error", func(t *testing.T) {
+		// --- Setup ---
+		operationName := "testNonRetryableError"
+		callCount := 0
+
+		// Create a standard context.
+		ctx := context.Background()
+
+		// Define a mock operation that returns a non-retryable error.
+		mockOperation := func() ([]byte, diag.Diagnostics, int) {
+			callCount++
+			return nil, nil, http.StatusBadRequest // 400 Bad Request is not in our retryable list.
+		}
+
+		successCodes := []int{http.StatusOK}
+
+		// --- Act ---
+		stateConf := CreateRetryStateChangeConf(ctx, mockOperation, successCodes, operationName)
+		stateConf.Delay = testInitialDelay
+		stateConf.MinTimeout = testRetryDelay
+
+		// WaitForStateContext should fail immediately on the first Refresh.
+		_, err := stateConf.WaitForStateContext(ctx)
+
+		// --- Assert ---
+		// We expect an error because the operation returns a non-retryable status.
+		assert.Error(t, err, "WaitForStateContext should return an error for a non-retryable status")
+		if err != nil {
+			assert.Contains(t, err.Error(), "non-retryable", "The error message should indicate a non-retryable error")
+		}
+		// The operation should have been called exactly once. No retries should be attempted.
+		assert.Equal(t, 1, callCount, "The mock operation should have been called only once")
+	})
 }
