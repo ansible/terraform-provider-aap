@@ -300,3 +300,33 @@ func CalculateTimeout(ctx context.Context) int {
 	}
 	return timeout
 }
+
+// RetryOperation simplifies the process of retrying an operation until it succeeds or times out.
+// It wraps the creation of a StateChangeConf and the call to WaitForStateContext.
+func RetryOperation(
+	ctx context.Context,
+	operationName string,
+	operation func() ([]byte, diag.Diagnostics, int),
+	successStatusCodes []int,
+	initialDelay time.Duration,
+	retryDelay time.Duration,
+) ([]byte, error) {
+	stateConf := CreateRetryStateChangeConf(ctx, operation, successStatusCodes, operationName)
+	if initialDelay > time.Duration(0) {
+		stateConf.Delay = initialDelay
+	}
+	if retryDelay > time.Duration(0) {
+		stateConf.MinTimeout = retryDelay
+	}
+
+	result, err := stateConf.WaitForStateContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if body, ok := result.([]byte); ok {
+		return body, nil
+	}
+
+	return nil, fmt.Errorf("unexpected result type from successful retry: %T", result)
+}

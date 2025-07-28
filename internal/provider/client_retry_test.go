@@ -74,116 +74,102 @@ func TestCalculateTimeout(t *testing.T) {
 	}
 }
 
-// TestCreateRetryStateChangeConf_Success verifies the success path of the retry logic.
-func TestCreateRetryStateChangeConf_Success(t *testing.T) {
-	testInitialDelay := 10 * time.Millisecond // Use a short initial delay for testing
-	testRetryDelay := 5 * time.Millisecond    // Use a short retry delay for testing
+func TestRetryOperation(t *testing.T) {
+	testInitialDelay := 10 * time.Millisecond
+	testRetryDelay := 5 * time.Millisecond
+
 	t.Run("operation succeeds on the first attempt", func(t *testing.T) {
-		// --- Setup ---
 		ctx := context.Background()
+
 		expectedBody := []byte(`{"message": "operation successful"}`)
 		operationName := "testSuccessOperation"
-
-		// Define a mock operation that simulates a successful API call
 		mockOperation := func() ([]byte, diag.Diagnostics, int) {
-			// Return the expected body, no diagnostics errors, and a success status code
 			return expectedBody, nil, http.StatusOK
 		}
-
-		// Define the list of status codes that indicate success
-		successCodes := []int{http.StatusOK, http.StatusAccepted}
+		successCodes := []int{http.StatusOK}
 
 		// --- Act ---
-		// Create the StateChangeConf using the function under test
-		stateConf := CreateRetryStateChangeConf(ctx, mockOperation, successCodes, operationName)
-		// Override delays for fast, self-contained testing.
-		// This is crucial to prevent the test from hitting the default 30s Go test timeout.
-		stateConf.Delay = testInitialDelay
-		stateConf.MinTimeout = testRetryDelay
-
-		// Directly call the Refresh function to test its logic
-		result, err := stateConf.WaitForStateContext(ctx)
+		result, err := RetryOperation(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
 
 		// --- Assert ---
-		// Use testify/assert for clear and concise assertions
-		assert.NoError(t, err, "Refresh function should not return an error on a successful operation")
+		assert.NoError(t, err, "RetryOperation should not return an error on a successful operation")
 		assert.Equal(t, expectedBody, result, "The result body should match the one returned by the successful operation")
 	})
+
 	t.Run("operation succeeds after a conflict", func(t *testing.T) {
 		// --- Setup ---
-		expectedBody := []byte(`{"message": "operation eventually successful"}`)
-		operationName := "testConflictThenSuccessOperation"
-		callCount := 0
-
-		// Create a context that will not time out during this short test.
+		// Add a timeout to the context to ensure the test doesn't hang.
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// Define a mock operation that first returns a conflict, then succeeds
+		expectedBody := []byte(`{"message": "operation eventually successful"}`)
+		operationName := "testConflictThenSuccessOperation"
+		callCount := 0
 		mockOperation := func() ([]byte, diag.Diagnostics, int) {
 			callCount++
 			if callCount == 1 {
-				// First call returns a conflict, which is a retryable state
 				return nil, nil, http.StatusConflict
 			}
-			// Second call succeeds
 			return expectedBody, nil, http.StatusOK
 		}
-
 		successCodes := []int{http.StatusOK}
 
 		// --- Act ---
-		// Create the config, but we will override the long delays for this unit test.
-		stateConf := CreateRetryStateChangeConf(ctx, mockOperation, successCodes, operationName)
-		stateConf.Delay = testInitialDelay
-		stateConf.MinTimeout = testRetryDelay
-
 		startTime := time.Now()
-		// WaitForStateContext will execute the retry loop, which includes delays.
-		result, err := stateConf.WaitForStateContext(ctx)
+		result, err := RetryOperation(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
 		elapsedTime := time.Since(startTime)
 
 		// --- Assert ---
-		assert.NoError(t, err, "WaitForStateContext should not return an error on eventual success")
+		assert.NoError(t, err, "RetryOperation should not return an error on eventual success")
 		assert.Equal(t, expectedBody, result, "The result body should match the one from the successful call")
 		assert.Equal(t, 2, callCount, "The mock operation should have been called twice")
-
-		// The total time should be at least the initial delay plus one retry delay.
-		// This is a more robust check than comparing timestamps.
 		expectedMinDuration := testInitialDelay + testRetryDelay
 		assert.GreaterOrEqual(t, elapsedTime, expectedMinDuration, "The elapsed time should be at least the initial delay plus the retry delay")
 	})
-	t.Run("operation_fails_immediately_on_non_retryable_error", func(t *testing.T) {
+	t.Run("operation_times_out_if_it_never_succeeds", func(t *testing.T) {
 		// --- Setup ---
-		operationName := "testNonRetryableError"
+		// Create a context with a short timeout for this test.
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+
+		operationName := "testConflictThatAlwaysFails"
 		callCount := 0
-
-		// Create a standard context.
-		ctx := context.Background()
-
-		// Define a mock operation that returns a non-retryable error.
 		mockOperation := func() ([]byte, diag.Diagnostics, int) {
 			callCount++
-			return nil, nil, http.StatusBadRequest // 400 Bad Request is not in our retryable list.
+			return nil, nil, http.StatusConflict
 		}
-
 		successCodes := []int{http.StatusOK}
 
 		// --- Act ---
-		stateConf := CreateRetryStateChangeConf(ctx, mockOperation, successCodes, operationName)
-		stateConf.Delay = testInitialDelay
-		stateConf.MinTimeout = testRetryDelay
-
-		// WaitForStateContext should fail immediately on the first Refresh.
-		_, err := stateConf.WaitForStateContext(ctx)
+		_, err := RetryOperation(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
 
 		// --- Assert ---
-		// We expect an error because the operation returns a non-retryable status.
-		assert.Error(t, err, "WaitForStateContext should return an error for a non-retryable status")
+		assert.Error(t, err, "RetryOperation should return an error when it times out")
+		if err != nil {
+			assert.Contains(t, err.Error(), "timeout", "The error message should indicate a timeout")
+		}
+		assert.Greater(t, callCount, 0, "The mock operation should have been called at least once")
+	})
+
+	t.Run("operation_fails_immediately_on_non_retryable_error", func(t *testing.T) {
+		// --- Setup ---
+		ctx := context.Background()
+		operationName := "testNonRetryableError"
+		callCount := 0
+		mockOperation := func() ([]byte, diag.Diagnostics, int) {
+			callCount++
+			return nil, nil, http.StatusBadRequest
+		}
+		successCodes := []int{http.StatusOK}
+
+		// --- Act ---
+		_, err := RetryOperation(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
+
+		// --- Assert ---
+		assert.Error(t, err, "RetryOperation should return an error for a non-retryable status")
 		if err != nil {
 			assert.Contains(t, err.Error(), "non-retryable", "The error message should indicate a non-retryable error")
 		}
-		// The operation should have been called exactly once. No retries should be attempted.
 		assert.Equal(t, 1, callCount, "The mock operation should have been called only once")
 	})
 }
