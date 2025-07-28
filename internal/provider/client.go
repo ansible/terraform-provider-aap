@@ -216,7 +216,7 @@ const (
 const (
 	maxTimeoutSeconds = 30 // Maximum wait between retries (seconds)
 	minTimeoutSeconds = 5  // Minimum wait between retries (seconds)
-	delaySeconds      = 2 // Initial delay before first retry (seconds)
+	delaySeconds      = 2  // Initial delay before first retry (seconds)
 	percentBuffer     = 20 // Percentage of remaining time to leave as buffer
 )
 
@@ -286,8 +286,8 @@ func CalculateTimeout(ctx context.Context) int {
 			return minTimeoutSeconds
 		}
 
-		// Use 80% (1.0 - 0.20) of the remaining time for the timeout
-		calculatedTimeoutSeconds := remainingDuration * (100.0 - percentBuffer) / 100
+		// Use 80% of the remaining time for the timeout
+		calculatedTimeoutSeconds := remainingDuration * (100.0 - percentBuffer) / 100 //nolint:gomnd
 
 		// Ensure the timeout is at least the minimum viable timeout
 		if calculatedTimeoutSeconds < float64(minTimeoutSeconds) {
