@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -20,9 +21,9 @@ func TestCalculateTimeout(t *testing.T) {
 		{
 			name: "Context with a standard deadline",
 			setupCtx: func() (context.Context, context.CancelFunc) {
-				return context.WithTimeout(context.Background(), 20*time.Second)
+				return context.WithTimeout(context.Background(), 20*time.Minute)
 			},
-			expectedTimeout: 16,
+			expectedTimeout: 19 * 60, // 19 minutes in seconds
 		},
 		{
 			name: "Context with no deadline",
@@ -48,10 +49,18 @@ func TestCalculateTimeout(t *testing.T) {
 		{
 			name: "Context deadline resulting in exactly minimum timeout",
 			setupCtx: func() (context.Context, context.CancelFunc) {
-				// 6.25s * 0.8 = 5s
+				// With 60s buffer, this will clamp to minimum
 				return context.WithTimeout(context.Background(), 6250*time.Millisecond)
 			},
 			expectedTimeout: minTimeoutSeconds,
+		},
+		{
+			name: "Context with long deadline properly subtracts buffer",
+			setupCtx: func() (context.Context, context.CancelFunc) {
+				// 90s - 60s buffer = 30s
+				return context.WithTimeout(context.Background(), 90*time.Second)
+			},
+			expectedTimeout: 30,
 		},
 	}
 
@@ -77,6 +86,24 @@ func TestCalculateTimeout(t *testing.T) {
 func TestRetryOperation(t *testing.T) {
 	testInitialDelay := 10 * time.Millisecond
 	testRetryDelay := 5 * time.Millisecond
+	successCodes := []int{http.StatusOK}
+
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == apiEndpoint {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"current_version": "/api/v2/"}`)) //nolint:errcheck
+		}
+	}))
+	defer server.Close()
+
+	// Create a test client
+	username := "testuser"
+	password := "testpass"
+	client, diags := NewClient(server.URL, &username, &password, true, 30)
+	if diags.HasError() {
+		t.Fatalf("Failed to create test client: %v", diags)
+	}
 
 	t.Run("operation succeeds on the first attempt", func(t *testing.T) {
 		ctx := context.Background()
@@ -86,13 +113,13 @@ func TestRetryOperation(t *testing.T) {
 		mockOperation := func() ([]byte, diag.Diagnostics, int) {
 			return expectedBody, nil, http.StatusOK
 		}
-		successCodes := []int{http.StatusOK}
 
 		// --- Act ---
-		result, err := RetryOperation(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
+		retryConfig := client.CreateRetryConfig(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
+		result, err := client.RetryWithConfig(retryConfig)
 
 		// --- Assert ---
-		assert.NoError(t, err, "RetryOperation should not return an error on a successful operation")
+		assert.NoError(t, err, "RetryWithConfig should not return an error on a successful operation")
 		assert.Equal(t, expectedBody, result, "The result body should match the one returned by the successful operation")
 	})
 
@@ -112,11 +139,11 @@ func TestRetryOperation(t *testing.T) {
 			}
 			return expectedBody, nil, http.StatusOK
 		}
-		successCodes := []int{http.StatusOK}
 
 		// --- Act ---
 		startTime := time.Now()
-		result, err := RetryOperation(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
+		retryConfig := client.CreateRetryConfig(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
+		result, err := client.RetryWithConfig(retryConfig)
 		elapsedTime := time.Since(startTime)
 
 		// --- Assert ---
@@ -138,10 +165,10 @@ func TestRetryOperation(t *testing.T) {
 			callCount++
 			return nil, nil, http.StatusConflict
 		}
-		successCodes := []int{http.StatusOK}
 
 		// --- Act ---
-		_, err := RetryOperation(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
+		retryConfig := client.CreateRetryConfig(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
+		_, err := client.RetryWithConfig(retryConfig)
 
 		// --- Assert ---
 		assert.Error(t, err, "RetryOperation should return an error when it times out")
@@ -160,10 +187,10 @@ func TestRetryOperation(t *testing.T) {
 			callCount++
 			return nil, nil, http.StatusBadRequest
 		}
-		successCodes := []int{http.StatusOK}
 
 		// --- Act ---
-		_, err := RetryOperation(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
+		retryConfig := client.CreateRetryConfig(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
+		_, err := client.RetryWithConfig(retryConfig)
 
 		// --- Assert ---
 		assert.Error(t, err, "RetryOperation should return an error for a non-retryable status")
