@@ -274,51 +274,6 @@ func CalculateTimeout(ctx context.Context) int {
 	return timeout
 }
 
-// CreateRetryStateChangeConf creates a StateChangeConf for retrying operations with exponential backoff.
-// This is a standalone function version of CreateRetryConfig for use in RetryOperation.
-func CreateRetryStateChangeConf(
-	ctx context.Context,
-	operation func() ([]byte, diag.Diagnostics, int),
-	successStatusCodes []int,
-	operationName string,
-) *retry.StateChangeConf {
-	retryTimeout := CalculateTimeout(ctx)
-
-	stateConf := &retry.StateChangeConf{
-		Pending: []string{retryStateRetrying},
-		Target:  []string{retryStateSuccess},
-		Refresh: func() (interface{}, string, error) {
-			body, diags, statusCode := operation()
-
-			// Check for retryable status codes
-			switch statusCode {
-			case http.StatusConflict, http.StatusRequestTimeout, http.StatusTooManyRequests,
-				http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable,
-				http.StatusGatewayTimeout:
-				return nil, retryStateRetrying, nil // Keep retrying
-			}
-
-			// Check for success cases
-			for _, successCode := range successStatusCodes {
-				if statusCode == successCode {
-					if diags.HasError() {
-						return nil, "", fmt.Errorf("%s succeeded but diagnostics has errors: %v", operationName, diags)
-					}
-					return body, retryStateSuccess, nil
-				}
-			}
-
-			// Non-retryable error
-			return nil, "", fmt.Errorf("non-retryable HTTP status %d for %s", statusCode, operationName)
-		},
-		Timeout:    time.Duration(retryTimeout) * time.Second,
-		MinTimeout: minTimeoutSeconds * time.Second, // Minimum wait between retries
-		Delay:      delaySeconds * time.Second,      // Initial delay before first retry
-	}
-
-	return stateConf
-}
-
 // CreateRetryConfig creates a StateChangeConf for retrying operations with exponential backoff.
 // This follows Terraform provider best practices for handling transient API errors.
 //
@@ -391,38 +346,6 @@ func (c *AAPClient) CreateRetryConfig(
 
 func (c *AAPClient) RetryWithConfig(retryConfig *RetryConfig) ([]byte, error) {
 	result, err := retryConfig.stateConf.WaitForStateContext(retryConfig.ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if body, ok := result.([]byte); ok {
-		return body, nil
-	}
-
-	return nil, fmt.Errorf("unexpected result type from successful retry: %T", result)
-}
-
-// RetryOperation simplifies the process of retrying an operation until it succeeds or times out.
-// It wraps the creation of a StateChangeConf and the call to WaitForStateContext. Note that the
-// context passed should have the timeout set. If the initial and retry Delays are set to zero
-// we will calculate those based on the context timeout.
-func RetryOperation(
-	ctx context.Context,
-	operationName string,
-	operation func() ([]byte, diag.Diagnostics, int),
-	successStatusCodes []int,
-	initialDelay time.Duration,
-	retryDelay time.Duration,
-) ([]byte, error) {
-	stateConf := CreateRetryStateChangeConf(ctx, operation, successStatusCodes, operationName)
-	if initialDelay > time.Duration(0) {
-		stateConf.Delay = initialDelay
-	}
-	if retryDelay > time.Duration(0) {
-		stateConf.MinTimeout = retryDelay
-	}
-
-	result, err := stateConf.WaitForStateContext(ctx)
 	if err != nil {
 		return nil, err
 	}
