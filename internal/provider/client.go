@@ -302,7 +302,9 @@ func CalculateTimeout(ctx context.Context) int {
 }
 
 // RetryOperation simplifies the process of retrying an operation until it succeeds or times out.
-// It wraps the creation of a StateChangeConf and the call to WaitForStateContext.
+// It wraps the creation of a StateChangeConf and the call to WaitForStateContext. Note that the 
+// context passed should have the timeout set. If the initial and retry Delays are set to zero 
+// we will calculate those based on the context timeout.
 func RetryOperation(
 	ctx context.Context,
 	operationName string,

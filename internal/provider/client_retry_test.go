@@ -146,7 +146,7 @@ func TestRetryOperation(t *testing.T) {
 		// --- Assert ---
 		assert.Error(t, err, "RetryOperation should return an error when it times out")
 		if err != nil {
-			assert.Contains(t, err.Error(), "timeout", "The error message should indicate a timeout")
+			assert.Contains(t, err.Error(), "context deadline exceeded", "The error message should indicate a timeout")
 		}
 		assert.Greater(t, callCount, 0, "The mock operation should have been called at least once")
 	})
