@@ -6,13 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
 
 // Provider Http Client interface (will be useful for unit tests)
@@ -27,28 +25,7 @@ type ProviderHTTPClient interface {
 	DeleteWithStatus(path string) ([]byte, diag.Diagnostics, int)
 	setApiEndpoint() diag.Diagnostics
 	getApiEndpoint() string
-	CreateRetryConfig(
-		ctx context.Context,
-		operationName string,
-		operation OperationFunc,
-		successStatusCodes []int,
-		initialDelay time.Duration,
-		retryDelay time.Duration,
-	) *RetryConfig
-	RetryWithConfig(*RetryConfig) ([]byte, error)
 }
-
-type OperationFunc func() ([]byte, diag.Diagnostics, int)
-
-type RetryConfig struct {
-	stateConf          *retry.StateChangeConf
-	operationName      string
-	operation          OperationFunc
-	successStatusCodes []int
-	ctx                context.Context
-}
-
-// TODO: attach helper functions to extract retry durations from StateChangeConf
 
 // Client -
 type AAPClient struct {
@@ -57,7 +34,6 @@ type AAPClient struct {
 	Password    *string
 	httpClient  *http.Client
 	ApiEndpoint string
-	RetryConfig *RetryConfig
 }
 
 type AAPApiEndpointResponse struct {
@@ -228,131 +204,7 @@ func (c *AAPClient) DeleteWithStatus(path string) ([]byte, diag.Diagnostics, int
 	return body, diags, deleteResponse.StatusCode
 }
 
-// Retry state constants
-const (
-	retryStateRetrying = "retrying"
-	retryStateSuccess  = "success"
-)
-
 // API endpoint constants
 const (
 	apiEndpoint = "/api/"
 )
-
-// Retry timing constants
-const (
-	maxTimeoutSeconds = 30              // Maximum wait between retries (seconds)
-	minTimeoutSeconds = 5               // Minimum wait between retries (seconds)
-	delaySeconds      = 2               // Initial delay before first retry (seconds)
-	defaultBuffer     = 1 * time.Minute // Default buffer to leave between context deadline and timeout
-)
-
-// CalculateTimeout returns the retry timeout in seconds, which is 1 minute less than the context timeout.
-func CalculateTimeout(ctx context.Context) int {
-	// Default fallback timeout in seconds
-	timeout := maxTimeoutSeconds
-
-	if deadline, ok := ctx.Deadline(); ok {
-		remainingDuration := time.Until(deadline).Seconds()
-
-		// If the deadline has already passed, use the minimum timeout
-		if remainingDuration <= 0 {
-			return minTimeoutSeconds
-		}
-
-		// Use 80% of the remaining time for the timeout
-		calculatedTimeoutSeconds := remainingDuration - defaultBuffer.Seconds()
-
-		// Ensure the timeout is at least the minimum viable timeout
-		if calculatedTimeoutSeconds < float64(minTimeoutSeconds) {
-			timeout = minTimeoutSeconds
-		} else {
-			// Return the timeout as an integer, truncating any fractions of a second
-			timeout = int(math.Round(calculatedTimeoutSeconds))
-		}
-	}
-	return timeout
-}
-
-// CreateRetryConfig creates a StateChangeConf for retrying operations with exponential backoff.
-// This follows Terraform provider best practices for handling transient API errors.
-//
-// Retryable scenarios based on RFC 7231 and industry standards:
-// - HTTP 409: Resource conflict (host in use by running jobs)
-// - HTTP 408/429: Client timeouts and rate limiting
-// - HTTP 5xx: Server-side transient errors
-//
-// The retry timeout is calculated from the context deadline, leaving a buffer to prevent conflicts.
-func (c *AAPClient) CreateRetryConfig(
-	ctx context.Context,
-	operationName string,
-	operation OperationFunc,
-	successStatusCodes []int,
-	initialDelay time.Duration,
-	retryDelay time.Duration,
-) *RetryConfig {
-	retryTimeout := CalculateTimeout(ctx)
-
-	// Use provided delays, fallback to defaults if zero
-	if initialDelay == 0 {
-		initialDelay = delaySeconds * time.Second
-	}
-	if retryDelay == 0 {
-		retryDelay = minTimeoutSeconds * time.Second
-	}
-
-	stateConf := &retry.StateChangeConf{
-		Pending: []string{retryStateRetrying},
-		Target:  []string{retryStateSuccess},
-		Refresh: func() (interface{}, string, error) {
-			body, diags, statusCode := operation()
-
-			// Check for retryable status codes
-			switch statusCode {
-			case http.StatusConflict, http.StatusRequestTimeout, http.StatusTooManyRequests,
-				http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable,
-				http.StatusGatewayTimeout:
-				return nil, retryStateRetrying, nil // Keep retrying
-			}
-
-			// Check for success cases
-			for _, successCode := range successStatusCodes {
-				if statusCode == successCode {
-					if diags.HasError() {
-						return nil, "", fmt.Errorf("%s succeeded but diagnostics has errors: %v", operationName, diags)
-					}
-					return body, retryStateSuccess, nil
-				}
-			}
-
-			// Non-retryable error
-			return nil, "", fmt.Errorf("non-retryable HTTP status %d for %s", statusCode, operationName)
-		},
-		Timeout:    time.Duration(retryTimeout) * time.Second,
-		MinTimeout: retryDelay,   // Use the provided retry delay
-		Delay:      initialDelay, // Use the provided initial delay
-	}
-
-	c.RetryConfig = &RetryConfig{
-		stateConf:          stateConf,
-		operationName:      operationName,
-		operation:          operation,
-		successStatusCodes: successStatusCodes,
-		ctx:                ctx,
-	}
-
-	return c.RetryConfig
-}
-
-func (c *AAPClient) RetryWithConfig(retryConfig *RetryConfig) ([]byte, error) {
-	result, err := retryConfig.stateConf.WaitForStateContext(retryConfig.ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if body, ok := result.([]byte); ok {
-		return body, nil
-	}
-
-	return nil, fmt.Errorf("unexpected result type from successful retry: %T", result)
-}

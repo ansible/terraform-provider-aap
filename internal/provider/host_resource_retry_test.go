@@ -30,21 +30,21 @@ func TestCalculateTimeout(t *testing.T) {
 			setupCtx: func() (context.Context, context.CancelFunc) {
 				return context.Background(), func() {}
 			},
-			expectedTimeout: maxTimeoutSeconds,
+			expectedTimeout: hostMaxTimeoutSeconds,
 		},
 		{
 			name: "Context with a short deadline, clamps to minimum",
 			setupCtx: func() (context.Context, context.CancelFunc) {
 				return context.WithTimeout(context.Background(), 3*time.Second)
 			},
-			expectedTimeout: minTimeoutSeconds,
+			expectedTimeout: hostMinTimeoutSeconds,
 		},
 		{
 			name: "Context with an expired deadline, clamps to minimum",
 			setupCtx: func() (context.Context, context.CancelFunc) {
 				return context.WithDeadline(context.Background(), time.Now().Add(-10*time.Second))
 			},
-			expectedTimeout: minTimeoutSeconds,
+			expectedTimeout: hostMinTimeoutSeconds,
 		},
 		{
 			name: "Context deadline resulting in exactly minimum timeout",
@@ -52,7 +52,7 @@ func TestCalculateTimeout(t *testing.T) {
 				// With 60s buffer, this will clamp to minimum
 				return context.WithTimeout(context.Background(), 6250*time.Millisecond)
 			},
-			expectedTimeout: minTimeoutSeconds,
+			expectedTimeout: hostMinTimeoutSeconds,
 		},
 		{
 			name: "Context with long deadline properly subtracts buffer",
@@ -97,17 +97,15 @@ func TestRetryOperation(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Create a test client
+	// Create a test client (not used in these specific tests but needed for setup)
 	username := "testuser"
 	password := "testpass"
-	client, diags := NewClient(server.URL, &username, &password, true, 30)
+	_, diags := NewClient(server.URL, &username, &password, true, 30)
 	if diags.HasError() {
 		t.Fatalf("Failed to create test client: %v", diags)
 	}
 
 	t.Run("operation succeeds on the first attempt", func(t *testing.T) {
-		ctx := context.Background()
-
 		expectedBody := []byte(`{"message": "operation successful"}`)
 		operationName := "testSuccessOperation"
 		mockOperation := func() ([]byte, diag.Diagnostics, int) {
@@ -115,8 +113,8 @@ func TestRetryOperation(t *testing.T) {
 		}
 
 		// --- Act ---
-		retryConfig := client.CreateRetryConfig(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
-		result, err := client.RetryWithConfig(retryConfig)
+		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, 120, testInitialDelay, testRetryDelay)
+		result, err := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
 		assert.NoError(t, err, "RetryWithConfig should not return an error on a successful operation")
@@ -125,10 +123,6 @@ func TestRetryOperation(t *testing.T) {
 
 	t.Run("operation succeeds after a conflict", func(t *testing.T) {
 		// --- Setup ---
-		// Add a timeout to the context to ensure the test doesn't hang.
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
 		expectedBody := []byte(`{"message": "operation eventually successful"}`)
 		operationName := "testConflictThenSuccessOperation"
 		callCount := 0
@@ -142,8 +136,8 @@ func TestRetryOperation(t *testing.T) {
 
 		// --- Act ---
 		startTime := time.Now()
-		retryConfig := client.CreateRetryConfig(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
-		result, err := client.RetryWithConfig(retryConfig)
+		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, 120, testInitialDelay, testRetryDelay)
+		result, err := RetryWithConfig(retryConfig)
 		elapsedTime := time.Since(startTime)
 
 		// --- Assert ---
@@ -155,10 +149,6 @@ func TestRetryOperation(t *testing.T) {
 	})
 	t.Run("operation_times_out_if_it_never_succeeds", func(t *testing.T) {
 		// --- Setup ---
-		// Create a context with a short timeout for this test.
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		defer cancel()
-
 		operationName := "testConflictThatAlwaysFails"
 		callCount := 0
 		mockOperation := func() ([]byte, diag.Diagnostics, int) {
@@ -167,20 +157,19 @@ func TestRetryOperation(t *testing.T) {
 		}
 
 		// --- Act ---
-		retryConfig := client.CreateRetryConfig(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
-		_, err := client.RetryWithConfig(retryConfig)
+		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, 1, testInitialDelay, testRetryDelay)
+		_, err := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
 		assert.Error(t, err, "RetryOperation should return an error when it times out")
 		if err != nil {
-			assert.Contains(t, err.Error(), "context deadline exceeded", "The error message should indicate a timeout")
+			assert.Contains(t, err.Error(), "timeout", "The error message should indicate a timeout")
 		}
 		assert.Greater(t, callCount, 0, "The mock operation should have been called at least once")
 	})
 
 	t.Run("operation_fails_immediately_on_non_retryable_error", func(t *testing.T) {
 		// --- Setup ---
-		ctx := context.Background()
 		operationName := "testNonRetryableError"
 		callCount := 0
 		mockOperation := func() ([]byte, diag.Diagnostics, int) {
@@ -189,8 +178,8 @@ func TestRetryOperation(t *testing.T) {
 		}
 
 		// --- Act ---
-		retryConfig := client.CreateRetryConfig(ctx, operationName, mockOperation, successCodes, testInitialDelay, testRetryDelay)
-		_, err := client.RetryWithConfig(retryConfig)
+		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, 120, testInitialDelay, testRetryDelay)
+		_, err := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
 		assert.Error(t, err, "RetryOperation should return an error for a non-retryable status")

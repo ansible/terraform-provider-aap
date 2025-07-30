@@ -9,6 +9,7 @@ import (
 	"path"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
@@ -17,6 +18,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -38,14 +40,15 @@ type HostAPIModel struct {
 
 // HostResourceModel maps the host resource schema to a Go struct
 type HostResourceModel struct {
-	InventoryId types.Int64                      `tfsdk:"inventory_id"`
-	Name        types.String                     `tfsdk:"name"`
-	URL         types.String                     `tfsdk:"url"`
-	Description types.String                     `tfsdk:"description"`
-	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
-	Groups      types.Set                        `tfsdk:"groups"`
-	Enabled     types.Bool                       `tfsdk:"enabled"`
-	Id          types.Int64                      `tfsdk:"id"`
+	InventoryId              types.Int64                      `tfsdk:"inventory_id"`
+	Name                     types.String                     `tfsdk:"name"`
+	URL                      types.String                     `tfsdk:"url"`
+	Description              types.String                     `tfsdk:"description"`
+	Variables                customtypes.AAPCustomStringValue `tfsdk:"variables"`
+	Groups                   types.Set                        `tfsdk:"groups"`
+	Enabled                  types.Bool                       `tfsdk:"enabled"`
+	Id                       types.Int64                      `tfsdk:"id"`
+	WaitForCompletionTimeout types.Int64                      `tfsdk:"wait_for_completion_timeout_seconds"`
 }
 
 // HostResource is the resource implementation.
@@ -136,6 +139,13 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Validators:  []validator.Set{setvalidator.SizeAtLeast(1)},
 				Description: "The list of groups to assosicate with a host.",
+			},
+			"wait_for_completion_timeout_seconds": schema.Int64Attribute{
+				Optional: true,
+				Computed: true,
+				Default:  int64default.StaticInt64(waitForCompletionTimeoutDefault),
+				Description: "Sets the maximum amount of seconds Terraform will wait before timing out the delete host operation, " +
+					"will fail. Default value of `120`",
 			},
 		},
 		Description: `Creates a host.`,
@@ -315,7 +325,6 @@ func (r *HostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 // Delete deletes the host resource.
 func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var data HostResourceModel
-	var diags diag.Diagnostics
 
 	// Read current Terraform state data into host resource model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
@@ -323,10 +332,31 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	// Delete host from AAP
-	_, diags = r.client.Delete(data.URL.ValueString())
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
+	// Define the delete operation for retry
+	deleteOperation := func() ([]byte, diag.Diagnostics, int) {
+		return r.client.DeleteWithStatus(data.URL.ValueString())
+	}
+
+	// Success status codes for delete operation
+	successStatusCodes := []int{http.StatusAccepted, http.StatusNoContent}
+
+	// Create retry configuration
+	retryConfig := CreateRetryConfig(
+		"host delete",
+		deleteOperation,
+		successStatusCodes,
+		data.WaitForCompletionTimeout.ValueInt64(),
+		hostDelaySeconds*time.Second,      // initial delay
+		hostMinTimeoutSeconds*time.Second, // retry delay
+	)
+
+	// Execute delete with retry
+	_, err := RetryWithConfig(retryConfig)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error deleting host",
+			fmt.Sprintf("Could not delete host: %s", err.Error()),
+		)
 		return
 	}
 }
