@@ -325,9 +325,7 @@ func (r *JobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	var inventoryID int64
 
 	// Use default inventory if not provided
-	if r.InventoryID.ValueInt64() == 0 {
-		inventoryID = 1
-	} else {
+	if r.InventoryID.ValueInt64() != 0 {
 		inventoryID = r.InventoryID.ValueInt64()
 	}
 
