@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,68 +13,49 @@ import (
 func TestCalculateTimeout(t *testing.T) {
 	// Define the test table
 	testTable := []struct {
-		name            string
-		setupCtx        func() (context.Context, context.CancelFunc)
-		expectedTimeout int
+		name                string
+		operationTimeoutSec int
+		expectedTimeout     int
 	}{
 		{
-			name: "Context with a standard deadline",
-			setupCtx: func() (context.Context, context.CancelFunc) {
-				return context.WithTimeout(context.Background(), 20*time.Minute)
-			},
-			expectedTimeout: 19 * 60, // 19 minutes in seconds
+			name:                "Standard timeout subtracts buffer",
+			operationTimeoutSec: 20 * 60, // 20 minutes
+			expectedTimeout:     19 * 60, // 19 minutes (20 - 1 minute buffer)
 		},
 		{
-			name: "Context with no deadline",
-			setupCtx: func() (context.Context, context.CancelFunc) {
-				return context.Background(), func() {}
-			},
-			expectedTimeout: maxTimeoutSeconds,
+			name:                "Zero timeout returns minimum",
+			operationTimeoutSec: 0,
+			expectedTimeout:     minTimeoutSeconds,
 		},
 		{
-			name: "Context with a short deadline, clamps to minimum",
-			setupCtx: func() (context.Context, context.CancelFunc) {
-				return context.WithTimeout(context.Background(), 3*time.Second)
-			},
-			expectedTimeout: minTimeoutSeconds,
+			name:                "Negative timeout returns minimum",
+			operationTimeoutSec: -10,
+			expectedTimeout:     minTimeoutSeconds,
 		},
 		{
-			name: "Context with an expired deadline, clamps to minimum",
-			setupCtx: func() (context.Context, context.CancelFunc) {
-				return context.WithDeadline(context.Background(), time.Now().Add(-10*time.Second))
-			},
-			expectedTimeout: minTimeoutSeconds,
+			name:                "Short timeout clamps to minimum",
+			operationTimeoutSec: 3,
+			expectedTimeout:     minTimeoutSeconds,
 		},
 		{
-			name: "Context deadline resulting in exactly minimum timeout",
-			setupCtx: func() (context.Context, context.CancelFunc) {
-				// With 60s buffer, this will clamp to minimum
-				return context.WithTimeout(context.Background(), 6250*time.Millisecond)
-			},
-			expectedTimeout: minTimeoutSeconds,
+			name:                "Timeout exactly at buffer threshold clamps to minimum",
+			operationTimeoutSec: 60, // exactly the buffer size
+			expectedTimeout:     minTimeoutSeconds,
 		},
 		{
-			name: "Context with long deadline properly subtracts buffer",
-			setupCtx: func() (context.Context, context.CancelFunc) {
-				// 90s - 60s buffer = 30s
-				return context.WithTimeout(context.Background(), 90*time.Second)
-			},
-			expectedTimeout: 30,
+			name:                "Timeout properly subtracts buffer",
+			operationTimeoutSec: 90, // 90 seconds
+			expectedTimeout:     30, // 90 - 60 = 30
 		},
 	}
 
 	// Iterate over the test table
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
-			// Setup the context for the test case
-			ctx, cancel := tc.setupCtx()
-			defer cancel()
-
 			// Calculate the timeout
-			timeout := CalculateTimeout(ctx)
+			timeout := CalculateTimeout(tc.operationTimeoutSec)
 
-			// We round the result to the nearest second for reliable comparison,
-			// as the exact remaining time can have minor variations.
+			// Verify the result
 			if timeout != tc.expectedTimeout {
 				t.Errorf("Expected timeout %v, but got %v", tc.expectedTimeout, timeout)
 			}

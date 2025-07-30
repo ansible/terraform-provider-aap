@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"math"
 	"net/http"
 	"time"
 
@@ -38,29 +37,26 @@ const (
 )
 
 // CalculateTimeout returns the retry timeout in seconds, which is 1 minute less than the context timeout.
-func CalculateTimeout(ctx context.Context) int {
+func CalculateTimeout(operationTimeoutSec int) int {
 	// Default fallback timeout in seconds
-	timeout := maxTimeoutSeconds
+	var timeout int
 
-	if deadline, ok := ctx.Deadline(); ok {
-		remainingDuration := time.Until(deadline).Seconds()
-
-		// If the deadline has already passed, use the minimum timeout
-		if remainingDuration <= 0 {
-			return minTimeoutSeconds
-		}
-
-		// Use 80% of the remaining time for the timeout
-		calculatedTimeoutSeconds := remainingDuration - defaultBuffer.Seconds()
-
-		// Ensure the timeout is at least the minimum viable timeout
-		if calculatedTimeoutSeconds < float64(minTimeoutSeconds) {
-			timeout = minTimeoutSeconds
-		} else {
-			// Return the timeout as an integer, truncating any fractions of a second
-			timeout = int(math.Round(calculatedTimeoutSeconds))
-		}
+	// If the deadline has already passed, use the minimum timeout
+	if operationTimeoutSec <= 0 {
+		return minTimeoutSeconds
 	}
+
+	// Use 80% of the remaining time for the timeout
+	calculatedTimeoutSeconds := operationTimeoutSec - int(defaultBuffer.Seconds())
+
+	// Ensure the timeout is at least the minimum viable timeout
+	if calculatedTimeoutSeconds < minTimeoutSeconds {
+		timeout = minTimeoutSeconds
+	} else {
+		// Return the timeout as an integer, truncating any fractions of a second
+		timeout = calculatedTimeoutSeconds
+	}
+
 	return timeout
 }
 
@@ -81,7 +77,7 @@ func CreateRetryConfig(
 	initialDelay time.Duration,
 	retryDelay time.Duration,
 ) *HostRetryConfig {
-	retryTimeout := int(timeoutSeconds)
+	retryTimeout := CalculateTimeout(int(timeoutSeconds))
 
 	// Use provided delays, fallback to defaults if zero
 	if initialDelay == 0 {
