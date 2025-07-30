@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -63,16 +62,21 @@ func CalculateTimeout(operationTimeoutSec int) int {
 // CreateRetryConfig creates a StateChangeConf for retrying operations with exponential backoff.
 // This follows Terraform provider best practices for handling transient API errors.
 //
-// Retryable scenarios based on RFC 7231 and industry standards:
+// Common retryable scenarios based on RFC 7231 and industry standards:
 // - HTTP 409: Resource conflict (host in use by running jobs)
-// - HTTP 408/429: Client timeouts and rate limiting
-// - HTTP 5xx: Server-side transient errors
+// - HTTP 408: Request timeout
+// - HTTP 429: Too many requests (rate limiting)
+// - HTTP 500: Internal server error
+// - HTTP 502: Bad gateway
+// - HTTP 503: Service unavailable
+// - HTTP 504: Gateway timeout
 //
-// The retry timeout is calculated from the context deadline, leaving a buffer to prevent conflicts.
+// Uses the provided timeout seconds instead of calculating from context deadline.
 func CreateRetryConfig(
 	operationName string,
 	operation HostOperationFunc,
 	successStatusCodes []int,
+	retryableStatusCodes []int,
 	timeoutSeconds int64,
 	initialDelay time.Duration,
 	retryDelay time.Duration,
@@ -94,11 +98,10 @@ func CreateRetryConfig(
 			body, diags, statusCode := operation()
 
 			// Check for retryable status codes
-			switch statusCode {
-			case http.StatusConflict, http.StatusRequestTimeout, http.StatusTooManyRequests,
-				http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable,
-				http.StatusGatewayTimeout:
-				return nil, hostRetryStateRetrying, nil // Keep retrying
+			for _, retryableCode := range retryableStatusCodes {
+				if statusCode == retryableCode {
+					return nil, hostRetryStateRetrying, nil // Keep retrying
+				}
 			}
 
 			// Check for success cases

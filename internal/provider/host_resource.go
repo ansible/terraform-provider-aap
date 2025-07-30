@@ -340,11 +340,22 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	// Success status codes for delete operation
 	successStatusCodes := []int{http.StatusAccepted, http.StatusNoContent}
 
+	// Retryable status codes for host delete operations
+	// Currently only retrying on conflicts, but other common retryable codes include:
+	// - http.StatusRequestTimeout (408): Request timeout
+	// - http.StatusTooManyRequests (429): Rate limiting
+	// - http.StatusInternalServerError (500): Internal server error
+	// - http.StatusBadGateway (502): Bad gateway
+	// - http.StatusServiceUnavailable (503): Service unavailable
+	// - http.StatusGatewayTimeout (504): Gateway timeout
+	retryableStatusCodes := []int{http.StatusConflict}
+
 	// Create retry configuration
 	retryConfig := CreateRetryConfig(
 		"host delete",
 		deleteOperation,
 		successStatusCodes,
+		retryableStatusCodes,
 		data.WaitForCompletionTimeout.ValueInt64(),
 		delaySeconds*time.Second,      // initial delay
 		minTimeoutSeconds*time.Second, // retry delay

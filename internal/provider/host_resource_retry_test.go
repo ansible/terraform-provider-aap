@@ -67,6 +67,7 @@ func TestRetryOperation(t *testing.T) {
 	testInitialDelay := 10 * time.Millisecond
 	testRetryDelay := 5 * time.Millisecond
 	successCodes := []int{http.StatusOK}
+	retryableCodes := []int{http.StatusConflict}
 
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -93,7 +94,7 @@ func TestRetryOperation(t *testing.T) {
 		}
 
 		// --- Act ---
-		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, 120, testInitialDelay, testRetryDelay)
+		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, retryableCodes, 120, testInitialDelay, testRetryDelay)
 		result, err := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
@@ -116,7 +117,7 @@ func TestRetryOperation(t *testing.T) {
 
 		// --- Act ---
 		startTime := time.Now()
-		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, 120, testInitialDelay, testRetryDelay)
+		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, retryableCodes, 120, testInitialDelay, testRetryDelay)
 		result, err := RetryWithConfig(retryConfig)
 		elapsedTime := time.Since(startTime)
 
@@ -137,7 +138,7 @@ func TestRetryOperation(t *testing.T) {
 		}
 
 		// --- Act ---
-		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, 1, testInitialDelay, testRetryDelay)
+		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, retryableCodes, 1, testInitialDelay, testRetryDelay)
 		_, err := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
@@ -158,7 +159,7 @@ func TestRetryOperation(t *testing.T) {
 		}
 
 		// --- Act ---
-		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, 120, testInitialDelay, testRetryDelay)
+		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, retryableCodes, 120, testInitialDelay, testRetryDelay)
 		_, err := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
