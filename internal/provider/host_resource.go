@@ -346,8 +346,8 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		deleteOperation,
 		successStatusCodes,
 		data.WaitForCompletionTimeout.ValueInt64(),
-		hostDelaySeconds*time.Second,      // initial delay
-		hostMinTimeoutSeconds*time.Second, // retry delay
+		delaySeconds*time.Second,      // initial delay
+		minTimeoutSeconds*time.Second, // retry delay
 	)
 
 	// Execute delete with retry

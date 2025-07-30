@@ -85,7 +85,7 @@ func CreateRetryConfig(
 
 	// Use provided delays, fallback to defaults if zero
 	if initialDelay == 0 {
-		initialDelay = hostDelaySeconds * time.Second
+		initialDelay = delaySeconds * time.Second
 	}
 	if retryDelay == 0 {
 		retryDelay = minTimeoutSeconds * time.Second

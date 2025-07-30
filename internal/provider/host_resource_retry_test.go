@@ -30,21 +30,21 @@ func TestCalculateTimeout(t *testing.T) {
 			setupCtx: func() (context.Context, context.CancelFunc) {
 				return context.Background(), func() {}
 			},
-			expectedTimeout: hostMaxTimeoutSeconds,
+			expectedTimeout: maxTimeoutSeconds,
 		},
 		{
 			name: "Context with a short deadline, clamps to minimum",
 			setupCtx: func() (context.Context, context.CancelFunc) {
 				return context.WithTimeout(context.Background(), 3*time.Second)
 			},
-			expectedTimeout: hostMinTimeoutSeconds,
+			expectedTimeout: minTimeoutSeconds,
 		},
 		{
 			name: "Context with an expired deadline, clamps to minimum",
 			setupCtx: func() (context.Context, context.CancelFunc) {
 				return context.WithDeadline(context.Background(), time.Now().Add(-10*time.Second))
 			},
-			expectedTimeout: hostMinTimeoutSeconds,
+			expectedTimeout: minTimeoutSeconds,
 		},
 		{
 			name: "Context deadline resulting in exactly minimum timeout",
@@ -52,7 +52,7 @@ func TestCalculateTimeout(t *testing.T) {
 				// With 60s buffer, this will clamp to minimum
 				return context.WithTimeout(context.Background(), 6250*time.Millisecond)
 			},
-			expectedTimeout: hostMinTimeoutSeconds,
+			expectedTimeout: minTimeoutSeconds,
 		},
 		{
 			name: "Context with long deadline properly subtracts buffer",
