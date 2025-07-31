@@ -1,0 +1,3 @@
+---
+bugfixes:
+  - Fix aab_job using default inventory id

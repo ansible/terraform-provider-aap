@@ -83,7 +83,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 				InventoryID: basetypes.NewInt64Unknown(),
 				TemplateID:  types.Int64Value(1),
 			},
-			expected: []byte(`{"inventory":1}`),
+			expected: []byte(`{}`),
 		},
 		{
 			name: "null values",
@@ -92,7 +92,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 				InventoryID: basetypes.NewInt64Null(),
 				TemplateID:  types.Int64Value(1),
 			},
-			expected: []byte(`{"inventory":1}`),
+			expected: []byte(`{}`),
 		},
 		{
 			name: "extra vars only",
@@ -100,7 +100,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 				ExtraVars:   customtypes.NewAAPCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Null(),
 			},
-			expected: []byte(`{"inventory":1,"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
+			expected: []byte(`{"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
 		},
 		{
 			name: "inventory vars only",

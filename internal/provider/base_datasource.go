@@ -188,7 +188,7 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("ValidateConfig", ctx, resp.Diagnostics) {
+	if !IsContextActive("ValidateConfig", ctx, &resp.Diagnostics) {
 		return
 	}
 
@@ -221,7 +221,7 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("ValidateConfig", ctx, resp.Diagnostics) {
+	if !IsContextActive("ValidateConfig", ctx, &resp.Diagnostics) {
 		return
 	}
 
@@ -279,7 +279,7 @@ func (d *BaseDataSource) Configure(ctx context.Context, req datasource.Configure
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("Configure", ctx, resp.Diagnostics) {
+	if !IsContextActive("Configure", ctx, &resp.Diagnostics) {
 		return
 	}
 

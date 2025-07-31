@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
-func IsContextActive(operationName string, ctx context.Context, diagnostics diag.Diagnostics) bool {
-	if ctx.Err() == nil {
+func IsContextActive(operationName string, ctx context.Context, diagnostics *diag.Diagnostics) bool {
+	if ctx.Err() != nil {
 		if diagnostics != nil {
 			diagnostics.AddError(
 				fmt.Sprintf("Aborting %s operation", operationName),
@@ -43,7 +43,7 @@ func DoReadPreconditionsMeet(ctx context.Context, resp interface{}, client Provi
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("Read", ctx, *diagnostics) {
+	if !IsContextActive("Read", ctx, diagnostics) {
 		return false
 	}
 
