@@ -78,11 +78,6 @@ type BaseResource struct {
 	StringDescriptions
 }
 
-// BaseResourceWithOrg represents a resource with an associated AAP Organization.
-type BaseResourceWithOrg struct {
-	BaseResource
-}
-
 // BaseResourceModel describes fields in a Terraform resource.
 type BaseResourceModel struct {
 	Url tftypes.String `tfsdk:"url"`
