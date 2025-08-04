@@ -40,6 +40,11 @@ func DoReadPreconditionsMeet(ctx context.Context, resp any, client ProviderHTTPC
 		diagnostics = &r.Diagnostics
 	default:
 		// Handle unexpected types
+		diagnostics.AddError(
+			"Aborting Read operation",
+			"Unexpected ReadResponse type",
+		)
+		return false
 	}
 
 	// Check that the current context is active
