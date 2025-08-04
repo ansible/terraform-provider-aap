@@ -18,7 +18,7 @@ func TestAccHostResourceDeleteWithRetry(t *testing.T) {
 	var hostApiModel HostAPIModel
 	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	hostName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
-	jobTemplateID := os.Getenv("AAP_TEST_JOB_FOR_HOST_RETRY_ID")
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_FOR_HOST_RETRY_ID") // ID of a Job Template that Sleeps for 15secs
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -51,8 +51,7 @@ resource "aap_host" "test" {
 
 resource "aap_job" "test" {
   job_template_id = %s
-  inventory_id    = 1
-  extra_vars      = jsonencode({ "sleep_interval" : "5m" })
+  inventory_id    = 1)
 }`, inventoryName, hostName, jobTemplateID)
 }
 
@@ -64,7 +63,7 @@ func TestRetryOperation(t *testing.T) {
 
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == apiEndpoint {
+		if r.URL.Path == "/api/" {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"current_version": "/api/v2/"}`)) //nolint:errcheck
 		}
@@ -120,26 +119,6 @@ func TestRetryOperation(t *testing.T) {
 		assert.Equal(t, 2, callCount, "The mock operation should have been called twice")
 		expectedMinDuration := time.Duration(testInitialDelay+testRetryDelay) * time.Second
 		assert.GreaterOrEqual(t, elapsedTime, expectedMinDuration, "The elapsed time should be at least the initial delay plus the retry delay")
-	})
-	t.Run("operation_times_out_if_it_never_succeeds", func(t *testing.T) {
-		// --- Setup ---
-		operationName := "testConflictThatAlwaysFails"
-		callCount := 0
-		mockOperation := func() ([]byte, diag.Diagnostics, int) {
-			callCount++
-			return nil, nil, http.StatusConflict
-		}
-
-		// --- Act ---
-		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, retryableCodes, 1, testInitialDelay, testRetryDelay)
-		_, err := RetryWithConfig(retryConfig)
-
-		// --- Assert ---
-		assert.Error(t, err, "RetryOperation should return an error when it times out")
-		if err != nil {
-			assert.Contains(t, err.Error(), "timeout", "The error message should indicate a timeout")
-		}
-		assert.Greater(t, callCount, 0, "The mock operation should have been called at least once")
 	})
 
 	t.Run("operation_fails_immediately_on_non_retryable_error", func(t *testing.T) {

@@ -39,8 +39,8 @@ func TestComputeURLPath(t *testing.T) {
 
 func TestReadApiEndpoint(t *testing.T) {
 	server_24 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != apiEndpoint {
-			t.Errorf("Expected to request '%s', got: %s", apiEndpoint, r.URL.Path)
+		if r.URL.Path != "/api/" {
+			t.Errorf("Expected to request '/api/', got: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"current_version": "/api/v2/"}`)) //nolint:errcheck
@@ -49,7 +49,7 @@ func TestReadApiEndpoint(t *testing.T) {
 
 	server_25 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case apiEndpoint:
+		case "/api/":
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"apis":{"gateway": "/api/gateway/", "controller": "/api/controller/"}}`)) //nolint:errcheck
 		case "/api/controller/":
