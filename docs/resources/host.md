@@ -123,6 +123,7 @@ output "host_xyz" {
 - `enabled` (Boolean) Denotes if the host is online and is available
 - `groups` (Set of Number) The list of groups to assosicate with a host.
 - `variables` (String) Variables for the host configuration. Must be provided as either a JSON or YAML string.
+- `wait_for_completion_timeout_seconds` (Number) Sets the maximum amount of seconds Terraform will wait before timing out the delete host operation, will fail. Default value of `120`
 
 ### Read-Only
 

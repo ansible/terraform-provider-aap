@@ -44,7 +44,7 @@ type AAPApiEndpointResponse struct {
 }
 
 func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
-	body, diags := client.Get("/api/")
+	body, diags := client.Get(apiEndpoint)
 	if diags.HasError() {
 		return "", diags
 	}
@@ -203,3 +203,8 @@ func (c *AAPClient) DeleteWithStatus(path string) ([]byte, diag.Diagnostics, int
 	}
 	return body, diags, deleteResponse.StatusCode
 }
+
+// API endpoint constants
+const (
+	apiEndpoint = "/api/"
+)

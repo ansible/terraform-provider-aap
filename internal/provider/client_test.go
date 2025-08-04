@@ -2,11 +2,10 @@ package provider
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"fmt"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -22,7 +21,7 @@ func TestComputeURLPath(t *testing.T) {
 		{name: "case 3", url: "https://localhost:8043/", path: "/api/v2/state"},
 		{name: "case 4", url: "https://localhost:8043", path: "api/v2/state"},
 	}
-	var expected = "https://localhost:8043/api/v2/state/"
+	expected := "https://localhost:8043/api/v2/state/"
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
 			client := AAPClient{
@@ -40,8 +39,8 @@ func TestComputeURLPath(t *testing.T) {
 
 func TestReadApiEndpoint(t *testing.T) {
 	server_24 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/" {
-			t.Errorf("Expected to request '/api/', got: %s", r.URL.Path)
+		if r.URL.Path != apiEndpoint {
+			t.Errorf("Expected to request '%s', got: %s", apiEndpoint, r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"current_version": "/api/v2/"}`)) //nolint:errcheck
@@ -50,7 +49,7 @@ func TestReadApiEndpoint(t *testing.T) {
 
 	server_25 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/":
+		case apiEndpoint:
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"apis":{"gateway": "/api/gateway/", "controller": "/api/controller/"}}`)) //nolint:errcheck
 		case "/api/controller/":
