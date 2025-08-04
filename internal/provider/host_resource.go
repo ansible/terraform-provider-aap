@@ -9,7 +9,6 @@ import (
 	"path"
 	"slices"
 	"sync"
-	"time"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
@@ -18,7 +17,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -40,15 +38,14 @@ type HostAPIModel struct {
 
 // HostResourceModel maps the host resource schema to a Go struct
 type HostResourceModel struct {
-	InventoryId              types.Int64                      `tfsdk:"inventory_id"`
-	Name                     types.String                     `tfsdk:"name"`
-	URL                      types.String                     `tfsdk:"url"`
-	Description              types.String                     `tfsdk:"description"`
-	Variables                customtypes.AAPCustomStringValue `tfsdk:"variables"`
-	Groups                   types.Set                        `tfsdk:"groups"`
-	Enabled                  types.Bool                       `tfsdk:"enabled"`
-	Id                       types.Int64                      `tfsdk:"id"`
-	WaitForCompletionTimeout types.Int64                      `tfsdk:"wait_for_completion_timeout_seconds"`
+	InventoryId types.Int64                      `tfsdk:"inventory_id"`
+	Name        types.String                     `tfsdk:"name"`
+	URL         types.String                     `tfsdk:"url"`
+	Description types.String                     `tfsdk:"description"`
+	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
+	Groups      types.Set                        `tfsdk:"groups"`
+	Enabled     types.Bool                       `tfsdk:"enabled"`
+	Id          types.Int64                      `tfsdk:"id"`
 }
 
 // HostResource is the resource implementation.
@@ -139,13 +136,6 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Validators:  []validator.Set{setvalidator.SizeAtLeast(1)},
 				Description: "The list of groups to assosicate with a host.",
-			},
-			"wait_for_completion_timeout_seconds": schema.Int64Attribute{
-				Optional: true,
-				Computed: true,
-				Default:  int64default.StaticInt64(waitForCompletionTimeoutDefault),
-				Description: "Sets the maximum amount of seconds Terraform will wait before timing out the delete host operation, " +
-					"will fail. Default value of `120`",
 			},
 		},
 		Description: `Creates a host.`,
@@ -352,15 +342,7 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	}
 
 	// Create retry configuration
-	retryConfig := CreateRetryConfig(
-		"host delete",
-		deleteOperation,
-		successStatusCodes,
-		retryableStatusCodes,
-		data.WaitForCompletionTimeout.ValueInt64(),
-		delaySeconds*time.Second,      // initial delay
-		minTimeoutSeconds*time.Second, // retry delay
-	)
+	retryConfig := CreateRetryConfig("host delete", deleteOperation, successStatusCodes, retryableStatusCodes, 0, 0, 0)
 
 	// Execute delete with retry
 	_, err := RetryWithConfig(retryConfig)

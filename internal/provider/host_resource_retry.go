@@ -27,37 +27,12 @@ const (
 	hostRetryStateSuccess  = "success"
 )
 
-// Retry timing constants
+// Default Retry Time Constants
 const (
-	maxTimeoutSeconds = 30              // Maximum wait between retries (seconds)
-	minTimeoutSeconds = 5               // Minimum wait between retries (seconds)
-	delaySeconds      = 2               // Initial delay before first retry (seconds)
-	defaultBuffer     = 1 * time.Minute // Default buffer to leave between context deadline and timeout
+	defaultRetryTimeout     = 1800 // Overall timeout for retry (seconds) Default: 30min
+	defaultRetryDelay       = 5    // Time to wait between retries (seconds)
+	defaultRetryInitalDelay = 2    // Initial delay before first retry (seconds)
 )
-
-// CalculateTimeout returns the retry timeout in seconds, which is 1 minute less than the context timeout.
-func CalculateTimeout(operationTimeoutSec int) int {
-	// Default fallback timeout in seconds
-	var timeout int
-
-	// If the deadline has already passed, use the minimum timeout
-	if operationTimeoutSec <= 0 {
-		return minTimeoutSeconds
-	}
-
-	// Use 80% of the remaining time for the timeout
-	calculatedTimeoutSeconds := operationTimeoutSec - int(defaultBuffer.Seconds())
-
-	// Ensure the timeout is at least the minimum viable timeout
-	if calculatedTimeoutSeconds < minTimeoutSeconds {
-		timeout = minTimeoutSeconds
-	} else {
-		// Return the timeout as an integer, truncating any fractions of a second
-		timeout = calculatedTimeoutSeconds
-	}
-
-	return timeout
-}
 
 // CreateRetryConfig creates a StateChangeConf for retrying operations with exponential backoff.
 // This follows Terraform provider best practices for handling transient API errors.
@@ -72,23 +47,18 @@ func CalculateTimeout(operationTimeoutSec int) int {
 // - HTTP 504: Gateway timeout
 //
 // Uses the provided timeout seconds instead of calculating from context deadline.
-func CreateRetryConfig(
-	operationName string,
-	operation HostOperationFunc,
-	successStatusCodes []int,
-	retryableStatusCodes []int,
-	timeoutSeconds int64,
-	initialDelay time.Duration,
-	retryDelay time.Duration,
+func CreateRetryConfig(operationName string, operation HostOperationFunc, successStatusCodes []int,
+	retryableStatusCodes []int, retryTimeout int64, initialDelay int64, retryDelay int64,
 ) *HostRetryConfig {
-	retryTimeout := CalculateTimeout(int(timeoutSeconds))
-
 	// Use provided delays, fallback to defaults if zero
+	if retryTimeout == 0 {
+		retryTimeout = defaultRetryTimeout
+	}
 	if initialDelay == 0 {
-		initialDelay = delaySeconds * time.Second
+		initialDelay = defaultRetryDelay
 	}
 	if retryDelay == 0 {
-		retryDelay = minTimeoutSeconds * time.Second
+		retryDelay = defaultRetryInitalDelay
 	}
 
 	stateConf := &retry.StateChangeConf{
@@ -118,8 +88,8 @@ func CreateRetryConfig(
 			return nil, "", fmt.Errorf("non-retryable HTTP status %d for %s", statusCode, operationName)
 		},
 		Timeout:    time.Duration(retryTimeout) * time.Second,
-		MinTimeout: retryDelay,   // Use the provided retry delay
-		Delay:      initialDelay, // Use the provided initial delay
+		MinTimeout: time.Duration(retryDelay) * time.Second,
+		Delay:      time.Duration(initialDelay) * time.Second,
 	}
 
 	return &HostRetryConfig{

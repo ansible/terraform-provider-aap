@@ -1,71 +1,64 @@
 package provider
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCalculateTimeout(t *testing.T) {
-	// Define the test table
-	testTable := []struct {
-		name                string
-		operationTimeoutSec int
-		expectedTimeout     int
-	}{
-		{
-			name:                "Standard timeout subtracts buffer",
-			operationTimeoutSec: 20 * 60, // 20 minutes
-			expectedTimeout:     19 * 60, // 19 minutes (20 - 1 minute buffer)
-		},
-		{
-			name:                "Zero timeout returns minimum",
-			operationTimeoutSec: 0,
-			expectedTimeout:     minTimeoutSeconds,
-		},
-		{
-			name:                "Negative timeout returns minimum",
-			operationTimeoutSec: -10,
-			expectedTimeout:     minTimeoutSeconds,
-		},
-		{
-			name:                "Short timeout clamps to minimum",
-			operationTimeoutSec: 3,
-			expectedTimeout:     minTimeoutSeconds,
-		},
-		{
-			name:                "Timeout exactly at buffer threshold clamps to minimum",
-			operationTimeoutSec: 60, // exactly the buffer size
-			expectedTimeout:     minTimeoutSeconds,
-		},
-		{
-			name:                "Timeout properly subtracts buffer",
-			operationTimeoutSec: 90, // 90 seconds
-			expectedTimeout:     30, // 90 - 60 = 30
-		},
-	}
+func TestAccHostResourceDeleteWithRetry(t *testing.T) {
+	var hostApiModel HostAPIModel
+	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	hostName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_FOR_HOST_RETRY_ID")
 
-	// Iterate over the test table
-	for _, tc := range testTable {
-		t.Run(tc.name, func(t *testing.T) {
-			// Calculate the timeout
-			timeout := CalculateTimeout(tc.operationTimeoutSec)
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create and Read testing
+			{
+				Config: testAccHostResourceDeleteWithRetry(inventoryName, hostName, jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicHostAttributes(t, resourceNameHost, hostName),
+					testAccCheckHostResourceExists(resourceNameHost, &hostApiModel),
+					testAccCheckHostResourceValues(&hostApiModel, hostName, "", ""),
+				),
+			},
+		},
+		CheckDestroy: testAccCheckHostResourceDestroy,
+	})
+}
 
-			// Verify the result
-			if timeout != tc.expectedTimeout {
-				t.Errorf("Expected timeout %v, but got %v", tc.expectedTimeout, timeout)
-			}
-		})
-	}
+func testAccHostResourceDeleteWithRetry(inventoryName, hostName, jobTemplateID string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+	name = "%s"
+}
+
+resource "aap_host" "test" {
+  name = "%s"
+  inventory_id = aap_inventory.test.id
+}
+
+resource "aap_job" "test" {
+  job_template_id = %s
+  inventory_id    = 1
+  extra_vars      = jsonencode({ "sleep_interval" : "5m" })
+}`, inventoryName, hostName, jobTemplateID)
 }
 
 func TestRetryOperation(t *testing.T) {
-	testInitialDelay := 10 * time.Millisecond
-	testRetryDelay := 5 * time.Millisecond
+	testInitialDelay := int64(1) // 1 second for testing
+	testRetryDelay := int64(1)   // 1 second for testing
 	successCodes := []int{http.StatusOK}
 	retryableCodes := []int{http.StatusConflict}
 
@@ -125,7 +118,7 @@ func TestRetryOperation(t *testing.T) {
 		assert.NoError(t, err, "RetryOperation should not return an error on eventual success")
 		assert.Equal(t, expectedBody, result, "The result body should match the one from the successful call")
 		assert.Equal(t, 2, callCount, "The mock operation should have been called twice")
-		expectedMinDuration := testInitialDelay + testRetryDelay
+		expectedMinDuration := time.Duration(testInitialDelay+testRetryDelay) * time.Second
 		assert.GreaterOrEqual(t, elapsedTime, expectedMinDuration, "The elapsed time should be at least the initial delay plus the retry delay")
 	})
 	t.Run("operation_times_out_if_it_never_succeeds", func(t *testing.T) {
