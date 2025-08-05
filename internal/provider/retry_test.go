@@ -210,10 +210,8 @@ func validateRetryStateConf(t *testing.T, config *RetryConfig, expectedTimeout, 
 // validateRetryDefaults validates that all default values are applied correctly
 func validateRetryDefaults(t *testing.T, config *RetryConfig, operationName string, ctx context.Context) {
 	validateBasicRetryConfig(t, config, operationName, ctx, DefaultRetrySuccessStatusCodes)
-	validateRetryStateConf(t, config,
-		time.Duration(DefaultRetryTimeout)*time.Second,      // Timeout
-		time.Duration(DefaultRetryDelay)*time.Second,        // Delay (initialDelay gets DefaultRetryDelay)
-		time.Duration(DefaultRetryInitialDelay)*time.Second) // MinTimeout (retryDelay gets DefaultRetryInitialDelay)
+	validateRetryStateConf(t, config, time.Duration(DefaultRetryTimeout)*time.Second,
+		time.Duration(DefaultRetryDelay)*time.Second, time.Duration(DefaultRetryInitialDelay)*time.Second)
 }
 
 func TestCreateRetryConfig(t *testing.T) {
@@ -264,11 +262,11 @@ func TestCreateRetryConfig(t *testing.T) {
 		{
 			name:           "applies all defaults when parameters are zero or nil",
 			operation:      mockOperation,
-			successCodes:   nil,     // Should use default
-			retryableCodes: []int{}, // Should use default
-			timeout:        0,       // Should use default
-			initialDelay:   0,       // Should use default
-			retryDelay:     0,       // Should use default
+			successCodes:   nil,
+			retryableCodes: []int{},
+			timeout:        0,
+			initialDelay:   0,
+			retryDelay:     0,
 			expectError:    false,
 			validateFunc: func(t *testing.T, config *RetryConfig) {
 				validateRetryDefaults(t, config, operationName, ctx)
@@ -285,10 +283,7 @@ func TestCreateRetryConfig(t *testing.T) {
 			expectError:    false,
 			validateFunc: func(t *testing.T, config *RetryConfig) {
 				validateBasicRetryConfig(t, config, operationName, ctx, successCodes)
-				validateRetryStateConf(t, config,
-					300*time.Second, // timeout
-					3*time.Second,   // delay (initialDelay)
-					7*time.Second)   // minTimeout (retryDelay)
+				validateRetryStateConf(t, config, 300*time.Second, 3*time.Second, 7*time.Second)
 			},
 		},
 	}
