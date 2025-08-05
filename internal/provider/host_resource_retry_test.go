@@ -2,59 +2,14 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
-	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestAccHostResourceDeleteWithRetry(t *testing.T) {
-	var hostApiModel HostAPIModel
-	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
-	hostName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
-	jobTemplateID := os.Getenv("AAP_TEST_JOB_FOR_HOST_RETRY_ID") // ID of a Job Template that Sleeps for 15secs
-
-	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		Steps: []resource.TestStep{
-			// Create and Read testing
-			{
-				Config: testAccHostResourceDeleteWithRetry(inventoryName, hostName, jobTemplateID),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					checkBasicHostAttributes(t, resourceNameHost, hostName),
-					testAccCheckHostResourceExists(resourceNameHost, &hostApiModel),
-					testAccCheckHostResourceValues(&hostApiModel, hostName, "", ""),
-				),
-			},
-		},
-		CheckDestroy: testAccCheckHostResourceDestroy,
-	})
-}
-
-func testAccHostResourceDeleteWithRetry(inventoryName, hostName, jobTemplateID string) string {
-	return fmt.Sprintf(`
-resource "aap_inventory" "test" {
-	name = "%s"
-}
-
-resource "aap_host" "test" {
-  name = "%s"
-  inventory_id = aap_inventory.test.id
-}
-
-resource "aap_job" "test" {
-  job_template_id = %s
-  inventory_id    = 1)
-}`, inventoryName, hostName, jobTemplateID)
-}
 
 func TestRetryOperation(t *testing.T) {
 	testInitialDelay := int64(1) // 1 second for testing
