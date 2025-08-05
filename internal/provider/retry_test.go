@@ -153,8 +153,8 @@ func TestRetryOperation(t *testing.T) {
 		)
 
 		// --- Act ---
-		retryConfig, err1 := CreateRetryConfig(ctx, operationName, WrapRetryOperation(mockOp), successCodes, extendedRetryableCodes,
-			testTimeout, testInitialDelay, testRetryDelay)
+		retryConfig, err1 := CreateRetryConfig(ctx, operationName, WrapRetryOperation(mockOp), successCodes,
+			extendedRetryableCodes, testTimeout, testInitialDelay, testRetryDelay)
 		result, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
@@ -177,8 +177,8 @@ func TestRetryOperation(t *testing.T) {
 		mockOp.EXPECT().Execute().Return(expectedBody, diag.Diagnostics{}, http.StatusAccepted).Times(1)
 
 		// --- Act ---
-		retryConfig, err1 := CreateRetryConfig(ctx, operationName, WrapRetryOperation(mockOp), extendedSuccessCodes, retryableCodes,
-			testTimeout, testInitialDelay, testRetryDelay)
+		retryConfig, err1 := CreateRetryConfig(ctx, operationName, WrapRetryOperation(mockOp), extendedSuccessCodes,
+			retryableCodes, testTimeout, testInitialDelay, testRetryDelay)
 		result, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
@@ -189,7 +189,8 @@ func TestRetryOperation(t *testing.T) {
 }
 
 // validateBasicRetryConfig validates common config fields
-func validateBasicRetryConfig(t *testing.T, config *RetryConfig, operationName string, ctx context.Context, expectedSuccessCodes []int) {
+func validateBasicRetryConfig(t *testing.T, config *RetryConfig, operationName string, ctx context.Context,
+	expectedSuccessCodes []int) {
 	assert.Equal(t, operationName, config.operationName)
 	assert.Equal(t, ctx, config.ctx)
 	assert.Equal(t, expectedSuccessCodes, config.successStatusCodes)
@@ -198,7 +199,8 @@ func validateBasicRetryConfig(t *testing.T, config *RetryConfig, operationName s
 }
 
 // validateRetryStateConf validates StateChangeConf fields
-func validateRetryStateConf(t *testing.T, config *RetryConfig, expectedTimeout, expectedDelay, expectedMinTimeout time.Duration) {
+func validateRetryStateConf(t *testing.T, config *RetryConfig, expectedTimeout, expectedDelay,
+	expectedMinTimeout time.Duration) {
 	assert.Equal(t, []string{RetryStateRetrying}, config.stateConf.Pending)
 	assert.Equal(t, []string{RetryStateSuccess}, config.stateConf.Target)
 	assert.Equal(t, expectedTimeout, config.stateConf.Timeout)
@@ -222,6 +224,8 @@ func TestCreateRetryConfig(t *testing.T) {
 	}
 	successCodes := []int{http.StatusOK}
 	retryableCodes := []int{http.StatusConflict}
+	maxDurationSeconds := math.MaxInt64 / int64(time.Second)
+	overflowValue := maxDurationSeconds + 1
 
 	tests := []struct {
 		name           string
@@ -286,6 +290,50 @@ func TestCreateRetryConfig(t *testing.T) {
 				validateRetryStateConf(t, config, 300*time.Second, 3*time.Second, 7*time.Second)
 			},
 		},
+		{
+			name:           "returns errors for all overflow values",
+			operation:      mockOperation,
+			successCodes:   successCodes,
+			retryableCodes: retryableCodes,
+			timeout:        overflowValue,
+			initialDelay:   overflowValue,
+			retryDelay:     overflowValue,
+			expectError:    true,
+			errorContains:  "invalid retry timeout",
+		},
+		{
+			name:           "returns errors for all negative values",
+			operation:      mockOperation,
+			successCodes:   successCodes,
+			retryableCodes: retryableCodes,
+			timeout:        -1,
+			initialDelay:   -1,
+			retryDelay:     -1,
+			expectError:    true,
+			errorContains:  "invalid retry timeout",
+		},
+		{
+			name:           "returns error for initial delay overflow when timeout is valid",
+			operation:      mockOperation,
+			successCodes:   successCodes,
+			retryableCodes: retryableCodes,
+			timeout:        120,
+			initialDelay:   overflowValue,
+			retryDelay:     5,
+			expectError:    true,
+			errorContains:  "invalid initial delay",
+		},
+		{
+			name:           "returns error for retry delay overflow when timeout and initial delay are valid",
+			operation:      mockOperation,
+			successCodes:   successCodes,
+			retryableCodes: retryableCodes,
+			timeout:        120,
+			initialDelay:   2,
+			retryDelay:     overflowValue,
+			expectError:    true,
+			errorContains:  "invalid retry delay",
+		},
 	}
 
 	for _, tt := range tests {
@@ -320,38 +368,16 @@ func TestSafeDurationFromSeconds(t *testing.T) {
 		expectError      bool
 		errorContains    string
 	}{
-		{
-			name:             "converts valid positive seconds",
-			seconds:          60,
-			expectedDuration: time.Minute,
-			expectError:      false,
-		},
-		{
-			name:             "converts zero seconds",
-			seconds:          0,
-			expectedDuration: time.Duration(0),
-			expectError:      false,
-		},
-		{
-			name:             "handles maximum valid duration",
-			seconds:          maxDurationSeconds,
-			expectedDuration: time.Duration(maxDurationSeconds) * time.Second,
-			expectError:      false,
-		},
-		{
-			name:             "returns error for negative seconds",
-			seconds:          -1,
-			expectedDuration: time.Duration(0),
-			expectError:      true,
-			errorContains:    "duration must be non-negative",
-		},
-		{
-			name:             "returns error for overflow",
-			seconds:          maxDurationSeconds + 1,
-			expectedDuration: time.Duration(0),
-			expectError:      true,
-			errorContains:    "duration overflow",
-		},
+		{"zero seconds", 0, 0, false, ""},
+		{"one second", 1, time.Second, false, ""},
+		{"one minute", 60, time.Minute, false, ""},
+		{"one hour", 3600, time.Hour, false, ""},
+		{"max valid duration", maxDurationSeconds, time.Duration(maxDurationSeconds) * time.Second, false, ""},
+		{"max valid minus one", maxDurationSeconds - 1, time.Duration(maxDurationSeconds-1) * time.Second, false, ""},
+		{"negative value", -1, 0, true, "duration must be non-negative"},
+		{"large negative", -100, 0, true, "duration must be non-negative"},
+		{"overflow", maxDurationSeconds + 1, 0, true, "duration overflow"},
+		{"large overflow", math.MaxInt64, 0, true, "duration overflow"},
 	}
 
 	for _, tt := range tests {
@@ -367,83 +393,6 @@ func TestSafeDurationFromSeconds(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedDuration, duration)
-			}
-		})
-	}
-}
-
-func TestCreateRetryConfigOverflow(t *testing.T) {
-	ctx := context.Background()
-	operationName := "testOperation"
-	mockOperation := func() ([]byte, diag.Diagnostics, int) {
-		return []byte("test"), nil, http.StatusOK
-	}
-	successCodes := []int{http.StatusOK}
-	retryableCodes := []int{http.StatusConflict}
-	maxDurationSeconds := math.MaxInt64 / int64(time.Second)
-	overflowValue := maxDurationSeconds + 1
-
-	tests := []struct {
-		name            string
-		timeout         int64
-		initialDelay    int64
-		retryDelay      int64
-		expectError     bool
-		expectedErrors  []string
-		testDescription string
-	}{
-		{
-			name:            "returns errors for all overflow values",
-			timeout:         overflowValue,
-			initialDelay:    overflowValue,
-			retryDelay:      overflowValue,
-			expectError:     true,
-			expectedErrors:  []string{"invalid retry timeout", "duration overflow"},
-			testDescription: "Tests timeout overflow (first parameter checked)",
-		},
-		{
-			name:            "returns errors for all negative values",
-			timeout:         -1,
-			initialDelay:    -1,
-			retryDelay:      -1,
-			expectError:     true,
-			expectedErrors:  []string{"invalid retry timeout", "duration must be non-negative"},
-			testDescription: "Tests negative timeout (first parameter checked)",
-		},
-		{
-			name:            "returns error for initial delay overflow when timeout is valid",
-			timeout:         120,
-			initialDelay:    overflowValue,
-			retryDelay:      5,
-			expectError:     true,
-			expectedErrors:  []string{"invalid initial delay", "duration overflow"},
-			testDescription: "Tests initial delay overflow when timeout passes validation",
-		},
-		{
-			name:            "returns error for retry delay overflow when timeout and initial delay are valid",
-			timeout:         120,
-			initialDelay:    2,
-			retryDelay:      overflowValue,
-			expectError:     true,
-			expectedErrors:  []string{"invalid retry delay", "duration overflow"},
-			testDescription: "Tests retry delay overflow when other parameters pass validation",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			config, err := CreateRetryConfig(ctx, operationName, mockOperation, successCodes, retryableCodes,
-				tt.timeout, tt.initialDelay, tt.retryDelay)
-
-			if tt.expectError {
-				assert.Error(t, err)
-				assert.Nil(t, config)
-				for _, errorStr := range tt.expectedErrors {
-					assert.Contains(t, err.Error(), errorStr)
-				}
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, config)
 			}
 		})
 	}

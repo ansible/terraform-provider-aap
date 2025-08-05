@@ -10,6 +10,7 @@
 package mock_provider
 
 import (
+	context "context"
 	reflect "reflect"
 
 	diag "github.com/hashicorp/terraform-plugin-framework/diag"
@@ -54,4 +55,43 @@ func (m *MockRetryOperation) Execute() ([]byte, diag.Diagnostics, int) {
 func (mr *MockRetryOperationMockRecorder) Execute() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockRetryOperation)(nil).Execute))
+}
+
+// MockStateChangeConfForRetry is a mock of StateChangeConfForRetry interface.
+type MockStateChangeConfForRetry struct {
+	ctrl     *gomock.Controller
+	recorder *MockStateChangeConfForRetryMockRecorder
+	isgomock struct{}
+}
+
+// MockStateChangeConfForRetryMockRecorder is the mock recorder for MockStateChangeConfForRetry.
+type MockStateChangeConfForRetryMockRecorder struct {
+	mock *MockStateChangeConfForRetry
+}
+
+// NewMockStateChangeConfForRetry creates a new mock instance.
+func NewMockStateChangeConfForRetry(ctrl *gomock.Controller) *MockStateChangeConfForRetry {
+	mock := &MockStateChangeConfForRetry{ctrl: ctrl}
+	mock.recorder = &MockStateChangeConfForRetryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockStateChangeConfForRetry) EXPECT() *MockStateChangeConfForRetryMockRecorder {
+	return m.recorder
+}
+
+// WaitForStateContext mocks base method.
+func (m *MockStateChangeConfForRetry) WaitForStateContext(ctx context.Context) (any, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WaitForStateContext", ctx)
+	ret0, _ := ret[0].(any)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WaitForStateContext indicates an expected call of WaitForStateContext.
+func (mr *MockStateChangeConfForRetryMockRecorder) WaitForStateContext(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitForStateContext", reflect.TypeOf((*MockStateChangeConfForRetry)(nil).WaitForStateContext), ctx)
 }
