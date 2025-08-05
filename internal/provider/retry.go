@@ -49,31 +49,30 @@ const (
 )
 
 var (
-	// Success status codes for delete operation
+	// Success status codes for retry operations
 	DefaultRetrySuccessStatusCodes = []int{http.StatusAccepted, http.StatusNoContent}
 
-	// Retryable status codes for host delete operations
-	DefaultRetryableStatusCodes = []int{
-		http.StatusConflict,
-		http.StatusRequestTimeout,
-		http.StatusTooManyRequests,
-		http.StatusInternalServerError,
-		http.StatusBadGateway,
-		http.StatusServiceUnavailable,
-		http.StatusGatewayTimeout,
-	}
+	// Retryable status codes for retry operations
+	// Common retryable scenarios based on RFC 7231 and industry standards:
+	// - HTTP 409: Resource conflict (host in use by running jobs)
+	// - HTTP 408: Request timeout
+	// - HTTP 429: Too many requests (rate limiting)
+	// - HTTP 500: Internal server error
+	// - HTTP 502: Bad gateway
+	// - HTTP 503: Service unavailable
+	// - HTTP 504: Gateway timeout
+	DefaultRetryableStatusCodes = []int{http.StatusConflict, http.StatusRequestTimeout,
+		http.StatusTooManyRequests, http.StatusInternalServerError, http.StatusBadGateway,
+		http.StatusServiceUnavailable, http.StatusGatewayTimeout}
 )
 
 // SafeDurationFromSeconds safely converts seconds to time.Duration, checking for overflow
-// and validating against protobuf duration constraints for positive values
 func SafeDurationFromSeconds(seconds int64) (time.Duration, error) {
 	// Maximum duration in seconds for int64 is roughly 292 years
 	const maxDurationSeconds = math.MaxInt64 / int64(time.Second)
-
 	if seconds < 0 {
 		return 0, fmt.Errorf("duration must be non-negative, got: %d seconds", seconds)
 	}
-
 	if seconds > maxDurationSeconds {
 		return 0, fmt.Errorf("duration overflow: %d seconds exceeds maximum allowed duration", seconds)
 	}
@@ -81,19 +80,7 @@ func SafeDurationFromSeconds(seconds int64) (time.Duration, error) {
 	return time.Duration(seconds) * time.Second, nil
 }
 
-// CreateRetryConfig creates a StateChangeConf for retrying operations with exponential backoff.
-// This follows Terraform provider best practices for handling transient API errors.
-//
-// Common retryable scenarios based on RFC 7231 and industry standards:
-// - HTTP 409: Resource conflict (host in use by running jobs)
-// - HTTP 408: Request timeout
-// - HTTP 429: Too many requests (rate limiting)
-// - HTTP 500: Internal server error
-// - HTTP 502: Bad gateway
-// - HTTP 503: Service unavailable
-// - HTTP 504: Gateway timeout
-//
-// Uses the provided timeout seconds instead of calculating from context deadline.
+// CreateRetryConfig creates a RetryConfig wrapping Terraform's retry.StateChangeConf object
 func CreateRetryConfig(ctx context.Context, operationName string, operation RetryOperationFunc,
 	successStatusCodes []int, retryableStatusCodes []int, retryTimeout int64, initialDelay int64,
 	retryDelay int64) (*RetryConfig, error) {
@@ -104,7 +91,6 @@ func CreateRetryConfig(ctx context.Context, operationName string, operation Retr
 	if len(successStatusCodes) == 0 || successStatusCodes == nil {
 		successStatusCodes = DefaultRetrySuccessStatusCodes
 	}
-
 	if len(retryableStatusCodes) == 0 || retryableStatusCodes == nil {
 		retryableStatusCodes = DefaultRetryableStatusCodes
 	}
@@ -125,12 +111,10 @@ func CreateRetryConfig(ctx context.Context, operationName string, operation Retr
 	if err != nil {
 		return nil, fmt.Errorf("invalid retry timeout: %w", err)
 	}
-
 	retryDelayDuration, err := SafeDurationFromSeconds(retryDelay)
 	if err != nil {
 		return nil, fmt.Errorf("invalid retry delay: %w", err)
 	}
-
 	initialDelayDuration, err := SafeDurationFromSeconds(initialDelay)
 	if err != nil {
 		return nil, fmt.Errorf("invalid initial delay: %w", err)
@@ -142,12 +126,9 @@ func CreateRetryConfig(ctx context.Context, operationName string, operation Retr
 		Refresh: func() (interface{}, string, error) {
 			body, diags, statusCode := operation()
 
-			// Check for retryable status codes
 			if slices.Contains(retryableStatusCodes, statusCode) {
 				return nil, RetryStateRetrying, nil // Keep retrying
 			}
-
-			// Check for success cases
 			if slices.Contains(successStatusCodes, statusCode) {
 				if diags.HasError() {
 					return nil, "", fmt.Errorf("%s succeeded but diagnostics has errors: %v", operationName, diags)
@@ -155,7 +136,6 @@ func CreateRetryConfig(ctx context.Context, operationName string, operation Retr
 				return body, RetryStateSuccess, nil
 			}
 
-			// Non-retryable error
 			return nil, "", fmt.Errorf("non-retryable HTTP status %d for %s", statusCode, operationName)
 		},
 		Timeout:    timeoutDuration,
@@ -174,19 +154,15 @@ func CreateRetryConfig(ctx context.Context, operationName string, operation Retr
 
 // RetryWithConfig executes a retry operation with the provided configuration
 func RetryWithConfig(retryConfig *RetryConfig) ([]byte, error) {
-	// Defensive programming: validate input parameters
 	if retryConfig == nil {
 		return nil, fmt.Errorf("retry configuration cannot be nil")
 	}
-
 	if retryConfig.stateConf == nil {
 		return nil, fmt.Errorf("retry operation '%s': state configuration is not initialized", retryConfig.operationName)
 	}
-
 	if retryConfig.ctx == nil {
 		return nil, fmt.Errorf("retry operation '%s': context cannot be nil", retryConfig.operationName)
 	}
-
 	if retryConfig.operationName == "" {
 		return nil, fmt.Errorf("operation name cannot be empty")
 	}
@@ -200,8 +176,6 @@ func RetryWithConfig(retryConfig *RetryConfig) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("retry operation '%s' failed: %w", retryConfig.operationName, err)
 	}
-
-	// Defensive programming: handle various result scenarios
 	if result == nil {
 		return nil, fmt.Errorf("retry operation '%s' succeeded but returned nil result", retryConfig.operationName)
 	}

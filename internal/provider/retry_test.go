@@ -538,7 +538,7 @@ func TestRetryWithConfig(t *testing.T) {
 			expectedErrorMessage: "operation name cannot be empty",
 		},
 		{
-			name: "returns error when context is cancelled",
+			name: "returns error when context is canceled",
 			retryConfig: &RetryConfig{
 				stateConf: &retry.StateChangeConf{
 					Pending: []string{RetryStateRetrying},
