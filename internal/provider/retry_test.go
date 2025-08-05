@@ -186,6 +186,33 @@ func TestRetryOperation(t *testing.T) {
 		assert.NoError(t, err2, "RetryOperation should succeed with 202 Accepted status")
 		assert.Equal(t, expectedBody, result, "Should return expected body for accepted status")
 	})
+
+	t.Run("operation succeeds but has diagnostic errors", func(t *testing.T) {
+		// --- Setup ---
+		t.Parallel()
+		ctx, ctrl, successCodes, retryableCodes, testTimeout, testInitialDelay, testRetryDelay := testSetup(t)
+		defer ctrl.Finish()
+
+		operationName := "testSuccessWithDiagnosticErrors"
+		var diags diag.Diagnostics
+		diags.AddError("Test Error", "This is a test diagnostic error")
+
+		mockOp := mock_provider.NewMockRetryOperation(ctrl)
+		mockOp.EXPECT().Execute().Return([]byte("test"), diags, http.StatusOK).Times(1)
+
+		// --- Act ---
+		retryConfig, err1 := CreateRetryConfig(ctx, operationName, WrapRetryOperation(mockOp), successCodes,
+			retryableCodes, testTimeout, testInitialDelay, testRetryDelay)
+		_, err2 := RetryWithConfig(retryConfig)
+
+		// --- Assert ---
+		assert.NoError(t, err1, "CreateRetryConfig should not return an error")
+		assert.Error(t, err2, "RetryOperation should return an error when diagnostics has errors")
+		if err2 != nil {
+			assert.Contains(t, err2.Error(), "succeeded but diagnostics has errors",
+				"Error message should indicate diagnostic errors")
+		}
+	})
 }
 
 // validateBasicRetryConfig validates common config fields
