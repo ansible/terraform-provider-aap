@@ -2,12 +2,14 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
@@ -15,19 +17,23 @@ import (
 )
 
 func TestRetryOperation(t *testing.T) {
-	testSetup := func(t *testing.T) (context.Context, *gomock.Controller, []int, []int, int64, int64) {
+	t.Parallel()
+	testSetup := func(t *testing.T) (context.Context, *gomock.Controller, []int, []int, int64, int64, int64) {
 		ctrl := gomock.NewController(t)
 		ctx := context.Background()
 		successCodes := []int{http.StatusOK}
 		retryableCodes := []int{http.StatusConflict}
-		testInitialDelay := int64(1) // 1 second for testing
-		testRetryDelay := int64(1)   // 1 second for testing
+		testTimeout := int64(10)
+		testInitialDelay := int64(1)
+		testRetryDelay := int64(1)
 
-		return ctx, ctrl, successCodes, retryableCodes, testInitialDelay, testRetryDelay
+		return ctx, ctrl, successCodes, retryableCodes, testTimeout, testInitialDelay, testRetryDelay
 	}
 
 	t.Run("operation succeeds on the first attempt", func(t *testing.T) {
-		ctx, ctrl, successCodes, retryableCodes, testInitialDelay, testRetryDelay := testSetup(t)
+		// --- Setup ---
+		t.Parallel()
+		ctx, ctrl, successCodes, retryableCodes, testTimeout, testInitialDelay, testRetryDelay := testSetup(t)
 		defer ctrl.Finish()
 
 		expectedBody := []byte(`{"message": "operation successful"}`)
@@ -38,7 +44,7 @@ func TestRetryOperation(t *testing.T) {
 
 		// --- Act ---
 		retryConfig, err1 := CreateRetryConfig(ctx, operationName, mockOperation, successCodes, retryableCodes,
-			120, testInitialDelay, testRetryDelay)
+			testTimeout, testInitialDelay, testRetryDelay)
 		result, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
@@ -49,7 +55,8 @@ func TestRetryOperation(t *testing.T) {
 
 	t.Run("operation succeeds after a conflict", func(t *testing.T) {
 		// --- Setup ---
-		ctx, ctrl, successCodes, retryableCodes, testInitialDelay, testRetryDelay := testSetup(t)
+		t.Parallel()
+		ctx, ctrl, successCodes, retryableCodes, testTimeout, testInitialDelay, testRetryDelay := testSetup(t)
 		defer ctrl.Finish()
 
 		expectedBody := []byte(`{"message": "operation eventually successful"}`)
@@ -64,7 +71,7 @@ func TestRetryOperation(t *testing.T) {
 		// --- Act ---
 		startTime := time.Now()
 		retryConfig, err1 := CreateRetryConfig(ctx, operationName, WrapRetryOperation(mockOp), successCodes, retryableCodes,
-			120, testInitialDelay, testRetryDelay)
+			testTimeout, testInitialDelay, testRetryDelay)
 		result, err2 := RetryWithConfig(retryConfig)
 		elapsedTime := time.Since(startTime)
 
@@ -82,7 +89,8 @@ func TestRetryOperation(t *testing.T) {
 
 	t.Run("operation_fails_immediately_on_non_retryable_error", func(t *testing.T) {
 		// --- Setup ---
-		ctx, ctrl, successCodes, retryableCodes, testInitialDelay, testRetryDelay := testSetup(t)
+		t.Parallel()
+		ctx, ctrl, successCodes, retryableCodes, testTimeout, testInitialDelay, testRetryDelay := testSetup(t)
 		defer ctrl.Finish()
 
 		operationName := "testNonRetryableError"
@@ -92,7 +100,7 @@ func TestRetryOperation(t *testing.T) {
 
 		// --- Act ---
 		retryConfig, err1 := CreateRetryConfig(ctx, operationName, WrapRetryOperation(mockOp), successCodes, retryableCodes,
-			120, testInitialDelay, testRetryDelay)
+			testTimeout, testInitialDelay, testRetryDelay)
 		_, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
@@ -105,7 +113,8 @@ func TestRetryOperation(t *testing.T) {
 
 	t.Run("operation times out after multiple retries", func(t *testing.T) {
 		// --- Setup ---
-		ctx, ctrl, successCodes, retryableCodes, _, _ := testSetup(t)
+		t.Parallel()
+		ctx, ctrl, successCodes, retryableCodes, testTimeout, testInitialDelay, testRetryDelay := testSetup(t)
 		defer ctrl.Finish()
 
 		operationName := "testTimeoutOperation"
@@ -115,9 +124,8 @@ func TestRetryOperation(t *testing.T) {
 		mockOp.EXPECT().Execute().Return(nil, diag.Diagnostics{}, http.StatusConflict).MinTimes(2).MaxTimes(5)
 
 		// --- Act ---
-		// Use short timeout to make test fast but not too short to avoid flakiness
 		retryConfig, err1 := CreateRetryConfig(ctx, operationName, WrapRetryOperation(mockOp), successCodes, retryableCodes,
-			4, 1, 1) // 4 second timeout, 1 second delays
+			testTimeout, testInitialDelay, testRetryDelay)
 		_, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
@@ -127,7 +135,8 @@ func TestRetryOperation(t *testing.T) {
 
 	t.Run("operation with multiple retryable status codes", func(t *testing.T) {
 		// --- Setup ---
-		ctx, ctrl, successCodes, _, testInitialDelay, testRetryDelay := testSetup(t)
+		t.Parallel()
+		ctx, ctrl, successCodes, _, testTimeout, testInitialDelay, testRetryDelay := testSetup(t)
 		defer ctrl.Finish()
 
 		operationName := "testMultipleRetryableStatusCodes"
@@ -145,7 +154,7 @@ func TestRetryOperation(t *testing.T) {
 
 		// --- Act ---
 		retryConfig, err1 := CreateRetryConfig(ctx, operationName, WrapRetryOperation(mockOp), successCodes, extendedRetryableCodes,
-			120, testInitialDelay, testRetryDelay)
+			testTimeout, testInitialDelay, testRetryDelay)
 		result, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
@@ -156,7 +165,8 @@ func TestRetryOperation(t *testing.T) {
 
 	t.Run("operation with multiple success status codes", func(t *testing.T) {
 		// --- Setup ---
-		ctx, ctrl, _, retryableCodes, testInitialDelay, testRetryDelay := testSetup(t)
+		t.Parallel()
+		ctx, ctrl, _, retryableCodes, testTimeout, testInitialDelay, testRetryDelay := testSetup(t)
 		defer ctrl.Finish()
 
 		operationName := "testMultipleSuccessStatusCodes"
@@ -168,7 +178,7 @@ func TestRetryOperation(t *testing.T) {
 
 		// --- Act ---
 		retryConfig, err1 := CreateRetryConfig(ctx, operationName, WrapRetryOperation(mockOp), extendedSuccessCodes, retryableCodes,
-			120, testInitialDelay, testRetryDelay)
+			testTimeout, testInitialDelay, testRetryDelay)
 		result, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
@@ -445,43 +455,123 @@ func TestCreateRetryConfigOverflow(t *testing.T) {
 }
 
 func TestRetryWithConfig(t *testing.T) {
-	ctx := context.Background()
-	operationName := "testOperation"
-	successCodes := []int{http.StatusOK}
-	retryableCodes := []int{http.StatusConflict}
+	cancelledCtx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel the context immediately
+	tests := []struct {
+		name                 string
+		retryConfig          *RetryConfig
+		expectedResult       []byte
+		expectedErrorMessage string
+	}{
+		{
+			name: "successfully returns byte array result",
+			retryConfig: &RetryConfig{
+				stateConf: &retry.StateChangeConf{
+					Pending: []string{RetryStateRetrying},
+					Target:  []string{RetryStateSuccess},
+					Refresh: func() (any, string, error) {
+						return []byte("success result"), RetryStateSuccess, nil
+					},
+					Timeout:    20 * time.Millisecond,
+					MinTimeout: 1 * time.Millisecond,
+					Delay:      2 * time.Millisecond,
+				},
+				operationName: "testOperation",
+				ctx:           context.Background(),
+			},
+			expectedResult:       []byte("success result"),
+			expectedErrorMessage: "",
+		},
+		{
+			name: "returns error when operation succeeds but has diagnostic errors",
+			retryConfig: &RetryConfig{
+				stateConf: &retry.StateChangeConf{
+					Pending: []string{RetryStateRetrying},
+					Target:  []string{RetryStateSuccess},
+					Refresh: func() (any, string, error) {
+						return nil, "", fmt.Errorf("testOperation succeeded but diagnostics has errors: test error")
+					},
+					Timeout:    20 * time.Millisecond,
+					MinTimeout: 1 * time.Millisecond,
+					Delay:      2 * time.Millisecond,
+				},
+				operationName: "testOperation",
+				ctx:           context.Background(),
+			},
+			expectedResult:       nil,
+			expectedErrorMessage: "succeeded but diagnostics has errors",
+		},
+		{
+			name:                 "returns error when retry config is nil",
+			retryConfig:          nil,
+			expectedResult:       nil,
+			expectedErrorMessage: "retry configuration cannot be nil",
+		},
+		{
+			name: "returns error when state config is nil",
+			retryConfig: &RetryConfig{
+				stateConf:     nil,
+				operationName: "testOperation",
+				ctx:           context.Background(),
+			},
+			expectedResult:       nil,
+			expectedErrorMessage: "state configuration is not initialized",
+		},
+		{
+			name: "returns error when context is nil",
+			retryConfig: &RetryConfig{
+				stateConf:     &retry.StateChangeConf{},
+				operationName: "testOperation",
+				ctx:           nil,
+			},
+			expectedResult:       nil,
+			expectedErrorMessage: "context cannot be nil",
+		},
+		{
+			name: "returns error when operation name is empty",
+			retryConfig: &RetryConfig{
+				stateConf:     &retry.StateChangeConf{},
+				operationName: "",
+				ctx:           context.Background(),
+			},
+			expectedResult:       nil,
+			expectedErrorMessage: "operation name cannot be empty",
+		},
+		{
+			name: "returns error when context is cancelled",
+			retryConfig: &RetryConfig{
+				stateConf: &retry.StateChangeConf{
+					Pending: []string{RetryStateRetrying},
+					Target:  []string{RetryStateSuccess},
+					Refresh: func() (any, string, error) {
+						return []byte("test"), RetryStateSuccess, nil
+					},
+					Timeout:    20 * time.Millisecond,
+					MinTimeout: 1 * time.Millisecond,
+					Delay:      2 * time.Millisecond,
+				},
+				operationName: "testOperation",
+				ctx:           cancelledCtx,
+			},
+			expectedResult:       nil,
+			expectedErrorMessage: "context is not active",
+		},
+	}
 
-	t.Run("successfully returns byte array result", func(t *testing.T) {
-		expectedBody := []byte("success result")
-		mockOperation := func() ([]byte, diag.Diagnostics, int) {
-			return expectedBody, nil, http.StatusOK
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := RetryWithConfig(tt.retryConfig)
 
-		config, err := CreateRetryConfig(ctx, operationName, mockOperation, successCodes, retryableCodes,
-			120, 2, 5)
-		assert.NoError(t, err)
-		assert.NotNil(t, config)
-
-		result, err := RetryWithConfig(config)
-
-		assert.NoError(t, err)
-		assert.Equal(t, expectedBody, result)
-	})
-
-	t.Run("returns error when operation succeeds but has diagnostic errors", func(t *testing.T) {
-		mockOperation := func() ([]byte, diag.Diagnostics, int) {
-			var diags diag.Diagnostics
-			diags.AddError("Test Error", "This is a test diagnostic error")
-			return []byte("body"), diags, http.StatusOK
-		}
-
-		config, err := CreateRetryConfig(ctx, operationName, mockOperation, successCodes, retryableCodes,
-			120, 2, 5)
-		assert.NoError(t, err)
-		assert.NotNil(t, config)
-
-		_, err = RetryWithConfig(config)
-
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "succeeded but diagnostics has errors")
-	})
+			if tt.expectedErrorMessage != "" {
+				// Expecting an error
+				assert.Error(t, err, "Expected an error but got none")
+				assert.Contains(t, err.Error(), tt.expectedErrorMessage, "Error message should contain expected text")
+				assert.Equal(t, tt.expectedResult, result, "Result should match expected (likely nil)")
+			} else {
+				// Expecting success
+				assert.NoError(t, err, "Expected no error but got: %v", err)
+				assert.Equal(t, tt.expectedResult, result, "Result should match expected")
+			}
+		})
+	}
 }

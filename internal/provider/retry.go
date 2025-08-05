@@ -174,14 +174,41 @@ func CreateRetryConfig(ctx context.Context, operationName string, operation Retr
 
 // RetryWithConfig executes a retry operation with the provided configuration
 func RetryWithConfig(retryConfig *RetryConfig) ([]byte, error) {
+	// Defensive programming: validate input parameters
+	if retryConfig == nil {
+		return nil, fmt.Errorf("retry configuration cannot be nil")
+	}
+
+	if retryConfig.stateConf == nil {
+		return nil, fmt.Errorf("retry operation '%s': state configuration is not initialized", retryConfig.operationName)
+	}
+
+	if retryConfig.ctx == nil {
+		return nil, fmt.Errorf("retry operation '%s': context cannot be nil", retryConfig.operationName)
+	}
+
+	if retryConfig.operationName == "" {
+		return nil, fmt.Errorf("operation name cannot be empty")
+	}
+
+	// Use existing IsContextActive function for context validation
+	if !IsContextActive(retryConfig.operationName, retryConfig.ctx, nil) {
+		return nil, fmt.Errorf("retry operation '%s': context is not active", retryConfig.operationName)
+	}
+
 	result, err := retryConfig.stateConf.WaitForStateContext(retryConfig.ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("retry operation '%s' failed: %w", retryConfig.operationName, err)
+	}
+
+	// Defensive programming: handle various result scenarios
+	if result == nil {
+		return nil, fmt.Errorf("retry operation '%s' succeeded but returned nil result", retryConfig.operationName)
 	}
 
 	if body, ok := result.([]byte); ok {
 		return body, nil
 	}
 
-	return nil, fmt.Errorf("unexpected result type from successful retry: %T", result)
+	return nil, fmt.Errorf("retry operation '%s' returned unexpected result type: %T (expected []byte)", retryConfig.operationName, result)
 }
