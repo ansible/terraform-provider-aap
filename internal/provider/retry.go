@@ -163,11 +163,6 @@ func RetryWithConfig(retryConfig *RetryConfig) ([]byte, error) {
 	if retryConfig.ctx == nil {
 		return nil, fmt.Errorf("retry operation '%s': context cannot be nil", retryConfig.operationName)
 	}
-	if retryConfig.operationName == "" {
-		return nil, fmt.Errorf("operation name cannot be empty")
-	}
-
-	// Use existing IsContextActive function for context validation
 	if !IsContextActive(retryConfig.operationName, retryConfig.ctx, nil) {
 		return nil, fmt.Errorf("retry operation '%s': context is not active", retryConfig.operationName)
 	}

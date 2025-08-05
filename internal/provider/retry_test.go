@@ -139,8 +139,8 @@ func TestRetryOperation(t *testing.T) {
 		ctx, ctrl, successCodes, _, testTimeout, testInitialDelay, testRetryDelay := testSetup(t)
 		defer ctrl.Finish()
 
-		operationName := "testMultipleRetryableStatusCodes"
 		// Test different retryable status codes
+		operationName := "testMultipleRetryableStatusCodes"
 		extendedRetryableCodes := []int{http.StatusConflict, http.StatusTooManyRequests, http.StatusServiceUnavailable}
 		expectedBody := []byte(`{"message": "success after multiple retries"}`)
 
@@ -526,16 +526,6 @@ func TestRetryWithConfig(t *testing.T) {
 			},
 			expectedResult:       nil,
 			expectedErrorMessage: "context cannot be nil",
-		},
-		{
-			name: "returns error when operation name is empty",
-			retryConfig: &RetryConfig{
-				stateConf:     &retry.StateChangeConf{},
-				operationName: "",
-				ctx:           context.Background(),
-			},
-			expectedResult:       nil,
-			expectedErrorMessage: "operation name cannot be empty",
 		},
 		{
 			name: "returns error when context is canceled",
