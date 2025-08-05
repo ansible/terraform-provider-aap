@@ -15,7 +15,6 @@ import (
 )
 
 func TestRetryOperation(t *testing.T) {
-	// Common test setup function
 	testSetup := func(t *testing.T) (context.Context, *gomock.Controller, []int, []int, int64, int64) {
 		ctrl := gomock.NewController(t)
 		ctx := context.Background()
@@ -208,8 +207,8 @@ func validateRetryDefaults(t *testing.T, config *RetryConfig, operationName stri
 }
 
 func TestCreateRetryConfig(t *testing.T) {
+	const operationName = "testOperation"
 	ctx := context.Background()
-	operationName := "testOperation"
 	mockOperation := func() ([]byte, diag.Diagnostics, int) {
 		return []byte("test"), nil, http.StatusOK
 	}

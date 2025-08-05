@@ -333,9 +333,10 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		DefaultRetryableStatusCodes, DefaultRetryTimeout, DefaultRetryInitialDelay, DefaultRetryDelay)
 	if err != nil {
 		diags.AddError(
-			"Error deleting host",
+			"Error creating host retry config",
 			fmt.Sprintf("Could not delete host: %s", err.Error()),
 		)
+		resp.Diagnostics.Append(diags...)
 		return
 	}
 
@@ -346,6 +347,7 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 			"Error deleting host",
 			fmt.Sprintf("Could not delete host: %s", err.Error()),
 		)
+		resp.Diagnostics.Append(diags...)
 		return
 	}
 }

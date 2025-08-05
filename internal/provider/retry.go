@@ -1,3 +1,4 @@
+//go:generate mockgen -source=retry.go -destination=mocks/mock_retry.go
 package provider
 
 import (
@@ -16,7 +17,6 @@ import (
 type RetryOperationFunc func() ([]byte, diag.Diagnostics, int)
 
 // RetryOperation interface for testing with mocks
-//go:generate mockgen -source=retry.go -destination=mocks/mock_retry.go
 type RetryOperation interface {
 	Execute() ([]byte, diag.Diagnostics, int)
 }
