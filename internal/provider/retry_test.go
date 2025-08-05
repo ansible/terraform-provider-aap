@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	mock_provider "github.com/ansible/terraform-provider-aap/internal/provider/mocks"
+	"github.com/ansible/terraform-provider-aap/internal/provider/mock_provider"
 )
 
 func TestRetryOperation(t *testing.T) {

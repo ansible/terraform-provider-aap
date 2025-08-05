@@ -1,4 +1,4 @@
-//go:generate mockgen -source=retry.go -destination=mocks/mock_retry.go
+//go:generate mockgen -source=retry.go -destination=mock_provider/mock_retry.go
 package provider
 
 import (
