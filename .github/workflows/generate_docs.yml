@@ -10,7 +10,7 @@ jobs:
   generate-docs:
     runs-on: ubuntu-latest
     env:
-        go_version: '1.23'
+        go_version: '1.23.9'
 
     steps:
       - name: Checkout Provider
