@@ -171,9 +171,6 @@ func RetryWithConfig(retryConfig *RetryConfig) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("retry operation '%s' failed: %w", retryConfig.operationName, err)
 	}
-	if result == nil {
-		return nil, fmt.Errorf("retry operation '%s' succeeded but returned nil result", retryConfig.operationName)
-	}
 
 	if body, ok := result.([]byte); ok {
 		return body, nil
