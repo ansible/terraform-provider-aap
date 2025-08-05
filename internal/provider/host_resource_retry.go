@@ -29,9 +29,9 @@ const (
 
 // Default Retry Time Constants
 const (
-	defaultRetryTimeout     = 1800 // Overall timeout for retry (seconds) Default: 30min
-	defaultRetryDelay       = 5    // Time to wait between retries (seconds)
-	defaultRetryInitalDelay = 2    // Initial delay before first retry (seconds)
+	DefaultRetryTimeout      = 1800 // Overall timeout for retry (seconds) Default: 30min
+	DefaultRetryDelay        = 5    // Time to wait between retries (seconds)
+	DefaultRetryInitialDelay = 2    // Initial delay before first retry (seconds)
 )
 
 // CreateRetryConfig creates a StateChangeConf for retrying operations with exponential backoff.
@@ -47,18 +47,18 @@ const (
 // - HTTP 504: Gateway timeout
 //
 // Uses the provided timeout seconds instead of calculating from context deadline.
-func CreateRetryConfig(operationName string, operation HostOperationFunc, successStatusCodes []int,
-	retryableStatusCodes []int, retryTimeout int64, initialDelay int64, retryDelay int64,
-) *HostRetryConfig {
-	// Use provided delays, fallback to defaults if zero
+func CreateRetryConfig(ctx context.Context, operationName string, operation HostOperationFunc,
+	successStatusCodes []int, retryableStatusCodes []int, retryTimeout int64, initialDelay int64,
+	retryDelay int64) *HostRetryConfig {
+	// Terraform will pass in zero if user leaves values blank in HCL
 	if retryTimeout == 0 {
-		retryTimeout = defaultRetryTimeout
+		retryTimeout = DefaultRetryTimeout
 	}
 	if initialDelay == 0 {
-		initialDelay = defaultRetryDelay
+		initialDelay = DefaultRetryDelay
 	}
 	if retryDelay == 0 {
-		retryDelay = defaultRetryInitalDelay
+		retryDelay = DefaultRetryInitialDelay
 	}
 
 	stateConf := &retry.StateChangeConf{
@@ -97,7 +97,7 @@ func CreateRetryConfig(operationName string, operation HostOperationFunc, succes
 		operationName:      operationName,
 		operation:          operation,
 		successStatusCodes: successStatusCodes,
-		ctx:                context.Background(),
+		ctx:                ctx,
 	}
 }
 

@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -79,6 +80,7 @@ func TestRetryOperation(t *testing.T) {
 	}
 
 	t.Run("operation succeeds on the first attempt", func(t *testing.T) {
+		ctx := context.Background()
 		expectedBody := []byte(`{"message": "operation successful"}`)
 		operationName := "testSuccessOperation"
 		mockOperation := func() ([]byte, diag.Diagnostics, int) {
@@ -86,7 +88,7 @@ func TestRetryOperation(t *testing.T) {
 		}
 
 		// --- Act ---
-		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, retryableCodes, 120, testInitialDelay, testRetryDelay)
+		retryConfig := CreateRetryConfig(ctx, operationName, mockOperation, successCodes, retryableCodes, 120, testInitialDelay, testRetryDelay)
 		result, err := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
@@ -96,6 +98,7 @@ func TestRetryOperation(t *testing.T) {
 
 	t.Run("operation succeeds after a conflict", func(t *testing.T) {
 		// --- Setup ---
+		ctx := context.Background()
 		expectedBody := []byte(`{"message": "operation eventually successful"}`)
 		operationName := "testConflictThenSuccessOperation"
 		callCount := 0
@@ -109,7 +112,7 @@ func TestRetryOperation(t *testing.T) {
 
 		// --- Act ---
 		startTime := time.Now()
-		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, retryableCodes, 120, testInitialDelay, testRetryDelay)
+		retryConfig := CreateRetryConfig(ctx, operationName, mockOperation, successCodes, retryableCodes, 120, testInitialDelay, testRetryDelay)
 		result, err := RetryWithConfig(retryConfig)
 		elapsedTime := time.Since(startTime)
 
@@ -123,6 +126,7 @@ func TestRetryOperation(t *testing.T) {
 
 	t.Run("operation_fails_immediately_on_non_retryable_error", func(t *testing.T) {
 		// --- Setup ---
+		ctx := context.Background()
 		operationName := "testNonRetryableError"
 		callCount := 0
 		mockOperation := func() ([]byte, diag.Diagnostics, int) {
@@ -131,7 +135,7 @@ func TestRetryOperation(t *testing.T) {
 		}
 
 		// --- Act ---
-		retryConfig := CreateRetryConfig(operationName, mockOperation, successCodes, retryableCodes, 120, testInitialDelay, testRetryDelay)
+		retryConfig := CreateRetryConfig(ctx, operationName, mockOperation, successCodes, retryableCodes, 120, testInitialDelay, testRetryDelay)
 		_, err := RetryWithConfig(retryConfig)
 
 		// --- Assert ---

@@ -315,6 +315,7 @@ func (r *HostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 // Delete deletes the host resource.
 func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var data HostResourceModel
+	var diags diag.Diagnostics
 
 	// Read current Terraform state data into host resource model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
@@ -342,12 +343,13 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	}
 
 	// Create retry configuration
-	retryConfig := CreateRetryConfig("host delete", deleteOperation, successStatusCodes, retryableStatusCodes, 0, 0, 0)
+	retryConfig := CreateRetryConfig(ctx, "host delete", deleteOperation, successStatusCodes,
+		retryableStatusCodes, DefaultRetryTimeout, DefaultRetryInitialDelay, DefaultRetryDelay)
 
 	// Execute delete with retry
 	_, err := RetryWithConfig(retryConfig)
 	if err != nil {
-		resp.Diagnostics.AddError(
+		diags.AddError(
 			"Error deleting host",
 			fmt.Sprintf("Could not delete host: %s", err.Error()),
 		)
