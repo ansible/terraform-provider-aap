@@ -385,7 +385,7 @@ resource "aap_host" "test" {
 
 resource "aap_job" "test" {
   job_template_id = %s
-  inventory_id    = 1)
+  inventory_id    = 1
 }`, inventoryName, hostName, jobTemplateID)
 }
 

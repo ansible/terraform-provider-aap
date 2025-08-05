@@ -328,26 +328,19 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return r.client.DeleteWithStatus(data.URL.ValueString())
 	}
 
-	// Success status codes for delete operation
-	successStatusCodes := []int{http.StatusAccepted, http.StatusNoContent}
-
-	// Retryable status codes for host delete operations
-	retryableStatusCodes := []int{
-		http.StatusConflict,
-		http.StatusRequestTimeout,
-		http.StatusTooManyRequests,
-		http.StatusInternalServerError,
-		http.StatusBadGateway,
-		http.StatusServiceUnavailable,
-		http.StatusGatewayTimeout,
+	// Create retry configuration
+	retryConfig, err := CreateRetryConfig(ctx, "host delete", deleteOperation, DefaultRetrySuccessStatusCodes,
+		DefaultRetryableStatusCodes, DefaultRetryTimeout, DefaultRetryInitialDelay, DefaultRetryDelay)
+	if err != nil {
+		diags.AddError(
+			"Error deleting host",
+			fmt.Sprintf("Could not delete host: %s", err.Error()),
+		)
+		return
 	}
 
-	// Create retry configuration
-	retryConfig := CreateRetryConfig(ctx, "host delete", deleteOperation, successStatusCodes,
-		retryableStatusCodes, DefaultRetryTimeout, DefaultRetryInitialDelay, DefaultRetryDelay)
-
 	// Execute delete with retry
-	_, err := RetryWithConfig(retryConfig)
+	_, err = RetryWithConfig(retryConfig)
 	if err != nil {
 		diags.AddError(
 			"Error deleting host",
