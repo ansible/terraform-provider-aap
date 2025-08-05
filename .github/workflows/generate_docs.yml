@@ -30,7 +30,7 @@ jobs:
         run: go build -v ./...
 
       - name: Install tfplugindocs
-        run: go get github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
+        run: go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
 
       - uses: hashicorp/setup-terraform@v3
         with:
