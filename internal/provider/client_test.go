@@ -2,11 +2,10 @@ package provider
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"fmt"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -22,7 +21,7 @@ func TestComputeURLPath(t *testing.T) {
 		{name: "case 3", url: "https://localhost:8043/", path: "/api/v2/state"},
 		{name: "case 4", url: "https://localhost:8043", path: "api/v2/state"},
 	}
-	var expected = "https://localhost:8043/api/v2/state/"
+	expected := "https://localhost:8043/api/v2/state/"
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
 			client := AAPClient{
