@@ -83,7 +83,12 @@ type BaseResourceWithOrg struct {
 	BaseResource
 }
 
+// BaseResourceAPIModel represents the most basic AAP API model for resources.
+type BaseResourceAPIModel struct {
+	Url string `json:"url"`
+}
+
 // BaseResourceModel describes fields in a Terraform resource.
-type BaseResourceModel struct {
+type BaseResourceSourceModel struct {
 	Url tftypes.String `tfsdk:"url"`
 }
