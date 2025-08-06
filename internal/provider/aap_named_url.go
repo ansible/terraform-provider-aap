@@ -60,6 +60,14 @@ func (o *OrganizationAPIModel) CreateNamedURL(uri string) (string, error) {
 	return "", errors.New("invalid lookup parameters: id or name required")
 }
 
+func (o *BaseResourceAPIModel) CreateNamedURL(_ string) (string, error) {
+	if o.Url != "" {
+		return o.Url, nil
+	}
+
+	return "", errors.New("invalid lookup parameters: url required")
+}
+
 // ---------------------------------------------------------------------------
 // BaseDetailDataSourceModel Adapter
 // ---------------------------------------------------------------------------
@@ -76,6 +84,6 @@ func (o *OrganizationDataSourceModel) CreateNamedURL(uri string, apiModel *Organ
 	return apiModel.CreateNamedURL(uri)
 }
 
-func (o *BaseResourceModel) CreateNamedURL(uri string, apiModel *BaseResourceAPIModel) (string, error) {
+func (o *BaseResourceSourceModel) CreateNamedURL(uri string, apiModel *BaseResourceAPIModel) (string, error) {
 	return apiModel.CreateNamedURL(uri)
 }
