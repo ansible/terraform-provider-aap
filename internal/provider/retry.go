@@ -74,18 +74,18 @@ var (
 // SafeDurationFromSeconds safely converts seconds to time.Duration, checking for overflow
 func SafeDurationFromSeconds(seconds int64) (time.Duration, error) {
 	// not implemented
-	return time.Duration(1) * time.Second, nil
+	return time.Duration(seconds) * time.Second, nil
 }
 
 // CreateRetryConfig creates a RetryConfig wrapping Terraform's retry.StateChangeConf object
-func CreateRetryConfig(ctx context.Context, operationName string, operation RetryOperationFunc,
-	successStatusCodes []int, retryableStatusCodes []int, retryTimeout int64, initialDelay int64,
-	retryDelay int64) (*RetryConfig, diag.Diagnostics) {
+func CreateRetryConfig(ctx context.Context, operationName string, operation RetryOperationFunc, //nolint: revive
+	successStatusCodes []int, retryableStatusCodes []int, retryTimeout int64, initialDelay int64, //nolint: revive
+	retryDelay int64) (*RetryConfig, diag.Diagnostics) { //nolint: revive
 	// not implemented
 	return nil, nil
 }
 
 // RetryWithConfig executes a retry operation with the provided configuration
-func RetryWithConfig(retryConfig *RetryConfig) (*RetryResult, error) {
+func RetryWithConfig(retryConfig *RetryConfig) (*RetryResult, error) { //nolint: revive
 	return nil, fmt.Errorf("not implemented")
 }
