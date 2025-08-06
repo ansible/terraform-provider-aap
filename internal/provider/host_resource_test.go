@@ -350,7 +350,6 @@ resource "aap_host" "test" {
 
 func TestAccHostResourceDeleteWithRetry(t *testing.T) {
 	var hostApiModel HostAPIModel
-	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	hostName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	jobTemplateID := os.Getenv("AAP_TEST_JOB_FOR_HOST_RETRY_ID") // ID of a Job Template that Sleeps for 15secs
 
@@ -360,33 +359,53 @@ func TestAccHostResourceDeleteWithRetry(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Create and Read testing
 			{
-				Config: testAccHostResourceDeleteWithRetry(inventoryName, hostName, jobTemplateID),
+				Config: testAccHostResourceDeleteWithRetry(hostName, jobTemplateID),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					checkBasicHostAttributes(t, resourceNameHost, hostName),
+					resource.TestCheckResourceAttr(resourceNameHost, "enabled", "true"),
+					resource.TestCheckResourceAttrSet(resourceNameHost, "id"),
+					resource.TestMatchResourceAttr(resourceNameHost, "url", reHostURL),
+					resource.TestCheckResourceAttr(resourceNameHost, "name", hostName),
 					testAccCheckHostResourceExists(resourceNameHost, &hostApiModel),
 					testAccCheckHostResourceValues(&hostApiModel, hostName, "", ""),
 				),
+			},
+			// Delete Host Only
+			{
+				Config: testAccHostResourceDeleteWithRetry2(hostName),
 			},
 		},
 		CheckDestroy: testAccCheckHostResourceDestroy,
 	})
 }
 
-func testAccHostResourceDeleteWithRetry(inventoryName, hostName, jobTemplateID string) string {
+func testAccHostResourceDeleteWithRetry(hostName, jobTemplateID string) string {
 	return fmt.Sprintf(`
-resource "aap_inventory" "test" {
-	name = "%s"
-}
-
 resource "aap_host" "test" {
   name = "%s"
-  inventory_id = aap_inventory.test.id
+  inventory_id = 1
 }
 
 resource "aap_job" "test" {
   job_template_id = %s
   inventory_id    = 1
-}`, inventoryName, hostName, jobTemplateID)
+  extra_vars = "{\"sleep_interval\": \"5s\"}"
+}`, hostName, jobTemplateID)
+}
+
+func testAccHostResourceDeleteWithRetry2(hostName string) string {
+	return fmt.Sprintf(`
+resource "aap_host" "test" {
+  name = "%s"
+  inventory_id = 1
+}
+
+removed {
+  from = aap_job.test
+
+  lifecycle {
+    destroy = false
+  }
+}`, hostName)
 }
 
 // testAccCheckHostResourceExists queries the AAP API and retrieves the matching host.

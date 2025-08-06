@@ -17,6 +17,9 @@ import (
 	"github.com/ansible/terraform-provider-aap/internal/provider/mock_provider"
 )
 
+// TestRetryOperation tests the retry functionality with defensive programming.
+// Key behavior: HTTP success status codes take precedence over diagnostic errors.
+// Diagnostic errors are only processed and returned when HTTP status codes are non-retryable.
 func TestRetryOperation(t *testing.T) {
 	t.Parallel()
 	testSetup := func(t *testing.T) (context.Context, *gomock.Controller, []int, []int, int64, int64, int64) {
@@ -188,7 +191,7 @@ func TestRetryOperation(t *testing.T) {
 		assert.Equal(t, expectedBody, result.Body, "Should return expected body for accepted status")
 	})
 
-	t.Run("operation succeeds but has diagnostic errors", func(t *testing.T) {
+	t.Run("operation succeeds when all HTTP status codes are retryable", func(t *testing.T) {
 		// --- Setup ---
 		t.Parallel()
 		ctx, ctrl, successCodes, retryableCodes, testTimeout, testInitialDelay, testRetryDelay := testSetup(t)
@@ -204,14 +207,42 @@ func TestRetryOperation(t *testing.T) {
 		// --- Act ---
 		retryConfig, err1 := CreateRetryConfig(ctx, operationName, WrapRetryOperation(mockOp), successCodes,
 			retryableCodes, testTimeout, testInitialDelay, testRetryDelay)
-		_, err2 := RetryWithConfig(retryConfig)
+		result, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
+		// With defensive programming, HTTP success status codes take precedence over diagnostic errors
 		assert.False(t, err1.HasError(), "CreateRetryConfig should not return an error")
-		assert.Error(t, err2, "RetryOperation should return an error when diagnostics has errors")
+		assert.NoError(t, err2, "RetryOperation should succeed when all HTTP status codes are retryable")
+		assert.NotNil(t, result, "Result should be returned when RetryOperation succeeds")
+		assert.Equal(t, []byte("test"), result.Body, "Result body should match the returned value")
+	})
+
+	t.Run("operation fails with diagnostic errors and non-retryable HTTP status code", func(t *testing.T) {
+		// --- Setup ---
+		t.Parallel()
+		ctx, ctrl, successCodes, retryableCodes, testTimeout, testInitialDelay, testRetryDelay := testSetup(t)
+		defer ctrl.Finish()
+
+		operationName := "testFailureWithDiagnosticErrors"
+		var diags diag.Diagnostics
+		diags.AddError("Test Error", "This is a test diagnostic error")
+
+		mockOp := mock_provider.NewMockRetryOperation(ctrl)
+		// Use a non-retryable, non-success status code (400 Bad Request)
+		mockOp.EXPECT().Execute().Return([]byte("error response"), diags, http.StatusBadRequest).Times(1)
+
+		// --- Act ---
+		retryConfig, err1 := CreateRetryConfig(ctx, operationName, WrapRetryOperation(mockOp), successCodes,
+			retryableCodes, testTimeout, testInitialDelay, testRetryDelay)
+		result, err2 := RetryWithConfig(retryConfig)
+
+		// --- Assert ---
+		// With defensive programming, diagnostics are appended when status is non-retryable
+		assert.False(t, err1.HasError(), "CreateRetryConfig should not return an error")
+		assert.Error(t, err2, "RetryOperation should return an error for non-retryable status codes")
+		assert.Nil(t, result, "Result should be nil when retry operation fails")
 		if err2 != nil {
-			assert.Contains(t, err2.Error(), "error occurred during retry operation",
-				"Error message should indicate diagnostic errors")
+			assert.Contains(t, err2.Error(), "non-retryable HTTP status 400", "Error message should indicate non-retryable status")
 		}
 	})
 }

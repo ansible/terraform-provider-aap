@@ -140,11 +140,6 @@ func CreateRetryConfig(ctx context.Context, operationName string, operation Retr
 		Refresh: func() (interface{}, string, error) {
 			body, diags, statusCode := operation()
 			result.Body = body
-			result.Diags.Append(diags...)
-			if diags.HasError() {
-				result.State = RetryStateError
-				return result, RetryStateError, fmt.Errorf("%s error occurred during retry operation: %v", operationName, diags)
-			}
 
 			if slices.Contains(retryableStatusCodes, statusCode) {
 				result.State = RetryStateRetrying
@@ -155,6 +150,8 @@ func CreateRetryConfig(ctx context.Context, operationName string, operation Retr
 				return result, RetryStateSuccess, nil
 			}
 
+			// If status code is not retryable append the error returned
+			result.Diags.Append(diags...)
 			return result, RetryStateError, fmt.Errorf("non-retryable HTTP status %d for %s", statusCode, operationName)
 		},
 		Timeout:    timeoutDuration,

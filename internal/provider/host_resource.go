@@ -338,7 +338,9 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 
 	// Execute delete with retry
 	retryResult, err := RetryWithConfig(retryConfig)
-	resp.Diagnostics.Append(retryResult.Diags...)
+	if retryResult != nil {
+		resp.Diagnostics.Append(retryResult.Diags...)
+	}
 	if err != nil {
 		diags.AddError(
 			"Error deleting host",
