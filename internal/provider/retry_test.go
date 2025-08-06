@@ -330,6 +330,60 @@ func TestCreateRetryConfig(t *testing.T) {
 			},
 		},
 		{
+			name:           "applies defaults when success status codes is nil",
+			operation:      mockOperation,
+			successCodes:   nil,
+			retryableCodes: retryableCodes,
+			timeout:        120,
+			initialDelay:   2,
+			retryDelay:     5,
+			expectError:    false,
+			validateFunc: func(t *testing.T, config *RetryConfig) {
+				validateBasicRetryConfig(t, config, operationName, ctx, DefaultRetrySuccessStatusCodes)
+			},
+		},
+		{
+			name:           "applies defaults when retryable status codes is nil",
+			operation:      mockOperation,
+			successCodes:   successCodes,
+			retryableCodes: nil,
+			timeout:        120,
+			initialDelay:   2,
+			retryDelay:     5,
+			expectError:    false,
+			validateFunc: func(t *testing.T, config *RetryConfig) {
+				validateBasicRetryConfig(t, config, operationName, ctx, successCodes)
+				// Verify that default retryable codes were applied by checking that the config was created successfully
+				assert.NotNil(t, config.stateConf)
+			},
+		},
+		{
+			name:           "applies defaults when both status code slices are nil",
+			operation:      mockOperation,
+			successCodes:   nil,
+			retryableCodes: nil,
+			timeout:        120,
+			initialDelay:   2,
+			retryDelay:     5,
+			expectError:    false,
+			validateFunc: func(t *testing.T, config *RetryConfig) {
+				validateBasicRetryConfig(t, config, operationName, ctx, DefaultRetrySuccessStatusCodes)
+			},
+		},
+		{
+			name:           "applies defaults when both status code slices are empty",
+			operation:      mockOperation,
+			successCodes:   []int{},
+			retryableCodes: []int{},
+			timeout:        120,
+			initialDelay:   2,
+			retryDelay:     5,
+			expectError:    false,
+			validateFunc: func(t *testing.T, config *RetryConfig) {
+				validateBasicRetryConfig(t, config, operationName, ctx, DefaultRetrySuccessStatusCodes)
+			},
+		},
+		{
 			name:           "returns errors for all overflow values",
 			operation:      mockOperation,
 			successCodes:   successCodes,

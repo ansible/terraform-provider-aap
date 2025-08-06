@@ -101,10 +101,10 @@ func CreateRetryConfig(ctx context.Context, operationName string, operation Retr
 		return nil, diags
 	}
 
-	if len(successStatusCodes) == 0 || successStatusCodes == nil {
+	if len(successStatusCodes) == 0 {
 		successStatusCodes = DefaultRetrySuccessStatusCodes
 	}
-	if len(retryableStatusCodes) == 0 || retryableStatusCodes == nil {
+	if len(retryableStatusCodes) == 0 {
 		retryableStatusCodes = DefaultRetryableStatusCodes
 	}
 
