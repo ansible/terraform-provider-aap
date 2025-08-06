@@ -279,183 +279,76 @@ func TestCreateRetryConfig(t *testing.T) {
 	maxDurationSeconds := math.MaxInt64 / int64(time.Second)
 	overflowValue := maxDurationSeconds + 1
 
-	tests := []struct {
-		name           string
-		operation      RetryOperationFunc
-		successCodes   []int
-		retryableCodes []int
-		timeout        int64
-		initialDelay   int64
-		retryDelay     int64
-		expectError    bool
-		errorContains  string
-		validateFunc   func(t *testing.T, config *RetryConfig)
-	}{
-		{
-			name:           "returns error when operation is nil",
-			operation:      nil,
-			successCodes:   successCodes,
-			retryableCodes: retryableCodes,
-			timeout:        120,
-			initialDelay:   2,
-			retryDelay:     5,
-			expectError:    true,
-			errorContains:  "Retry function is not defined",
-		},
-		{
-			name:           "successfully creates config with valid parameters",
-			operation:      mockOperation,
-			successCodes:   successCodes,
-			retryableCodes: retryableCodes,
-			timeout:        120,
-			initialDelay:   2,
-			retryDelay:     5,
-			expectError:    false,
-			validateFunc: func(t *testing.T, config *RetryConfig) {
-				validateBasicRetryConfig(t, config, operationName, ctx, successCodes)
-			},
-		},
-		{
-			name:           "configures StateChangeConf correctly with custom values",
-			operation:      mockOperation,
-			successCodes:   successCodes,
-			retryableCodes: retryableCodes,
-			timeout:        300,
-			initialDelay:   3,
-			retryDelay:     7,
-			expectError:    false,
-			validateFunc: func(t *testing.T, config *RetryConfig) {
-				validateBasicRetryConfig(t, config, operationName, ctx, successCodes)
-				validateRetryStateConf(t, config, 300*time.Second, 3*time.Second, 7*time.Second)
-			},
-		},
-		{
-			name:           "applies defaults when success status codes is nil",
-			operation:      mockOperation,
-			successCodes:   nil,
-			retryableCodes: retryableCodes,
-			timeout:        120,
-			initialDelay:   2,
-			retryDelay:     5,
-			expectError:    false,
-			validateFunc: func(t *testing.T, config *RetryConfig) {
-				validateBasicRetryConfig(t, config, operationName, ctx, DefaultRetrySuccessStatusCodes)
-			},
-		},
-		{
-			name:           "applies defaults when retryable status codes is nil",
-			operation:      mockOperation,
-			successCodes:   successCodes,
-			retryableCodes: nil,
-			timeout:        120,
-			initialDelay:   2,
-			retryDelay:     5,
-			expectError:    false,
-			validateFunc: func(t *testing.T, config *RetryConfig) {
-				validateBasicRetryConfig(t, config, operationName, ctx, successCodes)
-				// Verify that default retryable codes were applied by checking that the config was created successfully
-				assert.NotNil(t, config.stateConf)
-			},
-		},
-		{
-			name:           "applies defaults when both status code slices are nil",
-			operation:      mockOperation,
-			successCodes:   nil,
-			retryableCodes: nil,
-			timeout:        120,
-			initialDelay:   2,
-			retryDelay:     5,
-			expectError:    false,
-			validateFunc: func(t *testing.T, config *RetryConfig) {
-				validateBasicRetryConfig(t, config, operationName, ctx, DefaultRetrySuccessStatusCodes)
-			},
-		},
-		{
-			name:           "applies defaults when both status code slices are empty",
-			operation:      mockOperation,
-			successCodes:   []int{},
-			retryableCodes: []int{},
-			timeout:        120,
-			initialDelay:   2,
-			retryDelay:     5,
-			expectError:    false,
-			validateFunc: func(t *testing.T, config *RetryConfig) {
-				validateBasicRetryConfig(t, config, operationName, ctx, DefaultRetrySuccessStatusCodes)
-			},
-		},
-		{
-			name:           "returns errors for all overflow values",
-			operation:      mockOperation,
-			successCodes:   successCodes,
-			retryableCodes: retryableCodes,
-			timeout:        overflowValue,
-			initialDelay:   overflowValue,
-			retryDelay:     overflowValue,
-			expectError:    true,
-			errorContains:  "invalid retry timeout",
-		},
-		{
-			name:           "returns errors for all negative values",
-			operation:      mockOperation,
-			successCodes:   successCodes,
-			retryableCodes: retryableCodes,
-			timeout:        -1,
-			initialDelay:   -1,
-			retryDelay:     -1,
-			expectError:    true,
-			errorContains:  "invalid retry timeout",
-		},
-		{
-			name:           "returns error for initial delay overflow when timeout is valid",
-			operation:      mockOperation,
-			successCodes:   successCodes,
-			retryableCodes: retryableCodes,
-			timeout:        120,
-			initialDelay:   overflowValue,
-			retryDelay:     5,
-			expectError:    true,
-			errorContains:  "invalid initial delay",
-		},
-		{
-			name:           "returns error for retry delay overflow when timeout and initial delay are valid",
-			operation:      mockOperation,
-			successCodes:   successCodes,
-			retryableCodes: retryableCodes,
-			timeout:        120,
-			initialDelay:   2,
-			retryDelay:     overflowValue,
-			expectError:    true,
-			errorContains:  "invalid retry delay",
-		},
-	}
+	t.Run("error cases", func(t *testing.T) {
+		errorTests := []struct {
+			name          string
+			operation     RetryOperationFunc
+			timeout       int64
+			initialDelay  int64
+			retryDelay    int64
+			errorContains string
+		}{
+			{"nil operation", nil, 120, 2, 5, "Retry function is not defined"},
+			{"overflow timeout", mockOperation, overflowValue, 2, 5, "invalid retry timeout"},
+			{"overflow initial delay", mockOperation, 120, overflowValue, 5, "invalid initial delay"},
+			{"overflow retry delay", mockOperation, 120, 2, overflowValue, "invalid retry delay"},
+			{"negative timeout", mockOperation, -1, 2, 5, "invalid retry timeout"},
+			{"all overflow values", mockOperation, overflowValue, overflowValue, overflowValue, "invalid retry timeout"},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			config, err := CreateRetryConfig(ctx, operationName, tt.operation, tt.successCodes, tt.retryableCodes,
-				tt.timeout, tt.initialDelay, tt.retryDelay)
+		for _, tt := range errorTests {
+			t.Run(tt.name, func(t *testing.T) {
+				config, err := CreateRetryConfig(ctx, operationName, tt.operation, successCodes, retryableCodes,
+					tt.timeout, tt.initialDelay, tt.retryDelay)
 
-			if tt.expectError {
 				assert.True(t, err.HasError())
 				assert.Nil(t, config)
-				if tt.errorContains != "" {
-					found := false
-					for _, e := range err.Errors() {
-						if strings.Contains(e.Summary(), tt.errorContains) || strings.Contains(e.Detail(), tt.errorContains) {
-							found = true
-							break
-						}
+				found := false
+				for _, e := range err.Errors() {
+					if strings.Contains(e.Summary(), tt.errorContains) || strings.Contains(e.Detail(), tt.errorContains) {
+						found = true
+						break
 					}
-					assert.True(t, found, "Expected to find '%s' in error messages: %v", tt.errorContains, err.Errors())
 				}
-			} else {
+				assert.True(t, found, "Expected to find '%s' in error messages: %v", tt.errorContains, err.Errors())
+			})
+		}
+	})
+
+	t.Run("default status codes", func(t *testing.T) {
+		defaultTests := []struct {
+			name           string
+			successCodes   []int
+			retryableCodes []int
+			expectedSuccess []int
+		}{
+			{"success codes nil", nil, retryableCodes, DefaultRetrySuccessStatusCodes},
+			{"retryable codes nil", successCodes, nil, successCodes},
+			{"both nil", nil, nil, DefaultRetrySuccessStatusCodes},
+			{"both empty", []int{}, []int{}, DefaultRetrySuccessStatusCodes},
+		}
+
+		for _, tt := range defaultTests {
+			t.Run(tt.name, func(t *testing.T) {
+				config, err := CreateRetryConfig(ctx, operationName, mockOperation, tt.successCodes, tt.retryableCodes,
+					120, 2, 5)
+
 				assert.False(t, err.HasError())
 				assert.NotNil(t, config)
-				if tt.validateFunc != nil {
-					tt.validateFunc(t, config)
-				}
-			}
-		})
-	}
+				validateBasicRetryConfig(t, config, operationName, ctx, tt.expectedSuccess)
+			})
+		}
+	})
+
+	t.Run("valid configuration", func(t *testing.T) {
+		config, err := CreateRetryConfig(ctx, operationName, mockOperation, successCodes, retryableCodes,
+			300, 3, 7)
+
+		assert.False(t, err.HasError())
+		assert.NotNil(t, config)
+		validateBasicRetryConfig(t, config, operationName, ctx, successCodes)
+		validateRetryStateConf(t, config, 300*time.Second, 3*time.Second, 7*time.Second)
+	})
 }
 
 func TestSafeDurationFromSeconds(t *testing.T) {
