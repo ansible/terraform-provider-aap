@@ -354,41 +354,52 @@ func TestCreateRetryConfig(t *testing.T) {
 func TestSafeDurationFromSeconds(t *testing.T) {
 	maxDurationSeconds := math.MaxInt64 / int64(time.Second)
 
-	tests := []struct {
-		name             string
-		seconds          int64
-		expectedDuration time.Duration
-		expectError      bool
-		errorContains    string
-	}{
-		{"zero seconds", 0, 0, false, ""},
-		{"one second", 1, time.Second, false, ""},
-		{"one minute", 60, time.Minute, false, ""},
-		{"one hour", 3600, time.Hour, false, ""},
-		{"max valid duration", maxDurationSeconds, time.Duration(maxDurationSeconds) * time.Second, false, ""},
-		{"max valid minus one", maxDurationSeconds - 1, time.Duration(maxDurationSeconds-1) * time.Second, false, ""},
-		{"negative value", -1, 0, true, "duration must be non-negative"},
-		{"large negative", -100, 0, true, "duration must be non-negative"},
-		{"overflow", maxDurationSeconds + 1, 0, true, "duration overflow"},
-		{"large overflow", math.MaxInt64, 0, true, "duration overflow"},
-	}
+	t.Run("success cases", func(t *testing.T) {
+		successTests := []struct {
+			name             string
+			seconds          int64
+			expectedDuration time.Duration
+		}{
+			{"zero seconds", 0, 0},
+			{"one second", 1, time.Second},
+			{"one minute", 60, time.Minute},
+			{"one hour", 3600, time.Hour},
+			{"max valid duration", maxDurationSeconds, time.Duration(maxDurationSeconds) * time.Second},
+			{"max valid minus one", maxDurationSeconds - 1, time.Duration(maxDurationSeconds-1) * time.Second},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			duration, err := SafeDurationFromSeconds(tt.seconds)
+		for _, tt := range successTests {
+			t.Run(tt.name, func(t *testing.T) {
+				duration, err := SafeDurationFromSeconds(tt.seconds)
 
-			if tt.expectError {
-				assert.Error(t, err)
-				assert.Equal(t, tt.expectedDuration, duration)
-				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains)
-				}
-			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedDuration, duration)
-			}
-		})
-	}
+			})
+		}
+	})
+
+	t.Run("error cases", func(t *testing.T) {
+		errorTests := []struct {
+			name          string
+			seconds       int64
+			errorContains string
+		}{
+			{"negative value", -1, "duration must be non-negative"},
+			{"large negative", -100, "duration must be non-negative"},
+			{"overflow", maxDurationSeconds + 1, "duration overflow"},
+			{"large overflow", math.MaxInt64, "duration overflow"},
+		}
+
+		for _, tt := range errorTests {
+			t.Run(tt.name, func(t *testing.T) {
+				duration, err := SafeDurationFromSeconds(tt.seconds)
+
+				assert.Error(t, err)
+				assert.Equal(t, time.Duration(0), duration)
+				assert.Contains(t, err.Error(), tt.errorContains)
+			})
+		}
+	})
 }
 
 func TestRetryWithConfig(t *testing.T) {
