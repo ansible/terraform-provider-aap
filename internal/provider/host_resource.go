@@ -323,9 +323,31 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	// Delete host from AAP
-	_, diags = r.client.Delete(data.URL.ValueString())
-	resp.Diagnostics.Append(diags...)
+	// Define the delete operation for retry
+	deleteOperation := func() ([]byte, diag.Diagnostics, int) {
+		return r.client.DeleteWithStatus(data.URL.ValueString())
+	}
+
+	// Create retry configuration
+	retryConfig, diags := CreateRetryConfig(ctx, "host delete", deleteOperation, DefaultRetrySuccessStatusCodes,
+		DefaultRetryableStatusCodes, DefaultRetryTimeout, DefaultRetryInitialDelay, DefaultRetryDelay)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	// Execute delete with retry
+	retryResult, err := RetryWithConfig(retryConfig)
+	if retryResult != nil {
+		resp.Diagnostics.Append(retryResult.Diags...)
+	}
+	if err != nil {
+		diags.AddError(
+			"Error deleting host",
+			fmt.Sprintf("Could not delete host: %s", err.Error()),
+		)
+		resp.Diagnostics.Append(diags...)
+	}
 	if resp.Diagnostics.HasError() {
 		return
 	}
