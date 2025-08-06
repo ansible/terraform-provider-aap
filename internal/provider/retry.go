@@ -108,17 +108,6 @@ func CreateRetryConfig(ctx context.Context, operationName string, operation Retr
 		retryableStatusCodes = DefaultRetryableStatusCodes
 	}
 
-	// Apply defaults for zero values
-	if retryTimeout == 0 {
-		retryTimeout = DefaultRetryTimeout
-	}
-	if initialDelay == 0 {
-		initialDelay = DefaultRetryInitialDelay
-	}
-	if retryDelay == 0 {
-		retryDelay = DefaultRetryDelay
-	}
-
 	// Check for overflow when converting to time.Duration
 	timeoutDuration, err := SafeDurationFromSeconds(retryTimeout)
 	if err != nil {
