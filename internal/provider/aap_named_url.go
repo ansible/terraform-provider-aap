@@ -76,6 +76,6 @@ func (o *OrganizationDataSourceModel) CreateNamedURL(uri string, apiModel *Organ
 	return apiModel.CreateNamedURL(uri)
 }
 
-func (o *BaseResourceModel) CreateNamedURL(uri string, apiModel *BaseDetailAPIModel) (string, error) {
+func (o *BaseResourceModel) CreateNamedURL(uri string, apiModel *BaseResourceAPIModel) (string, error) {
 	return apiModel.CreateNamedURL(uri)
 }
