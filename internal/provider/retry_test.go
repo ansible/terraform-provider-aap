@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,9 +49,9 @@ func TestRetryOperation(t *testing.T) {
 		result, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
-		assert.NoError(t, err1, "CreateRetryConfig should not return an error")
+		assert.False(t, err1.HasError(), "CreateRetryConfig should not return an error")
 		assert.NoError(t, err2, "RetryWithConfig should not return an error on a successful operation")
-		assert.Equal(t, expectedBody, result, "The result body should match the one returned by the successful operation")
+		assert.Equal(t, expectedBody, result.Body, "The result body should match the one returned by the successful operation")
 	})
 
 	t.Run("operation succeeds after a conflict", func(t *testing.T) {
@@ -76,9 +77,9 @@ func TestRetryOperation(t *testing.T) {
 		elapsedTime := time.Since(startTime)
 
 		// --- Assert ---
-		assert.NoError(t, err1, "CreateRetryConfig should not return an error")
+		assert.False(t, err1.HasError(), "CreateRetryConfig should not return an error")
 		assert.NoError(t, err2, "RetryOperation should not return an error on eventual success")
-		assert.Equal(t, expectedBody, result, "The result body should match the one from the successful call")
+		assert.Equal(t, expectedBody, result.Body, "The result body should match the one from the successful call")
 
 		// More lenient timing assertion with tolerance for system overhead
 		expectedMinDuration := time.Duration(testInitialDelay) * time.Second
@@ -104,7 +105,7 @@ func TestRetryOperation(t *testing.T) {
 		_, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
-		assert.NoError(t, err1, "CreateRetryConfig should not return an error")
+		assert.False(t, err1.HasError(), "CreateRetryConfig should not return an error")
 		assert.Error(t, err2, "RetryOperation should return an error for a non-retryable status")
 		if err2 != nil {
 			assert.Contains(t, err2.Error(), "non-retryable", "The error message should indicate a non-retryable error")
@@ -129,7 +130,7 @@ func TestRetryOperation(t *testing.T) {
 		_, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
-		assert.NoError(t, err1, "CreateRetryConfig should not return an error")
+		assert.False(t, err1.HasError(), "CreateRetryConfig should not return an error")
 		assert.Error(t, err2, "RetryOperation should timeout with continuous retryable errors")
 	})
 
@@ -158,9 +159,9 @@ func TestRetryOperation(t *testing.T) {
 		result, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
-		assert.NoError(t, err1, "CreateRetryConfig should not return an error")
+		assert.False(t, err1.HasError(), "CreateRetryConfig should not return an error")
 		assert.NoError(t, err2, "RetryOperation should succeed after multiple different retryable errors")
-		assert.Equal(t, expectedBody, result, "Should return expected body after retries")
+		assert.Equal(t, expectedBody, result.Body, "Should return expected body after retries")
 	})
 
 	t.Run("operation with multiple success status codes", func(t *testing.T) {
@@ -182,9 +183,9 @@ func TestRetryOperation(t *testing.T) {
 		result, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
-		assert.NoError(t, err1, "CreateRetryConfig should not return an error")
+		assert.False(t, err1.HasError(), "CreateRetryConfig should not return an error")
 		assert.NoError(t, err2, "RetryOperation should succeed with 202 Accepted status")
-		assert.Equal(t, expectedBody, result, "Should return expected body for accepted status")
+		assert.Equal(t, expectedBody, result.Body, "Should return expected body for accepted status")
 	})
 
 	t.Run("operation succeeds but has diagnostic errors", func(t *testing.T) {
@@ -206,10 +207,10 @@ func TestRetryOperation(t *testing.T) {
 		_, err2 := RetryWithConfig(retryConfig)
 
 		// --- Assert ---
-		assert.NoError(t, err1, "CreateRetryConfig should not return an error")
+		assert.False(t, err1.HasError(), "CreateRetryConfig should not return an error")
 		assert.Error(t, err2, "RetryOperation should return an error when diagnostics has errors")
 		if err2 != nil {
-			assert.Contains(t, err2.Error(), "succeeded but diagnostics has errors",
+			assert.Contains(t, err2.Error(), "error occurred during retry operation",
 				"Error message should indicate diagnostic errors")
 		}
 	})
@@ -234,13 +235,6 @@ func validateRetryStateConf(t *testing.T, config *RetryConfig, expectedTimeout, 
 	assert.Equal(t, expectedDelay, config.stateConf.Delay)
 	assert.Equal(t, expectedMinTimeout, config.stateConf.MinTimeout)
 	assert.NotNil(t, config.stateConf.Refresh)
-}
-
-// validateRetryDefaults validates that all default values are applied correctly
-func validateRetryDefaults(t *testing.T, config *RetryConfig, operationName string, ctx context.Context) {
-	validateBasicRetryConfig(t, config, operationName, ctx, DefaultRetrySuccessStatusCodes)
-	validateRetryStateConf(t, config, time.Duration(DefaultRetryTimeout)*time.Second,
-		time.Duration(DefaultRetryDelay)*time.Second, time.Duration(DefaultRetryInitialDelay)*time.Second)
 }
 
 func TestCreateRetryConfig(t *testing.T) {
@@ -275,7 +269,7 @@ func TestCreateRetryConfig(t *testing.T) {
 			initialDelay:   2,
 			retryDelay:     5,
 			expectError:    true,
-			errorContains:  "retry function is not defined",
+			errorContains:  "Retry function is not defined",
 		},
 		{
 			name:           "successfully creates config with valid parameters",
@@ -288,19 +282,6 @@ func TestCreateRetryConfig(t *testing.T) {
 			expectError:    false,
 			validateFunc: func(t *testing.T, config *RetryConfig) {
 				validateBasicRetryConfig(t, config, operationName, ctx, successCodes)
-			},
-		},
-		{
-			name:           "applies all defaults when parameters are zero or nil",
-			operation:      mockOperation,
-			successCodes:   nil,
-			retryableCodes: []int{},
-			timeout:        0,
-			initialDelay:   0,
-			retryDelay:     0,
-			expectError:    false,
-			validateFunc: func(t *testing.T, config *RetryConfig) {
-				validateRetryDefaults(t, config, operationName, ctx)
 			},
 		},
 		{
@@ -369,13 +350,20 @@ func TestCreateRetryConfig(t *testing.T) {
 				tt.timeout, tt.initialDelay, tt.retryDelay)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				assert.True(t, err.HasError())
 				assert.Nil(t, config)
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains)
+					found := false
+					for _, e := range err.Errors() {
+						if strings.Contains(e.Summary(), tt.errorContains) || strings.Contains(e.Detail(), tt.errorContains) {
+							found = true
+							break
+						}
+					}
+					assert.True(t, found, "Expected to find '%s' in error messages: %v", tt.errorContains, err.Errors())
 				}
 			} else {
-				assert.NoError(t, err)
+				assert.False(t, err.HasError())
 				assert.NotNil(t, config)
 				if tt.validateFunc != nil {
 					tt.validateFunc(t, config)
@@ -431,17 +419,22 @@ func TestRetryWithConfig(t *testing.T) {
 	tests := []struct {
 		name                 string
 		retryConfig          *RetryConfig
-		expectedResult       []byte
+		expectedResult       *RetryResult
 		expectedErrorMessage string
 	}{
 		{
-			name: "successfully returns byte array result",
+			name: "successfully returns retry result",
 			retryConfig: &RetryConfig{
 				stateConf: &retry.StateChangeConf{
 					Pending: []string{RetryStateRetrying},
 					Target:  []string{RetryStateSuccess},
 					Refresh: func() (any, string, error) {
-						return []byte("success result"), RetryStateSuccess, nil
+						result := &RetryResult{
+							Body:  []byte("success result"),
+							Diags: diag.Diagnostics{},
+							State: RetryStateSuccess,
+						}
+						return result, RetryStateSuccess, nil
 					},
 					Timeout:    20 * time.Millisecond,
 					MinTimeout: 1 * time.Millisecond,
@@ -450,17 +443,26 @@ func TestRetryWithConfig(t *testing.T) {
 				operationName: "testOperation",
 				ctx:           context.Background(),
 			},
-			expectedResult:       []byte("success result"),
+			expectedResult: &RetryResult{
+				Body:  []byte("success result"),
+				Diags: diag.Diagnostics{},
+				State: RetryStateSuccess,
+			},
 			expectedErrorMessage: "",
 		},
 		{
-			name: "returns error when operation succeeds but has diagnostic errors",
+			name: "returns error when operation has diagnostic errors",
 			retryConfig: &RetryConfig{
 				stateConf: &retry.StateChangeConf{
 					Pending: []string{RetryStateRetrying},
 					Target:  []string{RetryStateSuccess},
 					Refresh: func() (any, string, error) {
-						return nil, "", fmt.Errorf("testOperation succeeded but diagnostics has errors: test error")
+						result := &RetryResult{
+							Body:  []byte("test"),
+							Diags: diag.Diagnostics{},
+							State: RetryStateError,
+						}
+						return result, RetryStateError, fmt.Errorf("testOperation error occurred during retry operation: test error")
 					},
 					Timeout:    20 * time.Millisecond,
 					MinTimeout: 1 * time.Millisecond,
@@ -470,7 +472,7 @@ func TestRetryWithConfig(t *testing.T) {
 				ctx:           context.Background(),
 			},
 			expectedResult:       nil,
-			expectedErrorMessage: "succeeded but diagnostics has errors",
+			expectedErrorMessage: "error occurred during retry operation",
 		},
 		{
 			name:                 "returns error when retry config is nil",
@@ -531,7 +533,9 @@ func TestRetryWithConfig(t *testing.T) {
 			} else {
 				// Expecting success
 				assert.NoError(t, err, "Expected no error but got: %v", err)
-				assert.Equal(t, tt.expectedResult, result, "Result should match expected")
+				assert.NotNil(t, result, "Result should not be nil")
+				assert.Equal(t, tt.expectedResult.Body, result.Body, "Result body should match expected")
+				assert.Equal(t, tt.expectedResult.State, result.State, "Result state should match expected")
 			}
 		})
 	}

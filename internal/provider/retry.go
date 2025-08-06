@@ -37,6 +37,12 @@ type RetryConfig struct {
 	ctx                context.Context
 }
 
+type RetryResult struct {
+	Body  []byte
+	Diags diag.Diagnostics
+	State string
+}
+
 const (
 	// Default Retry Times
 	DefaultRetryTimeout      = 1800 // Overall timeout for retry (seconds) Default: 30min
@@ -44,6 +50,7 @@ const (
 	DefaultRetryInitialDelay = 2    // Initial delay before first retry (seconds)
 
 	// Retry States
+	RetryStateError    = "error"
 	RetryStateRetrying = "retrying"
 	RetryStateSuccess  = "success"
 )
@@ -83,9 +90,15 @@ func SafeDurationFromSeconds(seconds int64) (time.Duration, error) {
 // CreateRetryConfig creates a RetryConfig wrapping Terraform's retry.StateChangeConf object
 func CreateRetryConfig(ctx context.Context, operationName string, operation RetryOperationFunc,
 	successStatusCodes []int, retryableStatusCodes []int, retryTimeout int64, initialDelay int64,
-	retryDelay int64) (*RetryConfig, error) {
+	retryDelay int64) (*RetryConfig, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
 	if operation == nil {
-		return nil, fmt.Errorf("retry function is not defined: unable to retry")
+		diags.AddError(
+			"Error configuring retry",
+			"Retry function is not defined",
+		)
+		return nil, diags
 	}
 
 	if len(successStatusCodes) == 0 || successStatusCodes == nil {
@@ -95,48 +108,65 @@ func CreateRetryConfig(ctx context.Context, operationName string, operation Retr
 		retryableStatusCodes = DefaultRetryableStatusCodes
 	}
 
-	// Terraform will pass in zero if user leaves values blank in HCL
+	// Apply defaults for zero values
 	if retryTimeout == 0 {
 		retryTimeout = DefaultRetryTimeout
 	}
 	if initialDelay == 0 {
-		initialDelay = DefaultRetryDelay
+		initialDelay = DefaultRetryInitialDelay
 	}
 	if retryDelay == 0 {
-		retryDelay = DefaultRetryInitialDelay
+		retryDelay = DefaultRetryDelay
 	}
 
 	// Check for overflow when converting to time.Duration
 	timeoutDuration, err := SafeDurationFromSeconds(retryTimeout)
 	if err != nil {
-		return nil, fmt.Errorf("invalid retry timeout: %w", err)
+		diags.AddError(
+			"Unable to retry",
+			fmt.Sprintf("invalid retry timeout: %s", err.Error()),
+		)
 	}
 	retryDelayDuration, err := SafeDurationFromSeconds(retryDelay)
 	if err != nil {
-		return nil, fmt.Errorf("invalid retry delay: %w", err)
+		diags.AddError(
+			"Unable to retry",
+			fmt.Sprintf("invalid retry delay: %s", err.Error()),
+		)
 	}
 	initialDelayDuration, err := SafeDurationFromSeconds(initialDelay)
 	if err != nil {
-		return nil, fmt.Errorf("invalid initial delay: %w", err)
+		diags.AddError(
+			"Unable to retry",
+			fmt.Sprintf("invalid initial delay: %s", err.Error()))
+	}
+	if diags.HasError() {
+		return nil, diags
 	}
 
+	result := &RetryResult{}
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{RetryStateRetrying},
 		Target:  []string{RetryStateSuccess},
 		Refresh: func() (interface{}, string, error) {
 			body, diags, statusCode := operation()
+			result.Body = body
+			result.Diags.Append(diags...)
+			if diags.HasError() {
+				result.State = RetryStateError
+				return result, RetryStateError, fmt.Errorf("%s error occurred during retry operation: %v", operationName, diags)
+			}
 
 			if slices.Contains(retryableStatusCodes, statusCode) {
-				return nil, RetryStateRetrying, nil // Keep retrying
+				result.State = RetryStateRetrying
+				return result, RetryStateRetrying, nil // Keep retrying
 			}
 			if slices.Contains(successStatusCodes, statusCode) {
-				if diags.HasError() {
-					return nil, "", fmt.Errorf("%s succeeded but diagnostics has errors: %v", operationName, diags)
-				}
-				return body, RetryStateSuccess, nil
+				result.State = RetryStateSuccess
+				return result, RetryStateSuccess, nil
 			}
 
-			return nil, "", fmt.Errorf("non-retryable HTTP status %d for %s", statusCode, operationName)
+			return result, RetryStateError, fmt.Errorf("non-retryable HTTP status %d for %s", statusCode, operationName)
 		},
 		Timeout:    timeoutDuration,
 		MinTimeout: retryDelayDuration,
@@ -149,11 +179,11 @@ func CreateRetryConfig(ctx context.Context, operationName string, operation Retr
 		operation:          operation,
 		successStatusCodes: successStatusCodes,
 		ctx:                ctx,
-	}, nil
+	}, diags
 }
 
 // RetryWithConfig executes a retry operation with the provided configuration
-func RetryWithConfig(retryConfig *RetryConfig) ([]byte, error) {
+func RetryWithConfig(retryConfig *RetryConfig) (*RetryResult, error) {
 	if retryConfig == nil {
 		return nil, fmt.Errorf("retry configuration cannot be nil")
 	}
@@ -172,9 +202,12 @@ func RetryWithConfig(retryConfig *RetryConfig) ([]byte, error) {
 		return nil, fmt.Errorf("retry operation '%s' failed: %w", retryConfig.operationName, err)
 	}
 
-	if body, ok := result.([]byte); ok {
-		return body, nil
+	if retryresult, ok := result.(*RetryResult); ok {
+		if retryresult.Diags.HasError() && !(retryresult.State == RetryStateError) {
+			return retryresult, fmt.Errorf("retry operation '%s' returned errors with retry state '%s'", retryConfig.operationName, retryresult.State)
+		}
+		return retryresult, nil
 	}
 
-	return nil, fmt.Errorf("retry operation '%s' returned unexpected result type: %T (expected []byte)", retryConfig.operationName, result)
+	return nil, fmt.Errorf("retry operation '%s' returned unexpected result type: %T (expected *RetryResult)", retryConfig.operationName, result)
 }

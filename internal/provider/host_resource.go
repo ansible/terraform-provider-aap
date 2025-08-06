@@ -329,25 +329,24 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	}
 
 	// Create retry configuration
-	retryConfig, err := CreateRetryConfig(ctx, "host delete", deleteOperation, DefaultRetrySuccessStatusCodes,
+	retryConfig, diags := CreateRetryConfig(ctx, "host delete", deleteOperation, DefaultRetrySuccessStatusCodes,
 		DefaultRetryableStatusCodes, DefaultRetryTimeout, DefaultRetryInitialDelay, DefaultRetryDelay)
-	if err != nil {
-		diags.AddError(
-			"Error creating host retry config",
-			fmt.Sprintf("Could not delete host: %s", err.Error()),
-		)
+	if diags.HasError() {
 		resp.Diagnostics.Append(diags...)
 		return
 	}
 
 	// Execute delete with retry
-	_, err = RetryWithConfig(retryConfig)
+	retryResult, err := RetryWithConfig(retryConfig)
+	resp.Diagnostics.Append(retryResult.Diags...)
 	if err != nil {
 		diags.AddError(
 			"Error deleting host",
 			fmt.Sprintf("Could not delete host: %s", err.Error()),
 		)
 		resp.Diagnostics.Append(diags...)
+	}
+	if resp.Diagnostics.HasError() {
 		return
 	}
 }
