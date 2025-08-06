@@ -317,9 +317,9 @@ func TestCreateRetryConfig(t *testing.T) {
 
 	t.Run("default status codes", func(t *testing.T) {
 		defaultTests := []struct {
-			name           string
-			successCodes   []int
-			retryableCodes []int
+			name            string
+			successCodes    []int
+			retryableCodes  []int
 			expectedSuccess []int
 		}{
 			{"success codes nil", nil, retryableCodes, DefaultRetrySuccessStatusCodes},
