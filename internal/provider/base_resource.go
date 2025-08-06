@@ -19,6 +19,20 @@ func NewBaseResource(client ProviderHTTPClient, stringDescriptions StringDescrip
 	}
 }
 
+// GetBaseAttributes returns the base set of attributes for a resource. This function
+// is intended to be used by resource types that inherit from BaseResource.
+func (r *BaseResource) GetBaseAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"url": schema.StringAttribute{
+			Computed:    true,
+			Description: fmt.Sprintf("Url of the %s", r.DescriptiveEntityName),
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+	}
+}
+
 // Metadata defines the resource name as it would appear in Terraform configurations.
 // For resources in this project it is aap_<resourceName>, like aap_inventory.
 func (r *BaseResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -28,15 +42,7 @@ func (r *BaseResource) Metadata(_ context.Context, req resource.MetadataRequest,
 // Schema describes what data is available in the resource's configuration, plan, and state.
 func (r *BaseResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Attributes: map[string]schema.Attribute{
-			"url": schema.StringAttribute{
-				Computed:    true,
-				Description: fmt.Sprintf("Url of the %s", r.DescriptiveEntityName),
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-		},
+		Attributes:  r.GetBaseAttributes(),
 		Description: fmt.Sprintf("Creates a %s.", r.DescriptiveEntityName),
 	}
 }
