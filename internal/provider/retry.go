@@ -91,6 +91,7 @@ func SafeDurationFromSeconds(seconds int64) (time.Duration, error) {
 func CreateRetryConfig(ctx context.Context, operationName string, operation RetryOperationFunc,
 	successStatusCodes []int, retryableStatusCodes []int, retryTimeout int64, initialDelay int64,
 	retryDelay int64) (*RetryConfig, diag.Diagnostics) {
+	const unableRetryMsg = "Unable to retry"
 	var diags diag.Diagnostics
 
 	if operation == nil {
@@ -112,21 +113,21 @@ func CreateRetryConfig(ctx context.Context, operationName string, operation Retr
 	timeoutDuration, err := SafeDurationFromSeconds(retryTimeout)
 	if err != nil {
 		diags.AddError(
-			"Unable to retry",
+			unableRetryMsg,
 			fmt.Sprintf("invalid retry timeout: %s", err.Error()),
 		)
 	}
 	retryDelayDuration, err := SafeDurationFromSeconds(retryDelay)
 	if err != nil {
 		diags.AddError(
-			"Unable to retry",
+			unableRetryMsg,
 			fmt.Sprintf("invalid retry delay: %s", err.Error()),
 		)
 	}
 	initialDelayDuration, err := SafeDurationFromSeconds(initialDelay)
 	if err != nil {
 		diags.AddError(
-			"Unable to retry",
+			unableRetryMsg,
 			fmt.Sprintf("invalid initial delay: %s", err.Error()))
 	}
 	if diags.HasError() {
@@ -189,7 +190,7 @@ func RetryWithConfig(retryConfig *RetryConfig) (*RetryResult, error) {
 	}
 
 	if retryresult, ok := result.(*RetryResult); ok {
-		if retryresult.Diags.HasError() && !(retryresult.State == RetryStateError) {
+		if retryresult.Diags.HasError() && retryresult.State != RetryStateError {
 			return retryresult, fmt.Errorf("retry operation '%s' returned errors with retry state '%s'", retryConfig.operationName, retryresult.State)
 		}
 		return retryresult, nil
