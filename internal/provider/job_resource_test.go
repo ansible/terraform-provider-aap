@@ -419,7 +419,7 @@ func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 // when wait_for_completion=true. This test demonstrates the bug described in AAP-47221.
 // Expected to FAIL on main branch, PASS after PR #131 and #132 are merged.
 func TestAccAAPJob_WaitForCompletion(t *testing.T) {
-	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_FOR_HOST_RETRY_ID")
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
