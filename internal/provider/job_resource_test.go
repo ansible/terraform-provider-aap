@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"reflect"
 	"strings"
@@ -534,7 +536,7 @@ func testAccDeleteJob(jobUrl *string) func(s *terraform.State) error {
 // in the retryUntilAAPJobReachesAnyFinalState function. This validates that:
 // 1. Diagnostics errors from client.Get() are properly handled (not standard Go errors)
 // 2. The function returns retryable errors for transient failures
-// 3. Model state is updated when parsing succeeds and job reaches final state
+// 3. Model state is updated correctly as jobs transition from non-final to final states
 func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 	t.Parallel()
 
@@ -544,7 +546,12 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 			URL:    types.StringValue("/api/v2/jobs/999/"), // Path not in MockConfig
 			Status: types.StringValue("pending"),
 		}
-		
+
+		// Verify initial state
+		if model.Status.ValueString() != "pending" {
+			t.Errorf("expected initial status 'pending', got '%s'", model.Status.ValueString())
+		}
+
 		mockClient := NewMockHTTPClient([]string{"GET"}, 500) // Server error
 		retryFunc := retryUntilAAPJobReachesAnyFinalState(mockClient, model)
 		err := retryFunc()
@@ -557,6 +564,11 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 		errStr := fmt.Sprintf("%v", err)
 		if !strings.Contains(errStr, "error fetching job status") {
 			t.Errorf("expected error to contain 'error fetching job status', got: %v", errStr)
+		}
+
+		// Model state should remain unchanged since parsing never succeeded
+		if model.Status.ValueString() != "pending" {
+			t.Errorf("expected status to remain 'pending' after error, got '%s'", model.Status.ValueString())
 		}
 	})
 
@@ -585,5 +597,98 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 			t.Errorf("expected error to contain 'hasn't yet reached a final state', got: %v", errStr)
 		}
 	})
+
+	// Test job state transition from running to successful
+	t.Run("handles job state transition from running to successful", func(t *testing.T) {
+		model := &JobResourceModel{
+			URL:    types.StringValue("/api/v2/jobs/transition/"),
+			Status: types.StringValue("pending"),
+		}
+
+		// Track number of calls to simulate job progression
+		callCount := 0
+
+		// Create a custom mock client that changes response based on call count
+		mockClient := &MockHTTPClientWithCallCount{
+			callCount: &callCount,
+		}
+
+		retryFunc := retryUntilAAPJobReachesAnyFinalState(mockClient, model)
+
+		// First call - job should be running (returns retryable error)
+		err1 := retryFunc()
+		if err1 == nil {
+			t.Errorf("expected retryable error for running job but got none")
+		}
+		if model.Status.ValueString() != "running" {
+			t.Errorf("expected status 'running' after first call, got '%s'", model.Status.ValueString())
+		}
+
+		// Second call - job should be successful (returns no error)
+		err2 := retryFunc()
+		if err2 != nil {
+			t.Errorf("expected no error for successful job but got: %v", err2)
+		}
+		if model.Status.ValueString() != "successful" {
+			t.Errorf("expected status 'successful' after second call, got '%s'", model.Status.ValueString())
+		}
+	})
 }
 
+// Custom mock client that changes response based on call count
+type MockHTTPClientWithCallCount struct {
+	callCount *int
+}
+
+func (m *MockHTTPClientWithCallCount) Get(_ string) ([]byte, diag.Diagnostics) {
+	*m.callCount++
+
+	var response []byte
+	if *m.callCount == 1 {
+		// First call: job is running
+		response = []byte(`{"status": "running", "url": "/api/v2/jobs/transition/", "type": "run"}`)
+	} else {
+		// Subsequent calls: job is successful
+		response = []byte(`{"status": "successful", "url": "/api/v2/jobs/transition/", "type": "run"}`)
+	}
+
+	return response, diag.Diagnostics{}
+}
+
+// Stub implementations for the remaining interface methods
+func (m *MockHTTPClientWithCallCount) Create(_ string, _ io.Reader) ([]byte, diag.Diagnostics) {
+	return nil, diag.Diagnostics{}
+}
+
+func (m *MockHTTPClientWithCallCount) Update(_ string, _ io.Reader) ([]byte, diag.Diagnostics) {
+	return nil, diag.Diagnostics{}
+}
+
+func (m *MockHTTPClientWithCallCount) Delete(_ string) ([]byte, diag.Diagnostics) {
+	return nil, diag.Diagnostics{}
+}
+
+func (m *MockHTTPClientWithCallCount) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
+	body, diags := m.Get(path)
+	return body, diags, 200
+}
+
+func (m *MockHTTPClientWithCallCount) UpdateWithStatus(_ string, _ io.Reader) ([]byte, diag.Diagnostics, int) {
+	return nil, diag.Diagnostics{}, 200
+}
+
+func (m *MockHTTPClientWithCallCount) DeleteWithStatus(_ string) ([]byte, diag.Diagnostics, int) {
+	return nil, diag.Diagnostics{}, 204
+}
+
+func (m *MockHTTPClientWithCallCount) doRequest(_ string, _ string, _ io.Reader) (*http.Response, []byte, error) {
+	return nil, nil, nil
+}
+
+func (m *MockHTTPClientWithCallCount) setApiEndpoint() diag.Diagnostics {
+	return diag.Diagnostics{}
+}
+
+func (m *MockHTTPClientWithCallCount) getApiEndpoint() string {
+	return "/api/v2"
+}

@@ -93,7 +93,7 @@ func retryUntilAAPJobReachesAnyFinalState(client ProviderHTTPClient, model *JobR
 		if diagnostics.HasError() {
 			return retry.RetryableError(fmt.Errorf("error fetching job status: %s", diagnostics.Errors()))
 		}
-		
+
 		// Parse the response to update the model with current job status
 		parseDiags := model.ParseHttpResponse(responseBody)
 		if parseDiags.HasError() {
