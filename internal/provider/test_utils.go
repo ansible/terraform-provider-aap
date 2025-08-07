@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"reflect"
 	"slices"
 	"strings"
@@ -52,7 +53,11 @@ func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (
 	}
 	response, ok := MockConfig[path]
 	if !ok {
-		return &http.Response{StatusCode: http.StatusNotFound}, nil, nil
+		req := &http.Request{
+			Method: method,
+			URL:    &url.URL{Path: path},
+		}
+		return &http.Response{StatusCode: c.httpCode, Request: req}, nil, nil
 	}
 
 	if data != nil {
@@ -98,4 +103,27 @@ func (c *MockHTTPClient) Delete(path string) ([]byte, diag.Diagnostics) {
 	deleteResponse, body, err := c.doRequest("DELETE", path, nil)
 	diags := ValidateResponse(deleteResponse, body, err, []int{http.StatusNoContent})
 	return body, diags
+}
+
+func (c *MockHTTPClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
+	body, diags := c.Get(path)
+	return body, diags, c.httpCode
+}
+
+func (c *MockHTTPClient) UpdateWithStatus(path string, data io.Reader) ([]byte, diag.Diagnostics, int) {
+	body, diags := c.Update(path, data)
+	return body, diags, c.httpCode
+}
+
+func (c *MockHTTPClient) DeleteWithStatus(path string) ([]byte, diag.Diagnostics, int) {
+	body, diags := c.Delete(path)
+	return body, diags, c.httpCode
+}
+
+func (c *MockHTTPClient) setApiEndpoint() diag.Diagnostics {
+	return diag.Diagnostics{}
+}
+
+func (c *MockHTTPClient) getApiEndpoint() string {
+	return "/api/v2"
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -528,3 +529,61 @@ func testAccDeleteJob(jobUrl *string) func(s *terraform.State) error {
 		return err
 	}
 }
+
+// TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling tests the fixed error handling
+// in the retryUntilAAPJobReachesAnyFinalState function. This validates that:
+// 1. Diagnostics errors from client.Get() are properly handled (not standard Go errors)
+// 2. The function returns retryable errors for transient failures
+// 3. Model state is updated when parsing succeeds and job reaches final state
+func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	// Test diagnostics error handling (500 server error)
+	t.Run("handles diagnostics errors", func(t *testing.T) {
+		model := &JobResourceModel{
+			URL:    types.StringValue("/api/v2/jobs/999/"), // Path not in MockConfig
+			Status: types.StringValue("pending"),
+		}
+		
+		mockClient := NewMockHTTPClient([]string{"GET"}, 500) // Server error
+		retryFunc := retryUntilAAPJobReachesAnyFinalState(mockClient, model)
+		err := retryFunc()
+
+		// Should return a retryable error due to 500 status
+		if err == nil {
+			t.Errorf("expected error but got none")
+		}
+		// The retry function should return a retry.RetryError
+		errStr := fmt.Sprintf("%v", err)
+		if !strings.Contains(errStr, "error fetching job status") {
+			t.Errorf("expected error to contain 'error fetching job status', got: %v", errStr)
+		}
+	})
+
+	// Test that non-final state returns retryable error
+	t.Run("returns retryable error for non-final state", func(t *testing.T) {
+		model := &JobResourceModel{
+			URL:    types.StringValue("/api/v2/jobs/1/"), // MockConfig has "running" status
+			Status: types.StringValue("pending"),
+		}
+
+		mockClient := NewMockHTTPClient([]string{"GET"}, 200)
+		retryFunc := retryUntilAAPJobReachesAnyFinalState(mockClient, model)
+		err := retryFunc()
+
+		// Should return retryable error since "running" is not a final state
+		if err == nil {
+			t.Errorf("expected error but got none")
+		}
+		// Model should be updated with "running" status from mock response
+		if model.Status.ValueString() != "running" {
+			t.Errorf("expected status 'running', got '%s'", model.Status.ValueString())
+		}
+		// Error should indicate non-final state
+		errStr := fmt.Sprintf("%v", err)
+		if !strings.Contains(errStr, "hasn't yet reached a final state") {
+			t.Errorf("expected error to contain 'hasn't yet reached a final state', got: %v", errStr)
+		}
+	})
+}
+

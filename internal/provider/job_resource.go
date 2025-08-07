@@ -87,12 +87,17 @@ func IsFinalStateAAPJob(state string) bool {
 	return isPresent && result
 }
 
-func retryUntilAAPJobReachesAnyFinalState(client ProviderHTTPClient, model JobResourceModel, diagnostics diag.Diagnostics) retry.RetryFunc {
+func retryUntilAAPJobReachesAnyFinalState(client ProviderHTTPClient, model *JobResourceModel) retry.RetryFunc {
 	return func() *retry.RetryError {
-		responseBody, err := client.Get(model.URL.ValueString())
-		diagnostics.Append(model.ParseHttpResponse(responseBody)...)
-		if err != nil {
-			return retry.RetryableError(fmt.Errorf("error fetching job status: %s", err))
+		responseBody, diagnostics := client.Get(model.URL.ValueString())
+		if diagnostics.HasError() {
+			return retry.RetryableError(fmt.Errorf("error fetching job status: %s", diagnostics.Errors()))
+		}
+		
+		// Parse the response to update the model with current job status
+		parseDiags := model.ParseHttpResponse(responseBody)
+		if parseDiags.HasError() {
+			return retry.RetryableError(fmt.Errorf("error parsing job status response: %s", parseDiags.Errors()))
 		}
 		fmt.Printf("Job ID: %s, Current Status: %s\n", model.TemplateID, model.Status.ValueString())
 
@@ -222,7 +227,7 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	// and wait for it to complete before marking the resource as created
 	if data.WaitForCompletion.ValueBool() {
 		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(r.client, data, resp.Diagnostics))
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(r.client, &data))
 		if err != nil {
 			resp.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
 		}
@@ -298,7 +303,7 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	// and wait for it to complete before marking the resource as created
 	if data.WaitForCompletion.ValueBool() {
 		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(r.client, data, resp.Diagnostics))
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(r.client, &data))
 		if err != nil {
 			resp.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
 		}
