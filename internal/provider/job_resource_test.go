@@ -295,6 +295,7 @@ func testAccJobResourcePreCheck(t *testing.T) {
 
 	requiredAAPJobEnvVars := []string{
 		"AAP_TEST_JOB_TEMPLATE_ID",
+		"AAP_TEST_JOB_FOR_HOST_RETRY_ID",
 	}
 
 	for _, key := range requiredAAPJobEnvVars {
