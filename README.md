@@ -84,6 +84,14 @@ export AAP_TEST_WORKFLOW_INVENTORY_ID=<the ID of `Workflow with Inventory`>
 export AAP_TEST_INVENTORY_FOR_WF_ID=<the ID of `Inventory For Workflow`>
 ```
 
+The Host resource test requires the AAP instance to have a Job Template that sleeps for a handful of seconds. We recommend this job sleeps for 15 seconds.
+
+Export the IDs of this job template:
+
+```
+export AAP_TEST_JOB_FOR_HOST_RETRY_ID=<the ID of a job template that sleeps for 15 seconds>
+```
+
 AAP 2.4 version note - If you are running the tests against an AAP 2.4 version instance, set the description for Default Organization to `The default organization for Ansible Automation Platform`
 
 Then you can run acceptance tests with `make testacc`.
