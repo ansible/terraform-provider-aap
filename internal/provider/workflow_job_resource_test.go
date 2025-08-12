@@ -45,7 +45,7 @@ func TestWorkflowJobResourceSchema(t *testing.T) {
 }
 
 func TestWorkflowJobResourceCreateRequestBody(t *testing.T) {
-	var testTable = []struct {
+	testTable := []struct {
 		name     string
 		input    WorkflowJobResourceModel
 		expected []byte
@@ -138,7 +138,7 @@ func TestWorkflowJobResourceParseHttpResponse(t *testing.T) {
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
-	var testTable = []struct {
+	testTable := []struct {
 		name     string
 		input    []byte
 		expected WorkflowJobResourceModel
@@ -281,8 +281,15 @@ func TestAccAAPWorkflowJob_Basic(t *testing.T) {
 }
 
 func TestAccAAPWorkflowJobWithNoInventoryID(t *testing.T) {
-	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_INVENTORY_ID")
+	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID")
 	inventoryID := os.Getenv("AAP_TEST_INVENTORY_FOR_WF_ID")
+
+	if jobTemplateID == "" {
+		t.Skip("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID not set, skipping workflow job test")
+	}
+	if inventoryID == "" {
+		t.Skip("AAP_TEST_INVENTORY_FOR_WF_ID not set, skipping workflow job inventory test")
+	}
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },

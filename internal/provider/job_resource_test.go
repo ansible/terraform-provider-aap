@@ -601,17 +601,22 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 	// Test job state transition from running to successful
 	t.Run("handles job state transition from running to successful", func(t *testing.T) {
 		model := &JobResourceModel{
-			URL:    types.StringValue("/api/v2/jobs/transition/"),
+			URL:    types.StringValue("/api/v2/jobs/123/"), // Use realistic job URL with ID
 			Status: types.StringValue("pending"),
 		}
 
-		// Track number of calls to simulate job progression
-		callCount := 0
-
-		// Create a custom mock client that changes response based on call count
-		mockClient := &MockHTTPClientWithCallCount{
-			callCount: &callCount,
+		// Configure mock responses: first call returns "running", subsequent calls return "successful"
+		responses := []MockResponse{
+			{
+				Data:        []byte(`{"status": "running", "url": "/api/v2/jobs/123/", "type": "run"}`),
+				Diagnostics: diag.Diagnostics{},
+			},
+			{
+				Data:        []byte(`{"status": "successful", "url": "/api/v2/jobs/123/", "type": "run"}`),
+				Diagnostics: diag.Diagnostics{},
+			},
 		}
+		mockClient := NewConfigurableSequenceMockClient(responses)
 
 		retryFunc := retryUntilAAPJobReachesAnyFinalState(mockClient, model)
 
@@ -635,60 +640,82 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 	})
 }
 
-// Custom mock client that changes response based on call count
-type MockHTTPClientWithCallCount struct {
-	callCount *int
+// MockResponse represents a single response in a sequence
+type MockResponse struct {
+	Data        []byte
+	Diagnostics diag.Diagnostics
 }
 
-func (m *MockHTTPClientWithCallCount) Get(_ string) ([]byte, diag.Diagnostics) {
+// ConfigurableSequenceMockClient allows configuring a sequence of responses for multi-call scenarios
+// This is useful for testing retry logic, state transitions, and other multi-step operations
+type ConfigurableSequenceMockClient struct {
+	callCount *int
+	responses []MockResponse
+}
+
+// NewConfigurableSequenceMockClient creates a new mock client with a predefined sequence of responses
+func NewConfigurableSequenceMockClient(responses []MockResponse) *ConfigurableSequenceMockClient {
+	callCount := 0
+	return &ConfigurableSequenceMockClient{
+		callCount: &callCount,
+		responses: responses,
+	}
+}
+
+func (m *ConfigurableSequenceMockClient) Get(_ string) ([]byte, diag.Diagnostics) {
 	*m.callCount++
 
-	var response []byte
-	if *m.callCount == 1 {
-		// First call: job is running
-		response = []byte(`{"status": "running", "url": "/api/v2/jobs/transition/", "type": "run"}`)
-	} else {
-		// Subsequent calls: job is successful
-		response = []byte(`{"status": "successful", "url": "/api/v2/jobs/transition/", "type": "run"}`)
+	// Return the response for this call number (1-indexed)
+	if *m.callCount <= len(m.responses) {
+		response := m.responses[*m.callCount-1]
+		return response.Data, response.Diagnostics
 	}
 
-	return response, diag.Diagnostics{}
+	// If we've run out of configured responses, return the last one
+	// This handles cases where retry logic might make more calls than expected
+	if len(m.responses) > 0 {
+		lastResponse := m.responses[len(m.responses)-1]
+		return lastResponse.Data, lastResponse.Diagnostics
+	}
+
+	// Fallback: return empty response
+	return []byte(`{}`), diag.Diagnostics{}
 }
 
 // Stub implementations for the remaining interface methods
-func (m *MockHTTPClientWithCallCount) Create(_ string, _ io.Reader) ([]byte, diag.Diagnostics) {
+func (m *ConfigurableSequenceMockClient) Create(_ string, _ io.Reader) ([]byte, diag.Diagnostics) {
 	return nil, diag.Diagnostics{}
 }
 
-func (m *MockHTTPClientWithCallCount) Update(_ string, _ io.Reader) ([]byte, diag.Diagnostics) {
+func (m *ConfigurableSequenceMockClient) Update(_ string, _ io.Reader) ([]byte, diag.Diagnostics) {
 	return nil, diag.Diagnostics{}
 }
 
-func (m *MockHTTPClientWithCallCount) Delete(_ string) ([]byte, diag.Diagnostics) {
+func (m *ConfigurableSequenceMockClient) Delete(_ string) ([]byte, diag.Diagnostics) {
 	return nil, diag.Diagnostics{}
 }
 
-func (m *MockHTTPClientWithCallCount) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
+func (m *ConfigurableSequenceMockClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
 	body, diags := m.Get(path)
 	return body, diags, 200
 }
 
-func (m *MockHTTPClientWithCallCount) UpdateWithStatus(_ string, _ io.Reader) ([]byte, diag.Diagnostics, int) {
+func (m *ConfigurableSequenceMockClient) UpdateWithStatus(_ string, _ io.Reader) ([]byte, diag.Diagnostics, int) {
 	return nil, diag.Diagnostics{}, 200
 }
 
-func (m *MockHTTPClientWithCallCount) DeleteWithStatus(_ string) ([]byte, diag.Diagnostics, int) {
+func (m *ConfigurableSequenceMockClient) DeleteWithStatus(_ string) ([]byte, diag.Diagnostics, int) {
 	return nil, diag.Diagnostics{}, 204
 }
 
-func (m *MockHTTPClientWithCallCount) doRequest(_ string, _ string, _ io.Reader) (*http.Response, []byte, error) {
+func (m *ConfigurableSequenceMockClient) doRequest(_ string, _ string, _ io.Reader) (*http.Response, []byte, error) {
 	return nil, nil, nil
 }
 
-func (m *MockHTTPClientWithCallCount) setApiEndpoint() diag.Diagnostics {
+func (m *ConfigurableSequenceMockClient) setApiEndpoint() diag.Diagnostics {
 	return diag.Diagnostics{}
 }
 
-func (m *MockHTTPClientWithCallCount) getApiEndpoint() string {
+func (m *ConfigurableSequenceMockClient) getApiEndpoint() string {
 	return "/api/v2"
 }
