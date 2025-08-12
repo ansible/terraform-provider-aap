@@ -281,15 +281,8 @@ func TestAccAAPWorkflowJob_Basic(t *testing.T) {
 }
 
 func TestAccAAPWorkflowJobWithNoInventoryID(t *testing.T) {
-	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID")
+	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_INVENTORY_ID")
 	inventoryID := os.Getenv("AAP_TEST_INVENTORY_FOR_WF_ID")
-
-	if jobTemplateID == "" {
-		t.Skip("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID not set, skipping workflow job test")
-	}
-	if inventoryID == "" {
-		t.Skip("AAP_TEST_INVENTORY_FOR_WF_ID not set, skipping workflow job inventory test")
-	}
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
