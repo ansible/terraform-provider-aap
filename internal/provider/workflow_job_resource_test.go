@@ -45,7 +45,7 @@ func TestWorkflowJobResourceSchema(t *testing.T) {
 }
 
 func TestWorkflowJobResourceCreateRequestBody(t *testing.T) {
-	var testTable = []struct {
+	testTable := []struct {
 		name     string
 		input    WorkflowJobResourceModel
 		expected []byte
@@ -138,7 +138,7 @@ func TestWorkflowJobResourceParseHttpResponse(t *testing.T) {
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
-	var testTable = []struct {
+	testTable := []struct {
 		name     string
 		input    []byte
 		expected WorkflowJobResourceModel
