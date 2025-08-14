@@ -18,10 +18,15 @@ import (
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-log/tflogtest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
+)
+
+const (
+	statusRunningConst = "running"
 )
 
 func TestJobResourceSchema(t *testing.T) {
@@ -47,7 +52,7 @@ func TestJobResourceSchema(t *testing.T) {
 }
 
 func TestIsFinalStateAAPJob(t *testing.T) {
-	var testTable = []struct {
+	testTable := []struct {
 		name     string
 		input    string
 		expected bool
@@ -74,7 +79,7 @@ func TestIsFinalStateAAPJob(t *testing.T) {
 }
 
 func TestJobResourceCreateRequestBody(t *testing.T) {
-	var testTable = []struct {
+	testTable := []struct {
 		name     string
 		input    JobResourceModel
 		expected []byte
@@ -177,7 +182,7 @@ func TestJobResourceParseHttpResponse(t *testing.T) {
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
-	var testTable = []struct {
+	testTable := []struct {
 		name     string
 		input    []byte
 		expected JobResourceModel
@@ -553,7 +558,7 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 		}
 
 		mockClient := NewMockHTTPClient([]string{"GET"}, 500) // Server error
-		retryFunc := retryUntilAAPJobReachesAnyFinalState(mockClient, model)
+		retryFunc := retryUntilAAPJobReachesAnyFinalState(context.Background(), mockClient, model)
 		err := retryFunc()
 
 		// Should return a retryable error due to 500 status
@@ -580,7 +585,7 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 		}
 
 		mockClient := NewMockHTTPClient([]string{"GET"}, 200)
-		retryFunc := retryUntilAAPJobReachesAnyFinalState(mockClient, model)
+		retryFunc := retryUntilAAPJobReachesAnyFinalState(context.Background(), mockClient, model)
 		err := retryFunc()
 
 		// Should return retryable error since "running" is not a final state
@@ -618,14 +623,14 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 		}
 		mockClient := NewConfigurableSequenceMockClient(responses)
 
-		retryFunc := retryUntilAAPJobReachesAnyFinalState(mockClient, model)
+		retryFunc := retryUntilAAPJobReachesAnyFinalState(context.Background(), mockClient, model)
 
 		// First call - job should be running (returns retryable error)
 		err1 := retryFunc()
 		if err1 == nil {
 			t.Errorf("expected retryable error for running job but got none")
 		}
-		if model.Status.ValueString() != "running" {
+		if model.Status.ValueString() != statusRunningConst {
 			t.Errorf("expected status 'running' after first call, got '%s'", model.Status.ValueString())
 		}
 
@@ -718,4 +723,99 @@ func (m *ConfigurableSequenceMockClient) setApiEndpoint() diag.Diagnostics {
 
 func (m *ConfigurableSequenceMockClient) getApiEndpoint() string {
 	return "/api/v2"
+}
+
+// assertLogFieldEquals validates a specific field in the parsed log entry
+func assertLogFieldEquals(t *testing.T, logEntry map[string]interface{}, fieldName string, expectedValue interface{}) {
+	t.Helper()
+
+	// Check if field exists
+	actualValue, exists := logEntry[fieldName]
+	if !exists {
+		t.Errorf("Expected field '%s' not found in structured log", fieldName)
+		return
+	}
+
+	// Handle JSON number conversion (JSON numbers become float64)
+	if expectedInt, ok := expectedValue.(int); ok {
+		expectedValue = float64(expectedInt)
+	}
+
+	// Compare values
+	if actualValue != expectedValue {
+		t.Errorf("Field '%s': expected '%v', got '%v'", fieldName, expectedValue, actualValue)
+	}
+}
+
+// TestRetryUntilAAPJobReachesAnyFinalState_LoggingBehavior ensures tflog.Debug is used
+// with expected structured fields instead of fmt.Printf
+func TestRetryUntilAAPJobReachesAnyFinalState_LoggingBehavior(t *testing.T) {
+	// Create a buffer to capture tflog output
+	var logBuffer strings.Builder
+
+	// Create a context with tflog writing to our buffer
+	ctx := tflogtest.RootLogger(context.Background(), &logBuffer)
+
+	// Create test model with known values for verification
+	model := &JobResourceModel{
+		TemplateID: types.Int64Value(0),                  // Mock doesn't include job_template here
+		URL:        types.StringValue("/api/v2/jobs/1/"), // This path exists in MockConfig
+		Status:     types.StringValue("pending"),         // Will be updated by ParseHttpResponse
+	}
+
+	// Create a custom mock response for this test (avoid modifying shared fixtures)
+	testJobResponse := map[string]string{
+		"status": "running",
+		"type":   "check",
+		"url":    "/api/v2/jobs/1/",
+	}
+
+	// Create a mock client with custom config for this test
+	mockClient := NewMockHTTPClient([]string{"GET"}, 200)
+
+	// Add our test response to the mock config temporarily
+	originalResponse := MockConfig["/api/v2/jobs/1/"]
+	MockConfig["/api/v2/jobs/1/"] = testJobResponse
+	defer func() {
+		MockConfig["/api/v2/jobs/1/"] = originalResponse
+	}()
+
+	// Execute the retry function once (should return retryable error since "running" is not final)
+	retryFunc := retryUntilAAPJobReachesAnyFinalState(ctx, mockClient, model)
+	err := retryFunc()
+
+	// Verify we get a retryable error since "running" is not a final state
+	if err == nil {
+		t.Error("Expected retryable error for non-final state, got nil")
+	}
+
+	// Debug: Check what the mock actually returned
+	responseBody, _ := mockClient.Get("/api/v2/jobs/1/")
+	t.Logf("Mock response: %s", string(responseBody))
+
+	// Verify the model was updated to "running" status from mock response
+	if model.Status.ValueString() != statusRunningConst {
+		t.Errorf("Expected model status to be updated to 'running', got '%s'", model.Status.ValueString())
+	}
+
+	// Check the captured tflog output
+	logOutput := logBuffer.String()
+	if len(logOutput) == 0 {
+		t.Fatal("No tflog output captured - tflog.Debug may not have been called")
+	}
+
+	// Parse the structured JSON log output once
+	var logEntry map[string]interface{}
+	parseErr := json.Unmarshal([]byte(strings.TrimSpace(logOutput)), &logEntry)
+	if parseErr != nil {
+		t.Fatalf("Failed to parse tflog output as JSON: %v\nOutput: %s", parseErr, logOutput)
+	}
+
+	// Validate structured log fields using helper function
+	assertLogFieldEquals(t, logEntry, "@level", "debug")
+	assertLogFieldEquals(t, logEntry, "@message", "Job status update")
+	assertLogFieldEquals(t, logEntry, "@module", "provider")
+	assertLogFieldEquals(t, logEntry, "job_template_id", 0)
+	assertLogFieldEquals(t, logEntry, "job_url", "/api/v2/jobs/1/")
+	assertLogFieldEquals(t, logEntry, "status", statusRunningConst)
 }
