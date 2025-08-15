@@ -418,7 +418,7 @@ func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 }
 
 // TestAccAAPJob_WaitForCompletion tests that job status is correctly updated to final state
-// when wait_for_completion=true. This test demonstrates the bug described in AAP-47221.
+// when wait_for_completion=true. This test demonstrates the bug described in Issue #78
 // Expected to FAIL on main branch, PASS after PR #131 and #132 are merged.
 func TestAccAAPJob_WaitForCompletion(t *testing.T) {
 	jobTemplateID := os.Getenv("AAP_TEST_JOB_FOR_HOST_RETRY_ID")
@@ -431,11 +431,11 @@ func TestAccAAPJob_WaitForCompletion(t *testing.T) {
 				Config: testAccJobWithWaitForCompletion(jobTemplateID),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckJobExists,
-					// This check should FAIL on main branch due to AAP-47221 bug
+					// This check should FAIL on main branch due to issue #78
 					// The job status should be "successful" or "failed", not "pending"
 					resource.TestCheckResourceAttrWith("aap_job.test", "status", func(value string) error {
 						if value == statusPendingConst {
-							return fmt.Errorf("AAP-47221 bug: job status is 'pending' instead of final state")
+							return fmt.Errorf("issue #78 bug: job status is still in 'pending' instead of final state")
 						}
 						if !IsFinalStateAAPJob(value) {
 							return fmt.Errorf("job status '%s' is not a final state", value)
