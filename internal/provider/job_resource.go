@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
 
@@ -87,7 +88,7 @@ func IsFinalStateAAPJob(state string) bool {
 	return isPresent && result
 }
 
-func retryUntilAAPJobReachesAnyFinalState(client ProviderHTTPClient, model *JobResourceModel) retry.RetryFunc {
+func retryUntilAAPJobReachesAnyFinalState(ctx context.Context, client ProviderHTTPClient, model *JobResourceModel) retry.RetryFunc {
 	return func() *retry.RetryError {
 		responseBody, diagnostics := client.Get(model.URL.ValueString())
 		if diagnostics.HasError() {
@@ -99,7 +100,11 @@ func retryUntilAAPJobReachesAnyFinalState(client ProviderHTTPClient, model *JobR
 		if parseDiags.HasError() {
 			return retry.RetryableError(fmt.Errorf("error parsing job status response: %s", parseDiags.Errors()))
 		}
-		fmt.Printf("Job ID: %s, Current Status: %s\n", model.TemplateID, model.Status.ValueString())
+		tflog.Debug(ctx, "Job status update", map[string]interface{}{
+			"job_template_id": model.TemplateID.ValueInt64(),
+			"job_url":         model.URL.ValueString(),
+			"status":          model.Status.ValueString(),
+		})
 
 		if !IsFinalStateAAPJob(model.Status.ValueString()) {
 			return retry.RetryableError(fmt.Errorf("job at: %s hasn't yet reached a final state. Current state: %s", model.URL, model.Status.ValueString()))
@@ -227,7 +232,7 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	// and wait for it to complete before marking the resource as created
 	if data.WaitForCompletion.ValueBool() {
 		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(r.client, &data))
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, &data))
 		if err != nil {
 			resp.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
 		}
@@ -303,7 +308,7 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	// and wait for it to complete before marking the resource as created
 	if data.WaitForCompletion.ValueBool() {
 		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(r.client, &data))
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, &data))
 		if err != nil {
 			resp.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
 		}
