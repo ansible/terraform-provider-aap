@@ -27,6 +27,7 @@ import (
 
 const (
 	statusRunningConst = "running"
+	statusPendingConst = "pending"
 )
 
 func TestJobResourceSchema(t *testing.T) {
@@ -295,6 +296,7 @@ func testAccJobResourcePreCheck(t *testing.T) {
 
 	requiredAAPJobEnvVars := []string{
 		"AAP_TEST_JOB_TEMPLATE_ID",
+		"AAP_TEST_JOB_FOR_HOST_RETRY_ID",
 	}
 
 	for _, key := range requiredAAPJobEnvVars {
@@ -415,6 +417,40 @@ func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 	})
 }
 
+// TestAccAAPJob_WaitForCompletion tests that job status is correctly updated to final state
+// when wait_for_completion=true. This test demonstrates the bug described in Issue #78
+// Expected to FAIL on main branch, PASS after PR #131 and #132 are merged.
+func TestAccAAPJob_WaitForCompletion(t *testing.T) {
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_FOR_HOST_RETRY_ID")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccJobWithWaitForCompletion(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckJobExists,
+					// This check should FAIL on main branch due to issue #78
+					// The job status should be "successful" or "failed", not "pending"
+					resource.TestCheckResourceAttrWith("aap_job.test", "status", func(value string) error {
+						if value == statusPendingConst {
+							return fmt.Errorf("issue #78 bug: job status is still in 'pending' instead of final state")
+						}
+						if !IsFinalStateAAPJob(value) {
+							return fmt.Errorf("job status '%s' is not a final state", value)
+						}
+						return nil
+					}),
+					// Verify wait_for_completion was actually used
+					resource.TestCheckResourceAttr("aap_job.test", "wait_for_completion", "true"),
+					resource.TestCheckResourceAttr("aap_job.test", "wait_for_completion_timeout_seconds", "300"),
+				),
+			},
+		},
+	})
+}
+
 // testAccCheckJobPause is designed to force the acceptance test framework to wait
 // until a job is finished. This is needed when the associated inventory also must be
 // deleted.
@@ -478,6 +514,16 @@ resource "aap_job" "test" {
 		"key1" = "value1"
 		"key2" = "value2"
 	}
+}
+`, jobTemplateID)
+}
+
+func testAccJobWithWaitForCompletion(jobTemplateID string) string {
+	return fmt.Sprintf(`
+resource "aap_job" "test" {
+	job_template_id                     = %s
+	wait_for_completion                 = true
+	wait_for_completion_timeout_seconds = 300
 }
 `, jobTemplateID)
 }
@@ -553,7 +599,7 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 		}
 
 		// Verify initial state
-		if model.Status.ValueString() != "pending" {
+		if model.Status.ValueString() != statusPendingConst {
 			t.Errorf("expected initial status 'pending', got '%s'", model.Status.ValueString())
 		}
 
@@ -572,7 +618,7 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 		}
 
 		// Model state should remain unchanged since parsing never succeeded
-		if model.Status.ValueString() != "pending" {
+		if model.Status.ValueString() != statusPendingConst {
 			t.Errorf("expected status to remain 'pending' after error, got '%s'", model.Status.ValueString())
 		}
 	})
