@@ -27,6 +27,7 @@ import (
 
 const (
 	statusRunningConst = "running"
+	statusPendingConst = "pending"
 )
 
 func TestJobResourceSchema(t *testing.T) {
@@ -433,7 +434,7 @@ func TestAccAAPJob_WaitForCompletion(t *testing.T) {
 					// This check should FAIL on main branch due to AAP-47221 bug
 					// The job status should be "successful" or "failed", not "pending"
 					resource.TestCheckResourceAttrWith("aap_job.test", "status", func(value string) error {
-						if value == "pending" {
+						if value == statusPendingConst {
 							return fmt.Errorf("AAP-47221 bug: job status is 'pending' instead of final state")
 						}
 						if !IsFinalStateAAPJob(value) {
@@ -598,7 +599,7 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 		}
 
 		// Verify initial state
-		if model.Status.ValueString() != "pending" {
+		if model.Status.ValueString() != statusPendingConst {
 			t.Errorf("expected initial status 'pending', got '%s'", model.Status.ValueString())
 		}
 
@@ -617,7 +618,7 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 		}
 
 		// Model state should remain unchanged since parsing never succeeded
-		if model.Status.ValueString() != "pending" {
+		if model.Status.ValueString() != statusPendingConst {
 			t.Errorf("expected status to remain 'pending' after error, got '%s'", model.Status.ValueString())
 		}
 	})
