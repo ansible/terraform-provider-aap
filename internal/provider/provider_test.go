@@ -1,12 +1,14 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
@@ -226,4 +228,320 @@ func TestReadValues(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNew(t *testing.T) {
+	version := "1.0.0"
+	factory := New(version)
+
+	// Test that the factory returns a provider function
+	if factory == nil {
+		t.Fatal("New() should return a provider factory function")
+	}
+
+	// Test that the factory function returns a provider
+	provider := factory()
+	if provider == nil {
+		t.Fatal("Provider factory should return a provider instance")
+	}
+
+	// Test that the provider is of the correct type
+	aapProvider, ok := provider.(*aapProvider)
+	if !ok {
+		t.Fatal("Provider should be of type *aapProvider")
+	}
+
+	// Test that the version is set correctly
+	if aapProvider.version != version {
+		t.Errorf("Expected version %s, got %s", version, aapProvider.version)
+	}
+}
+
+func TestMetadata(t *testing.T) {
+	testCases := []struct {
+		name         string
+		version      string
+		expectedType string
+	}{
+		{
+			name:         "test version",
+			version:      "test",
+			expectedType: "aap",
+		},
+		{
+			name:         "dev version",
+			version:      "dev",
+			expectedType: "aap",
+		},
+		{
+			name:         "release version",
+			version:      "1.0.0",
+			expectedType: "aap",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &aapProvider{version: tc.version}
+			req := provider.MetadataRequest{}
+			resp := &provider.MetadataResponse{}
+
+			p.Metadata(context.TODO(), req, resp)
+
+			if resp.TypeName != tc.expectedType {
+				t.Errorf("Expected TypeName %s, got %s", tc.expectedType, resp.TypeName)
+			}
+
+			if resp.Version != tc.version {
+				t.Errorf("Expected Version %s, got %s", tc.version, resp.Version)
+			}
+		})
+	}
+}
+
+func TestSchema(t *testing.T) {
+	p := &aapProvider{}
+	req := provider.SchemaRequest{}
+	resp := &provider.SchemaResponse{}
+
+	p.Schema(context.TODO(), req, resp)
+
+	// Check that schema is not nil
+	if resp.Schema.Attributes == nil {
+		t.Fatal("Schema attributes should not be nil")
+	}
+
+	// Check that required attributes are present
+	expectedAttrs := []string{"host", "username", "password", "insecure_skip_verify", "timeout"}
+	for _, attr := range expectedAttrs {
+		if _, exists := resp.Schema.Attributes[attr]; !exists {
+			t.Errorf("Expected attribute %s to be present in schema", attr)
+		}
+	}
+
+	// Check that password is marked as sensitive
+	if passwordAttr, exists := resp.Schema.Attributes["password"]; exists {
+		if stringAttr, ok := passwordAttr.(schema.StringAttribute); ok {
+			if !stringAttr.Sensitive {
+				t.Error("Password attribute should be marked as sensitive")
+			}
+		}
+	}
+
+	// Check that timeout has description
+	if timeoutAttr, exists := resp.Schema.Attributes["timeout"]; exists {
+		if int64Attr, ok := timeoutAttr.(schema.Int64Attribute); ok {
+			if int64Attr.Description == "" {
+				t.Error("Timeout attribute should have a description")
+			}
+		}
+	}
+}
+
+func TestAddConfigurationAttributeError(t *testing.T) {
+	testCases := []struct {
+		name               string
+		attrName           string
+		envName            string
+		isUnknown          bool
+		expectUnknownError bool
+	}{
+		{
+			name:               "unknown value error",
+			attrName:           "host",
+			envName:            "AAP_HOST",
+			isUnknown:          true,
+			expectUnknownError: true,
+		},
+		{
+			name:               "missing value error",
+			attrName:           "username",
+			envName:            "AAP_USERNAME",
+			isUnknown:          false,
+			expectUnknownError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := &provider.ConfigureResponse{}
+
+			AddConfigurationAttributeError(resp, tc.attrName, tc.envName, tc.isUnknown)
+
+			if resp.Diagnostics.ErrorsCount() != 1 {
+				t.Errorf("Expected 1 error, got %d", resp.Diagnostics.ErrorsCount())
+			}
+
+			errors := resp.Diagnostics.Errors()
+			if len(errors) > 0 {
+				errorMsg := errors[0].Detail()
+				if tc.expectUnknownError {
+					if !contains(errorMsg, "unknown configuration value") {
+						t.Error("Expected unknown configuration value error message")
+					}
+				} else {
+					if !contains(errorMsg, "missing or empty value") {
+						t.Error("Expected missing or empty value error message")
+					}
+				}
+
+				// Check that environment variable name is mentioned
+				if !contains(errorMsg, tc.envName) {
+					t.Errorf("Expected error message to contain environment variable name %s", tc.envName)
+				}
+			}
+		})
+	}
+}
+
+func TestDataSources(t *testing.T) {
+	p := &aapProvider{}
+
+	dataSources := p.DataSources(context.TODO())
+
+	expectedDataSources := []string{
+		"NewInventoryDataSource",
+		"NewJobTemplateDataSource",
+		"NewWorkflowJobTemplateDataSource",
+		"NewOrganizationDataSource",
+	}
+
+	if len(dataSources) != len(expectedDataSources) {
+		t.Errorf("Expected %d data sources, got %d", len(expectedDataSources), len(dataSources))
+	}
+
+	// Test that each data source factory function returns a valid data source
+	for i, factory := range dataSources {
+		if factory == nil {
+			t.Errorf("Data source factory at index %d should not be nil", i)
+			continue
+		}
+
+		dataSource := factory()
+		if dataSource == nil {
+			t.Errorf("Data source factory at index %d should return a valid data source", i)
+		}
+	}
+}
+
+func TestResources(t *testing.T) {
+	p := &aapProvider{}
+
+	resources := p.Resources(context.TODO())
+
+	expectedResources := []string{
+		"NewInventoryResource",
+		"NewJobResource",
+		"NewWorkflowJobResource",
+		"NewGroupResource",
+		"NewHostResource",
+	}
+
+	if len(resources) != len(expectedResources) {
+		t.Errorf("Expected %d resources, got %d", len(expectedResources), len(resources))
+	}
+
+	// Test that each resource factory function returns a valid resource
+	for i, factory := range resources {
+		if factory == nil {
+			t.Errorf("Resource factory at index %d should not be nil", i)
+			continue
+		}
+
+		resource := factory()
+		if resource == nil {
+			t.Errorf("Resource factory at index %d should return a valid resource", i)
+		}
+	}
+}
+
+func TestCheckUnknownValue(t *testing.T) {
+	testCases := []struct {
+		name           string
+		config         aapProviderModel
+		expectedErrors int
+		expectedFields []string
+	}{
+		{
+			name: "no unknown values",
+			config: aapProviderModel{
+				Host:               types.StringValue("https://localhost"),
+				Username:           types.StringValue("user"),
+				Password:           types.StringValue("pass"),
+				InsecureSkipVerify: types.BoolValue(true),
+				Timeout:            types.Int64Value(10),
+			},
+			expectedErrors: 0,
+			expectedFields: []string{},
+		},
+		{
+			name: "all unknown values",
+			config: aapProviderModel{
+				Host:               types.StringUnknown(),
+				Username:           types.StringUnknown(),
+				Password:           types.StringUnknown(),
+				InsecureSkipVerify: types.BoolUnknown(),
+				Timeout:            types.Int64Unknown(),
+			},
+			expectedErrors: 5,
+			expectedFields: []string{"host", "username", "password", "insecure_skip_verify", "timeout"},
+		},
+		{
+			name: "single unknown value",
+			config: aapProviderModel{
+				Host:               types.StringUnknown(),
+				Username:           types.StringValue("user"),
+				Password:           types.StringValue("pass"),
+				InsecureSkipVerify: types.BoolValue(true),
+				Timeout:            types.Int64Value(10),
+			},
+			expectedErrors: 1,
+			expectedFields: []string{"host"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := &provider.ConfigureResponse{}
+
+			tc.config.checkUnknownValue(resp)
+
+			if resp.Diagnostics.ErrorsCount() != tc.expectedErrors {
+				t.Errorf("Expected %d errors, got %d", tc.expectedErrors, resp.Diagnostics.ErrorsCount())
+			}
+
+			// Check that expected fields are mentioned in error messages
+			if tc.expectedErrors > 0 {
+				errors := resp.Diagnostics.Errors()
+				for _, expectedField := range tc.expectedFields {
+					found := false
+					for _, err := range errors {
+						if contains(err.Detail(), expectedField) {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Errorf("Expected error message to contain field %s", expectedField)
+					}
+				}
+			}
+		})
+	}
+}
+
+// Helper function to check if a string contains a substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && s[:len(substr)] == substr ||
+		len(s) > len(substr) && s[len(s)-len(substr):] == substr ||
+		len(s) > len(substr) && findSubstring(s, substr)
+}
+
+func findSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
