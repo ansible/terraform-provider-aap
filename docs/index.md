@@ -94,4 +94,5 @@ resource "aap_job" "my_job" {
 
 ## Supported Platform
 
-Linux / AMD64
+- Linux AMD64 and ARM64
+- macOS AMD64 and ARM64
