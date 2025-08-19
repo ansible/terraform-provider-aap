@@ -31,9 +31,24 @@ releases:
   1.3.0:
     changes:
       bugfixes:
-      - Fix aab_job using default inventory id
+      - datasource/base_datasource - Fixed an issue where unknown values were consider
+        missing (#75)
+      - resource/aap_host - Deleting a host will be retried for a default of 30 minutes
+        or until the job completion timeout has been reached (#68)
+      - resource/aap_job - A default inventory-id of 1 will no longer be enforced
+        if a value is not present
+      - resource/aap_workflow_job - A default inventory-id of 1 will no longer be
+        enforced if a value is not present (#111)
+      - resource/job - Jobs now correctly transition from pending to final states
+        when using wait_for_completion = true (#78)
+      major_changes:
+      - New Datasource - aap_organization
+      minor_changes:
+      - Add Darwin and arm64 platform builds
+      - Update to Golang 1.23.9
     fragments:
     - 20250730-fix-job-inventory-id.yml
+    - bugs.yml
     release_date: '2025-08-19'
   1.3.0-prerelease:
     changes:

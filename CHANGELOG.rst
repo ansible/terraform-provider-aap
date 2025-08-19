@@ -12,18 +12,25 @@ Release Summary
 
 Feature release
 
+Major Changes
+-------------
+
+- New Datasource - aap_organization
+
 Minor Changes
 -------------
 
-- Adds support for Darwin arm64/amd64 and Linux arm64.
-- Fixes issue where Inventory could become inconsistent.
+- Add Darwin and arm64 platform builds
+- Update to Golang 1.23.9
 
 Bugfixes
 --------
 
-- Fix aab_job using default inventory id
-- Fix issue with unknown values during plan phase.
-- Prevent workflow job from using a default inventory id.
+- datasource/base_datasource - Fixed an issue where unknown values were consider missing (#75,
+- resource/aap_host - Deleting a host will be retried for a default of 30 minutes or until the job completion timeout has been reached (#68)
+- resource/aap_job - A default inventory-id of 1 will no longer be enforced if a value is not present
+- resource/aap_workflow_job - A default inventory-id of 1 will no longer be enforced if a value is not present (#111)
+- resource/job - Jobs now correctly transition from pending to final states when using wait_for_completion = true (#78)
 
 v1.2.0
 ======
