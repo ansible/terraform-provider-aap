@@ -34,7 +34,7 @@ jobs:
         run: make testcov
 
       - name: SonarCube Static Scans (on push)
-        uses: SonarSource/sonarqube-scan-action@v5.2.0
+        uses: SonarSource/sonarqube-scan-action@v5
         if: github.event_name == 'push' && startsWith(github.repository, 'ansible') && endsWith(github.repository, '/terraform-provider-aap')
         env:
           SONAR_TOKEN: ${{ secrets[format('{0}', vars.SONAR_TOKEN_SECRET_NAME)] }}
