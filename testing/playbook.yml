@@ -31,7 +31,7 @@
       register: workflow_job_template
     - name: Create non-default organization
       ansible.controller.organization:
-        name: "Test Organization - Non-default"
+        name: "Non-default"
       register: organization_non_default
       # The Workflow Job Template resource test requires the AAP instance to have
       # an inventory named "Inventory For Workflow" and then a Workflow Job
