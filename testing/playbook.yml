@@ -1,0 +1,70 @@
+---
+- name: Configure AAP for terraform-provider-aap acceptance tests
+  hosts: localhost
+  vars:
+  # export AAP_USERNAME=<your admin username>
+# export AAP_PASSWORD=<your admin password>
+# export AAP_INSECURE_SKIP_VERIFY=true
+# export AAP_HOST=<your aap instance host url> # "http://localhost:9080" or "https://localhost:8043"
+  tasks:
+    - name: Set description for default org (for consistency on 2.4 and 2.5)
+      ansible.controller.organization:
+        name: "Default"
+        description: "The default organization for Ansible Automation Platform"
+    - name: Create Job Template
+      ansible.controller.job_template:
+        name: "Test Job Template - hello_world.yml with Inventory Prompt"
+        inventory: "Demo Inventory"
+        ask_inventory_on_launch: true
+        organization: "Default"
+        project: "Demo Project"
+        # job_type: "run"
+        playbook: "hello_world.yml"
+        credentials:
+          - "Demo Credential"
+      register: job_template_inventory_prompt_on_launch
+    - name: Create Workflow Job Template
+      ansible.controller.workflow_job_template:
+        name: "Demo Workflow Job Template"
+        ask_inventory_on_launch: true
+        organization: "Default"
+      register: workflow_job_template
+    - name: Create non-default organization
+      ansible.controller.organization:
+        name: "Test Organization - Non-default"
+      register: organization_non_default
+      # The Workflow Job Template resource test requires the AAP instance to have
+      # an inventory named "Inventory For Workflow" and then a Workflow Job
+      # Template named "Workflow with Inventory". Follow the below steps to get
+      # the data in AAP setup:
+    - name: Create inventory for workflow testing
+      ansible.controller.inventory:
+        name: "Inventory for Workflow"
+        organization: "Default"
+      register: inventory_for_workflow
+    - name: Create Workflow Job Template with Inventory
+      ansible.controller.workflow_job_template:
+        name: "Workflow with Inventory"
+        inventory: "Inventory for Workflow"
+        organization: "Default"
+        ask_inventory_on_launch: false
+        ask_variables_on_launch: true
+      register: workflow_with_inventory
+    - name: Configure the test playbooks project
+      ansible.controller.project:
+        name: "Test Playbooks"
+        organization: "Default"
+        scm_type: "git"
+        scm_url: "https://github.com/ansible/test-playbooks.git"
+    - name: Create a job template with the sleep playbook
+      ansible.controller.job_template:
+        name: "Test Job Template - sleep.yml"
+        organization: "Default"
+        project: "Test Playbooks"
+        playbook: "sleep.yml"
+        inventory: "Demo Inventory"
+      register: job_template_sleep
+    - name: Write env file for acceptance test execution
+      ansible.builtin.template:
+        dest: provider_acceptance_tests.env
+        src: templates/provider_acceptance_tests.env.j2
