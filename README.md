@@ -53,50 +53,25 @@ export AAP_INSECURE_SKIP_VERIFY=true
 export AAP_HOST=<your aap instance host url> # "http://localhost:9080" or "https://localhost:8043"
 ```
 
-In order to run the acceptance tests for the job resource, you must have templates for job and worklow already in your AAP instance. The templates must be set to require an inventory on launch and the Workflow Template must be named "Demo Workflow Job Template". Then associate the Workflow Template with the "Default" organization.
+In order to run acceptance tests, there are multiple resources that must exist in AAP. While the provider can create some AAP resources, it is not designed for comprehensive management of all platform resources. We've added a playbook `testing/playbook.yml` to create the necessary resources to enable acceptance testing.
 
-Export the IDs of these job templates:
+For example, the provider implements a `datasource.aap_organization` but does not implement a Terraform `resource` to create organizations. Executing the playbook creates `organization` and writes a file with `export AAP_TEST_ORGANIZATION_ID=#`.
 
-```bash
-export AAP_TEST_JOB_TEMPLATE_ID=<the ID of a job template in your AAP instance>
-export AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID=<the ID of a workflow job template in your AAP instance>
+To install the collection and run the playbook:
+
+```
+ansible-galaxy collection install -r testing/requirements.yml
+# Ansible reads AAP_HOSTNAME instead of AAP_HOST
+export AAP_HOSTNAME=$AAP_HOST
+ansible-playbook testing/playbook.yml
 ```
 
-The inventory resource test requires the AAP instance to have a second organization with the name `Non-Default` and export that ID:
+This will produce a file called `testing/acceptance_test_vars.env`. Source this file before running acceptance tests with `make testacc`.
 
 ```bash
-export AAP_TEST_ORGANIZATION_ID=<the ID of Non-Default in your AAP instance>
+source testing/acceptance_test_vars.env
+make testacc
 ```
-The Workflow Job Template resource test requires the AAP instance to have an inventory named "Inventory For Workflow" and then a Workflow Job Template named "Workflow with Inventory".  Follow the below steps to get the data in AAP setup:
-
-1. Create inventory `Inventory For Workflow` on Default organization - make note of the ID for the Inventory
-2. Create a Workflow Job Template called `Workflow with Inventory` - make note of the ID of the Workflow Job Template.
-  - Assign organization to `Default`
-  - Assign `Inventory For Workflow`
-  - Make sure `Prompt on launch` **is not checked** for the inventory
-  - Make sure `Prompt on launch` **is checked** for `Extra variables`
-  - Add a default step and save
-
-Export the following environment variables using the IDs from above:
-
-```bash
-export AAP_TEST_WORKFLOW_INVENTORY_ID=<the ID of `Workflow with Inventory`>
-export AAP_TEST_INVENTORY_FOR_WF_ID=<the ID of `Inventory For Workflow`>
-```
-
-The Host resource test requires the AAP instance to have a Job Template that sleeps for a handful of seconds. 
-We recommend using the `sleep.yml` playbook from the [ansible/test-playbooks](https://github.com/ansible/test-playbooks) 
-repository, configured to sleep for 15 seconds.
-
-Export the IDs of this job template:
-
-```bash
-export AAP_TEST_JOB_FOR_HOST_RETRY_ID=<the ID of a job template using sleep.yml that sleeps for 15 seconds>
-```
-
-AAP 2.4 version note - If you are running the tests against an AAP 2.4 version instance, set the description for Default Organization to `The default organization for Ansible Automation Platform`
-
-Then you can run acceptance tests with `make testacc`.
 
 **WARNING**: running acceptance tests for the job resource will launch several jobs for the specified job template. Strongly recommended that you create a "check" type job template for testing to ensure the launched jobs do not deploy any actual infrastructure.
 
