@@ -1,0 +1,85 @@
+---
+- name: Configure AAP for terraform-provider-aap acceptance tests
+  hosts: localhost
+  tasks:
+    # The tests for datasource.aap_organization check the description, but in 2.4
+    # the description is empty. So we make sure it's consistent
+    - name: Set description for default org (for consistency on 2.4 and 2.5)
+      ansible.controller.organization:
+        name: "Default"
+        description: "The default organization for Ansible Automation Platform"
+    # The tests for resource.aap_job test the behavior when the template is configured
+    # to prompt for inventory on launch. So we need a Job Template that is configured
+    # to prompt for inventory
+    - name: Create Job Template
+      ansible.controller.job_template:
+        name: "Test Job Template - hello_world.yml with Inventory Prompt"
+        inventory: "Demo Inventory"
+        ask_inventory_on_launch: true
+        organization: "Default"
+        project: "Demo Project"
+        playbook: "hello_world.yml"
+        credentials:
+          - "Demo Credential"
+      register: job_template_inventory_prompt_on_launch
+    # The tests for resource.aap_workflow_job test the behavior when the template
+    # is configured to prompt for inventory on launch. So we need a Workflow Job Template
+    # in the 'Default' organization that is configured to prompt for inventory.
+    - name: Create Workflow Job Template
+      ansible.controller.workflow_job_template:
+        name: "Demo Workflow Job Template"
+        ask_inventory_on_launch: true
+        organization: "Default"
+      register: workflow_job_template
+    # The tests for resource.aap_inventory create an inventory that is in a non-default
+    # organization. So we need an organization that is not 'Default'
+    - name: Create non-default organization
+      ansible.controller.organization:
+        name: "Non-Default"
+      register: organization_non_default
+    # The tests for resource.aap_workflow_job test the behavior when the template
+    # is not configured to prompt for an inventory on launch, so we need a unique
+    # Inventory and a Workflow Job Template configured together.
+    - name: Create inventory for workflow testing
+      ansible.controller.inventory:
+        name: "Inventory for Workflow"
+        organization: "Default"
+      register: inventory_for_workflow
+    - name: Create Workflow Job Template with Inventory
+      ansible.controller.workflow_job_template:
+        name: "Workflow with Inventory"
+        inventory: "Inventory for Workflow"
+        organization: "Default"
+        ask_inventory_on_launch: false
+        ask_variables_on_launch: true
+      register: workflow_with_inventory
+    # The tests for resource.aap_host test that delete operations are retried when
+    # they fail because the host is in use. So we need a Project and Job Template
+    # configured with a playbook that will run long enough to confirm this.
+    - name: Configure the test playbooks project
+      ansible.controller.project:
+        name: "Test Playbooks"
+        organization: "Default"
+        scm_type: "git"
+        scm_url: "https://github.com/ansible/test-playbooks.git"
+    - name: Create a job template with the sleep playbook
+      ansible.controller.job_template:
+        name: "Test Job Template - sleep.yml"
+        organization: "Default"
+        project: "Test Playbooks"
+        playbook: "sleep.yml"
+        inventory: "Demo Inventory"
+      register: job_template_sleep
+    # The provider acceptance tests are configured to read the IDs of all of these
+    # test resources from the environment, so we write a local .env file that exports
+    # all of them
+    - name: Write local env file for acceptance test execution
+      ansible.builtin.template:
+        dest: acceptance_test_vars.env
+        src: templates/acceptance_test_vars.env.j2
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+        - AAP has been configured with the resources needed to run provider acceptance tests.
+        - The IDs of required resources are written to 'acceptance_test_vars.env'
+        - Execute 'source acceptance_test_vars.env' before running acceptance tests
