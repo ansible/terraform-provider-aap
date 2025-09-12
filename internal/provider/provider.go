@@ -203,9 +203,8 @@ func (p *aapProviderModel) ReadValues(host, username, password *string, insecure
 	// Set default values from env variables
 
 	// Prefer AAP_HOSTNAME, fallback to AAP_HOST
-	var found bool
-	*host, found = os.LookupEnv("AAP_HOSTNAME")
-	if !found {
+	*host = os.Getenv("AAP_HOSTNAME")
+	if *host == "" {
 		*host = os.Getenv("AAP_HOST")
 	}
 	*username = os.Getenv("AAP_USERNAME")
