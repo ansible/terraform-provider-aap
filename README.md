@@ -65,6 +65,8 @@ To install the collection and run the playbook:
 # See https://access.redhat.com/solutions/6983440 to enable installation from console.redhat.com
 ansible-galaxy collection install -r testing/requirements.yml
 # AAP_USERNAME, AAP_PASSWORD, AAP_HOSTNAME must be set
+# If you need to disable TLS verification, set AAP_VALIDATE_CERTS
+export AAP_VALIDATE_CERTS=false
 ansible-playbook testing/playbook.yml
 ```
 
