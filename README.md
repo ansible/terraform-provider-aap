@@ -57,9 +57,12 @@ In order to run acceptance tests, there are multiple resources that must exist i
 
 For example, the provider implements a `datasource.aap_organization` but does not implement a Terraform `resource` to create organizations. Executing the playbook creates `organization` and writes a file with `export AAP_TEST_ORGANIZATION_ID=#`.
 
+The playbook uses modules from [console.redhat.com](https://console.redhat.com/ansible/automation-hub/repo/published/ansible/controller/). To configure `ansible-galaxy` to access this content, see https://access.redhat.com/solutions/6983440.
+
 To install the collection and run the playbook:
 
 ```bash
+# See https://access.redhat.com/solutions/6983440 to enable installation from console.redhat.com
 ansible-galaxy collection install -r testing/requirements.yml
 # AAP_USERNAME, AAP_PASSWORD, AAP_HOSTNAME must be set
 ansible-playbook testing/playbook.yml
