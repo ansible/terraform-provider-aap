@@ -24,7 +24,7 @@ var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServe
 
 func testAccPreCheck(t *testing.T) {
 	requiredAAPEnvVars := map[string]string{
-		"AAP_HOST":                 "https://localhost:8043",
+		"AAP_HOSTNAME":             "https://localhost:8043",
 		"AAP_USERNAME":             "",
 		"AAP_PASSWORD":             "",
 		"AAP_INSECURE_SKIP_VERIFY": "true",
@@ -43,7 +43,11 @@ func testAccPreCheck(t *testing.T) {
 }
 
 func testMethodResource(method string, urlPath string) ([]byte, error) {
-	host := os.Getenv("AAP_HOST")
+	// Prefer AAP_HOSTNAME, fallback to AAP_HOST
+	host, found := os.LookupEnv("AAP_HOSTNAME")
+	if !found {
+		host = os.Getenv("AAP_HOST")
+	}
 	username := os.Getenv("AAP_USERNAME")
 	password := os.Getenv("AAP_PASSWORD")
 
@@ -102,7 +106,7 @@ func TestReadValues(t *testing.T) {
 			name:   "Using env variables only",
 			config: aapProviderModel{},
 			envVars: map[string]string{
-				"AAP_HOST":                 "https://172.0.0.1:9000",
+				"AAP_HOSTNAME":             "https://172.0.0.1:9000",
 				"AAP_USERNAME":             "user988",
 				"AAP_PASSWORD":             "@pass123#",
 				"AAP_INSECURE_SKIP_VERIFY": "true",
@@ -125,7 +129,7 @@ func TestReadValues(t *testing.T) {
 				Timeout:            types.Int64Value(30),
 			},
 			envVars: map[string]string{
-				"AAP_HOST":                 "https://168.3.5.11:8043",
+				"AAP_HOSTNAME":             "https://168.3.5.11:8043",
 				"AAP_USERNAME":             "ansible",
 				"AAP_PASSWORD":             "testing#$%",
 				"AAP_INSECURE_SKIP_VERIFY": "false",
@@ -183,7 +187,7 @@ func TestReadValues(t *testing.T) {
 		},
 	}
 	var providerEnvVars = []string{
-		"AAP_HOST",
+		"AAP_HOSTNAME",
 		"AAP_USERNAME",
 		"AAP_PASSWORD",
 		"AAP_INSECURE_SKIP_VERIFY",

@@ -116,7 +116,7 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	// errors with provider-specific guidance.
 
 	if len(host) == 0 {
-		AddConfigurationAttributeError(resp, "host", "AAP_HOST", false)
+		AddConfigurationAttributeError(resp, "host", "AAP_HOSTNAME", false)
 	}
 
 	if len(username) == 0 {
@@ -173,7 +173,7 @@ type aapProviderModel struct {
 
 func (p *aapProviderModel) checkUnknownValue(resp *provider.ConfigureResponse) {
 	if p.Host.IsUnknown() {
-		AddConfigurationAttributeError(resp, "host", "AAP_HOST", true)
+		AddConfigurationAttributeError(resp, "host", "AAP_HOSTNAME", true)
 	}
 
 	if p.Username.IsUnknown() {
@@ -201,7 +201,13 @@ const (
 func (p *aapProviderModel) ReadValues(host, username, password *string, insecureSkipVerify *bool,
 	timeout *int64, resp *provider.ConfigureResponse) {
 	// Set default values from env variables
-	*host = os.Getenv("AAP_HOST")
+
+	// Prefer AAP_HOSTNAME, fallback to AAP_HOST
+	var found bool
+	*host, found = os.LookupEnv("AAP_HOSTNAME")
+	if !found {
+		*host = os.Getenv("AAP_HOST")
+	}
 	*username = os.Getenv("AAP_USERNAME")
 	*password = os.Getenv("AAP_PASSWORD")
 

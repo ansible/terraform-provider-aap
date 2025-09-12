@@ -50,7 +50,7 @@ Create an admin user for the AAP instance and set the following environment vari
 export AAP_USERNAME=<your admin username>
 export AAP_PASSWORD=<your admin password>
 export AAP_INSECURE_SKIP_VERIFY=true
-export AAP_HOST=<your aap instance host url> # "http://localhost:9080" or "https://localhost:8043"
+export AAP_HOSTNAME=<your aap instance host url> # "http://localhost:9080" or "https://localhost:8043"
 ```
 
 In order to run acceptance tests, there are multiple resources that must exist in AAP. While the provider can create some AAP resources, it is not designed for comprehensive management of all platform resources. We've added a playbook `testing/playbook.yml` to create the necessary resources to enable acceptance testing.
@@ -59,10 +59,9 @@ For example, the provider implements a `datasource.aap_organization` but does no
 
 To install the collection and run the playbook:
 
-```
+```bash
 ansible-galaxy collection install -r testing/requirements.yml
-# Ansible reads AAP_HOSTNAME instead of AAP_HOST
-export AAP_HOSTNAME=$AAP_HOST
+# AAP_USERNAME, AAP_PASSWORD, AAP_HOSTNAME must be set
 ansible-playbook testing/playbook.yml
 ```
 
