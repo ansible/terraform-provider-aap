@@ -68,9 +68,14 @@ var (
 	// - HTTP 502: Bad gateway
 	// - HTTP 503: Service unavailable
 	// - HTTP 504: Gateway timeout
+	//
+	// HTTP 403: Forbidden
+	// Acceptance tests run against AAP 2.4 almost always receives a
+	// 404 upon first host deletion attempt. This is likely an invalid
+	// response code from AAP 2.4 and the real error is not known.
 	DefaultRetryableStatusCodes = []int{http.StatusConflict, http.StatusRequestTimeout,
 		http.StatusTooManyRequests, http.StatusInternalServerError, http.StatusBadGateway,
-		http.StatusServiceUnavailable, http.StatusGatewayTimeout}
+		http.StatusServiceUnavailable, http.StatusGatewayTimeout, http.StatusForbidden}
 )
 
 // SafeDurationFromSeconds safely converts seconds to time.Duration, checking for overflow
