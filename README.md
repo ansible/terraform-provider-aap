@@ -67,6 +67,8 @@ ansible-galaxy collection install -r testing/requirements.yml
 # AAP_USERNAME, AAP_PASSWORD, AAP_HOSTNAME must be set
 # If you need to disable TLS verification, set AAP_VALIDATE_CERTS
 export AAP_VALIDATE_CERTS=false
+# For AAP 2.4, set CONTROLLER_OPTIONAL_API_URLPATTERN_PREFIX
+export CONTROLLER_OPTIONAL_API_URLPATTERN_PREFIX="/api/"
 ansible-playbook testing/playbook.yml
 ```
 
