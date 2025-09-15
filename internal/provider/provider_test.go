@@ -358,7 +358,8 @@ func TestCheckUnknownValue(t *testing.T) {
 				}
 			}
 			if !found && tc.expectError {
-				t.Errorf("Did not find error with expected summary '%v', detail containing '%v'. Actual errors %v", tc.errorSummary, tc.errorDetail, response.Diagnostics.Errors())
+				t.Errorf("Did not find error with expected summary '%v', detail containing '%v'. Actual errors %v",
+					tc.errorSummary, tc.errorDetail, response.Diagnostics.Errors())
 			}
 		})
 	}
@@ -460,7 +461,8 @@ func TestConfigure(t *testing.T) {
 				}
 			}
 			if !found && tc.expectError {
-				t.Errorf("Did not find error with expected summary '%v', detail containing '%v'. Actual errors %v", tc.errorSummary, tc.errorDetail, response.Diagnostics.Errors())
+				t.Errorf("Did not find error with expected summary '%v', detail containing '%v'. Actual errors %v",
+					tc.errorSummary, tc.errorDetail, response.Diagnostics.Errors())
 			}
 		})
 	}
