@@ -1,0 +1,3 @@
+collections:
+  # https://console.redhat.com/ansible/automation-hub/repo/published/ansible/controller/docs/
+  - name: ansible.controller
