@@ -29,11 +29,10 @@ type ProviderHTTPClient interface {
 
 // Client -
 type AAPClient struct {
-	HostURL     string
-	Username    *string
-	Password    *string
-	httpClient  *http.Client
-	ApiEndpoint string
+	HostURL       string
+	Authenticator AAPClientAuthenticator
+	httpClient    *http.Client
+	ApiEndpoint   string
 }
 
 type AAPApiEndpointResponse struct {
@@ -80,12 +79,11 @@ func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
 }
 
 // NewClient - create new AAPClient instance
-func NewClient(host string, username *string, password *string, insecureSkipVerify bool, timeout int64) (*AAPClient, diag.Diagnostics) {
+func NewClient(host string, authenticator AAPClientAuthenticator, insecureSkipVerify bool, timeout int64) (*AAPClient, diag.Diagnostics) {
 	hostURL, _ := url.JoinPath(host, "/")
 	client := AAPClient{
-		HostURL:  hostURL,
-		Username: username,
-		Password: password,
+		HostURL:       hostURL,
+		Authenticator: authenticator,
 	}
 
 	tr := &http.Transport{
@@ -122,8 +120,8 @@ func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http
 	if err != nil {
 		return nil, []byte{}, err
 	}
-	if c.Username != nil && c.Password != nil {
-		req.SetBasicAuth(*c.Username, *c.Password)
+	if c.Authenticator != nil {
+		c.Authenticator.Configure(req)
 	}
 
 	req.Header.Set("Accept", "application/json")
