@@ -268,9 +268,9 @@ func (p *aapProviderModel) ReadValues(host, username, password *string, token *s
 		}
 		if !p.Password.IsNull() {
 			resp.Diagnostics.AddAttributeWarning(
-				path.Root("username"),
+				path.Root("password"),
 				"Inconsistent configuration for password",
-				"When token is configured for authentication, password will be ignored. Please remove passworf from your configuration",
+				"When token is configured for authentication, password will be ignored. Please remove password from your configuration",
 			)
 		}
 	} else {
