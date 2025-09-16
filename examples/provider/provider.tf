@@ -1,6 +1,6 @@
 # This example creates an inventory named `My new inventory`
 # and adds a host `tf_host` and a group `tf_group` to it,
-# and then launches a job based on the "Demo Job Template" 
+# and then launches a job based on the "Demo Job Template"
 # in the "Default" organization using the inventory created.
 #
 terraform {
@@ -12,9 +12,14 @@ terraform {
 }
 
 provider "aap" {
-  host     = "https://AAP_HOST"
-  username = "ansible"
-  password = "test123!"
+  host = "https://AAP_HOST" # Also supports AAP_HOSTNAME environment variable
+
+  # Token authentication is recommended
+  token = "my-aap-token" # Also supports AAP_TOKEN environment variable
+
+  # Basic authentication is also supported, ignored if token is set
+  username = "my-aap-username" # Also supports AAP_USERNAME environment variable
+  password = "my-aap-password" # Also supports AAP_PASSWORD environment variable
 }
 
 resource "aap_inventory" "my_inventory" {

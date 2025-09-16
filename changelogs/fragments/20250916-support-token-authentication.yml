@@ -1,0 +1,2 @@
+major_changes:
+  - Adds support for Token authentication via the AAP_TOKEN environment variable or 'token' attribute in the provider block.
