@@ -70,8 +70,7 @@
         playbook: "sleep.yml"
         inventory: "Demo Inventory"
       register: job_template_sleep
-    # To authenticate with a Token, generate one with ansible.controller.token,
-    # which creates a Personal Access Token that supports 2.4+ for controller access.
+    # Generate a token to support provider's token authentication
     - name: Create a token for provider to use for testing
       block:
       # Attempt to create platform.token first (2.5+), with fallback to controller.token
