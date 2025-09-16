@@ -349,7 +349,19 @@ func TestCheckUnknownValue(t *testing.T) {
 		errorDetail  string
 	}{
 		{
-			name: "no errors with nothing unknown",
+			name: "no errors with nothing unknown (token)",
+			model: aapProviderModel{
+				Host:               types.StringValue("http://localhost"),
+				Token:              types.StringValue("test-token"),
+				InsecureSkipVerify: types.BoolValue(true),
+				Timeout:            types.Int64Value(30),
+			},
+			expectError:  false,
+			errorSummary: "",
+			errorDetail:  "",
+		},
+		{
+			name: "no errors with nothing unknown (basic)",
 			model: aapProviderModel{
 				Host:               types.StringValue("http://localhost"),
 				Username:           types.StringValue("username"),
@@ -399,6 +411,18 @@ func TestCheckUnknownValue(t *testing.T) {
 			expectError:  true,
 			errorSummary: "Unknown AAP API password",
 			errorDetail:  "AAP_PASSWORD",
+		},
+		{
+			name: "unknown token",
+			model: aapProviderModel{
+				Host:               types.StringValue("http://localhost"),
+				Token:              types.StringUnknown(),
+				InsecureSkipVerify: types.BoolValue(true),
+				Timeout:            types.Int64Value(30),
+			},
+			expectError:  true,
+			errorSummary: "Unknown AAP API token",
+			errorDetail:  "AAP_TOKEN",
 		},
 		{
 			name: "unknown insecure skip verify",
