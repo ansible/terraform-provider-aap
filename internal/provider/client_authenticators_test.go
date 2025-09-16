@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -60,7 +61,7 @@ func TestBasicAuthenticatorConfigure(t *testing.T) {
 	testUsername := "username"
 	testPassword := "password"
 	auth, _ := NewBasicAuthenticator(&testUsername, &testPassword)
-	req, _ := http.NewRequest("", "", strings.NewReader(""))
+	req, _ := http.NewRequestWithContext(context.TODO(), http.MethodGet, "", strings.NewReader(""))
 	auth.Configure(req)
 	actual := req.Header["Authorization"][0]
 	expected := "Basic dXNlcm5hbWU6cGFzc3dvcmQ=" // base64 encoding of string "username:password"
