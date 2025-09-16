@@ -124,7 +124,7 @@ func TestTokenAuthenticatorConfigure(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			auth, _ := NewTokenAuthenticator(test.token)
-			req, _ := http.NewRequest("", "", strings.NewReader(""))
+			req, _ := http.NewRequestWithContext(context.TODO(), http.MethodGet, "", strings.NewReader(""))
 			auth.Configure(req)
 			actual := req.Header[test.expectHeader][0]
 			expected := test.expectValue
