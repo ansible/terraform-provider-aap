@@ -1,3 +1,5 @@
 collections:
   # https://console.redhat.com/ansible/automation-hub/repo/published/ansible/controller/docs/
   - name: ansible.controller
+  # https://console.redhat.com/ansible/automation-hub/repo/published/ansible/platform/docs/
+  - name: ansible.platform

@@ -70,6 +70,30 @@
         playbook: "sleep.yml"
         inventory: "Demo Inventory"
       register: job_template_sleep
+    # Generate a token to support provider's token authentication
+    - name: Create a token for provider to use for testing
+      block:
+      # Attempt to create platform.token first (2.5+), with fallback to controller.token
+      - name: Create a platform token for token authentication
+        ansible.platform.token:
+          description: "Testing terraform-provider-aap"
+          scope: write
+        register: platform_token
+      - name: Store platform token
+        ansible.builtin.set_fact:
+          token_type: platform
+          token: "{{ platform_token.ansible_facts.aap_token.token }}"
+      rescue:
+      # Creating a platform token failed, fall back to controller.token for 2.4 compatibility
+      - name: Create a token for token authentication
+        ansible.controller.token:
+          description: "Testing terraform-provider-aap"
+          scope: write
+        register: controller_token
+      - name: Store platform token
+        ansible.builtin.set_fact:
+          token_type: controller
+          token: "{{ controller_token.ansible_facts.controller_token.token }}"
     # The provider acceptance tests are configured to read the IDs of all of these
     # test resources from the environment, so we write a local .env file that exports
     # all of them
