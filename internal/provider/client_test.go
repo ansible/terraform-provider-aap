@@ -13,7 +13,7 @@ import (
 type MockAuthenticator struct {
 }
 
-func (m *MockAuthenticator) Configure(req *http.Request) {
+func (m *MockAuthenticator) Configure(_ *http.Request) {
 	// Do nothing
 }
 
