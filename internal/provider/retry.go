@@ -71,7 +71,7 @@ var (
 	//
 	// HTTP 403: Forbidden
 	// Acceptance tests run against AAP 2.4 almost always receives a
-	// 404 upon first host deletion attempt. This is likely an invalid
+	// 403 upon first host deletion attempt. This is likely an invalid
 	// response code from AAP 2.4 and the real error is not known.
 	DefaultRetryableStatusCodes = []int{http.StatusConflict, http.StatusRequestTimeout,
 		http.StatusTooManyRequests, http.StatusInternalServerError, http.StatusBadGateway,
