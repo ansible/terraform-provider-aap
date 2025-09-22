@@ -27,12 +27,12 @@ func NewEDAEventStreamAction() action.Action {
 type EDAEventStreamAction struct{}
 
 // Metadata
-func (a *EDAEventStreamAction) Metadata(ctx context.Context, req action.MetadataRequest, resp *action.MetadataResponse) {
+func (a *EDAEventStreamAction) Metadata(_ context.Context, req action.MetadataRequest, resp *action.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_eda_eventstream"
 }
 
 // Schema
-func (a *EDAEventStreamAction) Schema(ctx context.Context, req action.SchemaRequest, resp *action.SchemaResponse) {
+func (a *EDAEventStreamAction) Schema(_ context.Context, req action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Sends an event payload to an EDA Event Stream URL",
 		Attributes: map[string]schema.Attribute{
@@ -193,7 +193,8 @@ func (a *EDAEventStreamAction) ExecuteRequest(client *http.Client, req *http.Req
 		var diags diag.Diagnostics
 		diags.AddError(
 			"Unexpected response status code",
-			fmt.Sprintf("Received status code %v from event stream action request. Expecting one of %v, response body %q", hresp.StatusCode, validStatusCodes, string(body)),
+			fmt.Sprintf("Received status code %v from event stream action request. Expecting one of %v, response body %q",
+				hresp.StatusCode, validStatusCodes, string(body)),
 		)
 		return nil, diags
 	}
