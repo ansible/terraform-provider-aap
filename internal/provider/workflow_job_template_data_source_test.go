@@ -57,11 +57,11 @@ func TestWorkflowJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			expected: WorkflowJobTemplateDataSourceModel{
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
 					BaseDetailSourceModel: BaseDetailSourceModel{
-						Id:          tftypes.Int64Value(1),
+						ID:          tftypes.Int64Value(1),
 						URL:         tftypes.StringValue("/workflow_job_templates/1/"),
 						Description: tftypes.StringNull(),
 						Name:        tftypes.StringNull(),
-						NamedUrl:    tftypes.StringNull(),
+						NamedURL:    tftypes.StringNull(),
 						Variables:   customtypes.NewAAPCustomStringNull(),
 					},
 					Organization:     tftypes.Int64Value(2),
@@ -79,10 +79,10 @@ func TestWorkflowJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			expected: WorkflowJobTemplateDataSourceModel{
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
 					BaseDetailSourceModel: BaseDetailSourceModel{
-						Id:          tftypes.Int64Value(1),
+						ID:          tftypes.Int64Value(1),
 						URL:         tftypes.StringValue("/workflow_job_templates/1/"),
 						Description: tftypes.StringValue("My Test Job Template"),
-						NamedUrl:    tftypes.StringNull(),
+						NamedURL:    tftypes.StringNull(),
 						Name:        tftypes.StringValue("my job template"),
 						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
@@ -97,7 +97,7 @@ func TestWorkflowJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			source := WorkflowJobTemplateDataSourceModel{}
-			diags := source.ParseHttpResponse(test.input)
+			diags := source.ParseHTTPResponse(test.input)
 			if !test.errors.Equal(diags) {
 				t.Errorf("Expected error diagnostics (%s), Received (%s)", test.errors, diags)
 			}
@@ -119,7 +119,7 @@ func TestAccWorkflowJobTemplateDataSource(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Read
 			{
-				Config: testAccWorkflowJobTemplateDataSourceFromId(WorkflowJobTemplateID),
+				Config: testAccWorkflowJobTemplateDataSourceFromID(WorkflowJobTemplateID),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("data.aap_workflow_job_template.test", "name"),
 					resource.TestCheckResourceAttrSet("data.aap_workflow_job_template.test", "organization"),
@@ -128,7 +128,7 @@ func TestAccWorkflowJobTemplateDataSource(t *testing.T) {
 			},
 			// Read
 			{
-				Config: testAccWorkflowJobTemplateDataSourceFromNamedUrl(WorkflowJobTemplateName, WorkflowJobTemplateOrg),
+				Config: testAccWorkflowJobTemplateDataSourceFromNamedURL(WorkflowJobTemplateName, WorkflowJobTemplateOrg),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("data.aap_workflow_job_template.test", "name"),
 					resource.TestCheckResourceAttrSet("data.aap_workflow_job_template.test", "organization"),
@@ -150,7 +150,7 @@ func TestAccWorkflowJobTemplateDataSource(t *testing.T) {
 }
 
 // testAccInventoryDataSource configures the Inventory Data Source for testing
-func testAccWorkflowJobTemplateDataSourceFromId(id string) string {
+func testAccWorkflowJobTemplateDataSourceFromID(id string) string {
 	return fmt.Sprintf(`
 data "aap_workflow_job_template" "test" {
   id = %s
@@ -158,7 +158,7 @@ data "aap_workflow_job_template" "test" {
 `, id)
 }
 
-func testAccWorkflowJobTemplateDataSourceFromNamedUrl(name string, orgName string) string {
+func testAccWorkflowJobTemplateDataSourceFromNamedURL(name string, orgName string) string {
 	return fmt.Sprintf(`
 data "aap_workflow_job_template" "test" {
   name = "%s"

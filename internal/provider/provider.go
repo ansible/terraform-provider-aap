@@ -83,6 +83,7 @@ func (p *aapProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *
 	}
 }
 
+// AddConfigurationAttributeError adds a configuration attribute error to diagnostics
 func AddConfigurationAttributeError(diags *diag.Diagnostics, name, envName string, isUnknown bool) {
 	if isUnknown {
 		diags.AddAttributeError(
@@ -233,8 +234,10 @@ func (p *aapProviderModel) checkUnknownValue(diags *diag.Diagnostics) {
 }
 
 const (
-	DefaultTimeOut            = 5     // Default http session timeout
-	DefaultInsecureSkipVerify = false // Default value for insecure skip verify
+	// DefaultTimeOut is the default HTTP session timeout in seconds
+	DefaultTimeOut = 5
+	// DefaultInsecureSkipVerify is the default value for insecure skip verify
+	DefaultInsecureSkipVerify = false
 )
 
 func (p *aapProviderModel) ReadValues(host, username, password *string, token *string, insecureSkipVerify *bool,

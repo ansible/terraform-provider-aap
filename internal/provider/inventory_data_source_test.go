@@ -57,11 +57,11 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 			expected: InventoryDataSourceModel{
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
 					BaseDetailSourceModel: BaseDetailSourceModel{
-						Id:          tftypes.Int64Value(1),
+						ID:          tftypes.Int64Value(1),
 						URL:         tftypes.StringValue("/inventories/1/"),
 						Description: tftypes.StringNull(),
 						Name:        tftypes.StringNull(),
-						NamedUrl:    tftypes.StringNull(),
+						NamedURL:    tftypes.StringNull(),
 						Variables:   customtypes.NewAAPCustomStringNull()},
 					Organization:     tftypes.Int64Value(2),
 					OrganizationName: tftypes.StringNull(),
@@ -77,11 +77,11 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 			expected: InventoryDataSourceModel{
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
 					BaseDetailSourceModel: BaseDetailSourceModel{
-						Id:          tftypes.Int64Value(1),
+						ID:          tftypes.Int64Value(1),
 						URL:         tftypes.StringValue("/inventories/1/"),
 						Description: tftypes.StringValue("My Test Inventory"),
 						Name:        tftypes.StringValue("my inventory"),
-						NamedUrl:    tftypes.StringNull(),
+						NamedURL:    tftypes.StringNull(),
 						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
 					Organization:     tftypes.Int64Value(2),
@@ -95,7 +95,7 @@ func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			resource := InventoryDataSourceModel{}
-			diags := resource.ParseHttpResponse(test.input)
+			diags := resource.ParseHTTPResponse(test.input)
 			if !test.errors.Equal(diags) {
 				t.Errorf("Expected error diagnostics (%s), Received (%s)", test.errors, diags)
 			}
@@ -126,7 +126,7 @@ func TestAccInventoryDataSource(t *testing.T) {
 			},
 			// Create and Read
 			{
-				Config: testAccInventoryDataSourceNamedUrl(randomName, "Default"),
+				Config: testAccInventoryDataSourceNamedURL(randomName, "Default"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrPair("aap_inventory.test", "name", "data.aap_inventory.test", "name"),
 					resource.TestCheckResourceAttrPair("aap_inventory.test", "organization", "data.aap_inventory.test", "organization"),
@@ -165,7 +165,7 @@ data "aap_inventory" "test" {
 `, name)
 }
 
-func testAccInventoryDataSourceNamedUrl(name string, orgName string) string {
+func testAccInventoryDataSourceNamedURL(name string, orgName string) string {
 	return fmt.Sprintf(`
 resource "aap_inventory" "test" {
   name        = "%s"

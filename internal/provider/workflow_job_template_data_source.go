@@ -4,7 +4,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 )
 
-// WorkflowJobTemplate AAP API model
+// WorkflowJobTemplateAPIModel represents the AAP API model for workflow job templates.
 type WorkflowJobTemplateAPIModel struct {
 	BaseDetailAPIModelWithOrg
 }
@@ -25,7 +25,7 @@ func NewWorkflowJobTemplateDataSource() datasource.DataSource {
 		BaseDataSourceWithOrg: *NewBaseDataSourceWithOrg(nil, StringDescriptions{
 			MetadataEntitySlug:    "workflow_job_template",
 			DescriptiveEntityName: "WorkflowJobTemplate",
-			ApiEntitySlug:         "workflow_job_templates",
+			APIEntitySlug:         "workflow_job_templates",
 		}),
 	}
 }

@@ -35,7 +35,7 @@ func TestComputeURLPath(t *testing.T) {
 				HostURL:       tc.url,
 				Authenticator: &MockAuthenticator{},
 				httpClient:    nil,
-				ApiEndpoint:   "",
+				APIEndpoint:   "",
 			}
 			result := client.computeURLPath(tc.path)
 			assert.Equal(t, expected, result, fmt.Sprintf("expected (%s), got (%s)", expected, result))
@@ -43,43 +43,43 @@ func TestComputeURLPath(t *testing.T) {
 	}
 }
 
-func TestReadApiEndpoint(t *testing.T) {
-	server_24 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestReadAPIEndpoint(t *testing.T) {
+	server24 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/" {
 			t.Errorf("Expected to request '/api/', got: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"current_version": "/api/v2/"}`)) //nolint:errcheck
+		_, _ = w.Write([]byte(`{"current_version": "/api/v2/"}`))
 	}))
-	defer server_24.Close()
+	defer server24.Close()
 
-	server_25 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server25 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"apis":{"gateway": "/api/gateway/", "controller": "/api/controller/"}}`)) //nolint:errcheck
+			_, _ = w.Write([]byte(`{"apis":{"gateway": "/api/gateway/", "controller": "/api/controller/"}}`))
 		case "/api/controller/":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"current_version": "/api/controller/v2/"}`)) //nolint:errcheck
+			_, _ = w.Write([]byte(`{"current_version": "/api/controller/v2/"}`))
 		default:
 			t.Errorf("Expected to request one of '/api/', '/api/controller/', got: %s", r.URL.Path)
 		}
 	}))
-	defer server_25.Close()
+	defer server25.Close()
 
 	testTable := []struct {
 		Name     string
 		URL      string
 		expected string
 	}{
-		{Name: "AAP 2.4", URL: server_24.URL, expected: "/api/v2/"},
-		{Name: "AAP 2.5+", URL: server_25.URL, expected: "/api/controller/v2/"},
+		{Name: "AAP 2.4", URL: server24.URL, expected: "/api/v2/"},
+		{Name: "AAP 2.5+", URL: server25.URL, expected: "/api/controller/v2/"},
 	}
 	for _, tc := range testTable {
 		t.Run(tc.Name, func(t *testing.T) {
-			client, diags := NewClient(tc.URL, &MockAuthenticator{}, true, 0) // readApiEndpoint() is called when creating client
-			assert.Equal(t, false, diags.HasError(), fmt.Sprintf("readApiEndpoint() returns errors (%v)", diags))
-			assert.Equal(t, tc.expected, client.getApiEndpoint())
+			client, diags := NewClient(tc.URL, &MockAuthenticator{}, true, 0) // readAPIEndpoint() is called when creating client
+			assert.Equal(t, false, diags.HasError(), fmt.Sprintf("readAPIEndpoint() returns errors (%v)", diags))
+			assert.Equal(t, tc.expected, client.getAPIEndpoint())
 		})
 	}
 }
@@ -128,7 +128,7 @@ func TestUpdateWithStatus(t *testing.T) {
 				assert.Equal(t, "PUT", r.Method)
 				assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 				w.WriteHeader(tc.statusCode)
-				w.Write([]byte(tc.responseBody)) //nolint:errcheck
+				_, _ = w.Write([]byte(tc.responseBody))
 			}))
 			defer server.Close()
 
@@ -136,7 +136,7 @@ func TestUpdateWithStatus(t *testing.T) {
 				HostURL:       server.URL,
 				Authenticator: &MockAuthenticator{},
 				httpClient:    &http.Client{},
-				ApiEndpoint:   "",
+				APIEndpoint:   "",
 			}
 
 			requestData := bytes.NewReader([]byte(`{"name": "test"}`))
@@ -204,7 +204,7 @@ func TestDeleteWithStatus(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "DELETE", r.Method)
 				w.WriteHeader(tc.statusCode)
-				w.Write([]byte(tc.responseBody)) //nolint:errcheck
+				_, _ = w.Write([]byte(tc.responseBody))
 			}))
 			defer server.Close()
 
@@ -212,7 +212,7 @@ func TestDeleteWithStatus(t *testing.T) {
 				HostURL:       server.URL,
 				Authenticator: &MockAuthenticator{},
 				httpClient:    &http.Client{},
-				ApiEndpoint:   "",
+				APIEndpoint:   "",
 			}
 
 			body, diags, statusCode := client.DeleteWithStatus("/test")
@@ -233,7 +233,7 @@ func TestUpdateReusesUpdateWithStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"id": 1, "name": "test"}`)) //nolint:errcheck
+		_, _ = w.Write([]byte(`{"id": 1, "name": "test"}`))
 	}))
 	defer server.Close()
 
@@ -241,7 +241,7 @@ func TestUpdateReusesUpdateWithStatus(t *testing.T) {
 		HostURL:       server.URL,
 		Authenticator: &MockAuthenticator{},
 		httpClient:    &http.Client{},
-		ApiEndpoint:   "",
+		APIEndpoint:   "",
 	}
 
 	requestData := bytes.NewReader([]byte(`{"name": "test"}`))
@@ -255,7 +255,7 @@ func TestDeleteReusesDeleteWithStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "DELETE", r.Method)
 		w.WriteHeader(http.StatusAccepted)
-		w.Write([]byte("")) //nolint:errcheck
+		_, _ = w.Write([]byte(""))
 	}))
 	defer server.Close()
 
@@ -263,7 +263,7 @@ func TestDeleteReusesDeleteWithStatus(t *testing.T) {
 		HostURL:       server.URL,
 		Authenticator: &MockAuthenticator{},
 		httpClient:    &http.Client{},
-		ApiEndpoint:   "",
+		APIEndpoint:   "",
 	}
 
 	body, diags := client.Delete("/test")

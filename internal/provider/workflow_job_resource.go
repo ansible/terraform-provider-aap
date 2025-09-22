@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// WorkflowJob AAP API model
+// WorkflowJobAPIModel represents the AAP API model for workflow jobs.
 type WorkflowJobAPIModel struct {
 	TemplateID    int64                  `json:"workflow_job_template,omitempty"`
 	Inventory     int64                  `json:"inventory,omitempty"`
@@ -43,7 +43,7 @@ type WorkflowJobResourceModel struct {
 
 // WorkflowJobResource is the resource implementation.
 type WorkflowJobResource struct {
-	client ProviderHTTPClient
+	client HTTPClient
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -96,7 +96,7 @@ func (r *WorkflowJobResource) Schema(_ context.Context, _ resource.SchemaRequest
 			},
 			"workflow_job_template_id": schema.Int64Attribute{
 				Required:    true,
-				Description: "Id of the workflow job template.",
+				Description: "ID of the workflow job template.",
 			},
 			"job_type": schema.StringAttribute{
 				Computed:    true,
@@ -138,6 +138,7 @@ func (r *WorkflowJobResource) Schema(_ context.Context, _ resource.SchemaRequest
 	}
 }
 
+// Create creates a new workflow job resource.
 func (r *WorkflowJobResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data WorkflowJobResourceModel
 
@@ -177,7 +178,7 @@ func (r *WorkflowJobResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 
 	// Save latest hob data into workflow job resource model
-	diags = data.ParseHttpResponse(readResponseBody)
+	diags = data.ParseHTTPResponse(readResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -190,6 +191,7 @@ func (r *WorkflowJobResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 }
 
+// Update updates an existing workflow job resource.
 func (r *WorkflowJobResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var data WorkflowJobResourceModel
 
@@ -243,28 +245,29 @@ func (r *WorkflowJobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics
 	return jsonBody, diags
 }
 
-// ParseHttpResponse updates the workflow job resource data from an AAP API response
-func (r *WorkflowJobResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
+// ParseHTTPResponse updates the workflow job resource data from an AAP API response.
+func (r *WorkflowJobResourceModel) ParseHTTPResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	// Unmarshal the JSON response
-	var resultApiWorkflowJob WorkflowJobAPIModel
-	err := json.Unmarshal(body, &resultApiWorkflowJob)
+	var resultAPIWorkflowJob WorkflowJobAPIModel
+	err := json.Unmarshal(body, &resultAPIWorkflowJob)
 	if err != nil {
 		diags.AddError("Error parsing JSON response from AAP", err.Error())
 		return diags
 	}
 
 	// Map response to the job resource schema and update attribute values
-	r.Type = types.StringValue(resultApiWorkflowJob.Type)
-	r.URL = types.StringValue(resultApiWorkflowJob.URL)
-	r.Status = types.StringValue(resultApiWorkflowJob.Status)
-	r.TemplateID = types.Int64Value(resultApiWorkflowJob.TemplateID)
-	r.InventoryID = types.Int64Value(resultApiWorkflowJob.Inventory)
-	diags = r.ParseIgnoredFields(resultApiWorkflowJob.IgnoredFields)
+	r.Type = types.StringValue(resultAPIWorkflowJob.Type)
+	r.URL = types.StringValue(resultAPIWorkflowJob.URL)
+	r.Status = types.StringValue(resultAPIWorkflowJob.Status)
+	r.TemplateID = types.Int64Value(resultAPIWorkflowJob.TemplateID)
+	r.InventoryID = types.Int64Value(resultAPIWorkflowJob.Inventory)
+	diags = r.ParseIgnoredFields(resultAPIWorkflowJob.IgnoredFields)
 	return diags
 }
 
+// ParseIgnoredFields parses ignored fields from the AAP API response.
 func (r *WorkflowJobResourceModel) ParseIgnoredFields(ignoredFields map[string]interface{}) (diags diag.Diagnostics) {
 	r.IgnoredFields = types.ListNull(types.StringType)
 	var keysList = []attr.Value{}
@@ -284,6 +287,7 @@ func (r *WorkflowJobResourceModel) ParseIgnoredFields(ignoredFields map[string]i
 	return diags
 }
 
+// LaunchWorkflowJob launches a workflow job using the provided resource data.
 func (r *WorkflowJobResource) LaunchWorkflowJob(data *WorkflowJobResourceModel) diag.Diagnostics {
 	// Create new Workflow Job from workflow job template
 	var diags diag.Diagnostics
@@ -296,7 +300,7 @@ func (r *WorkflowJobResource) LaunchWorkflowJob(data *WorkflowJobResourceModel) 
 	}
 
 	requestData := bytes.NewReader(requestBody)
-	var postURL = path.Join(r.client.getApiEndpoint(), "workflow_job_templates", data.GetTemplateID(), "launch")
+	var postURL = path.Join(r.client.getAPIEndpoint(), "workflow_job_templates", data.GetTemplateID(), "launch")
 	resp, body, err := r.client.doRequest(http.MethodPost, postURL, requestData)
 	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
 	if diags.HasError() {
@@ -304,7 +308,7 @@ func (r *WorkflowJobResource) LaunchWorkflowJob(data *WorkflowJobResourceModel) 
 	}
 
 	// Save new workflow job data into workflow job resource model
-	diags.Append(data.ParseHttpResponse(body)...)
+	diags.Append(data.ParseHTTPResponse(body)...)
 	if diags.HasError() {
 		return diags
 	}
@@ -312,6 +316,7 @@ func (r *WorkflowJobResource) LaunchWorkflowJob(data *WorkflowJobResourceModel) 
 	return diags
 }
 
+// GetTemplateID returns the workflow job template ID as a string.
 func (r *WorkflowJobResourceModel) GetTemplateID() string {
 	return r.TemplateID.String()
 }

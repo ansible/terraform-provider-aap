@@ -25,32 +25,32 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
-// Host AAP API model
+// HostAPIModel represents the AAP API model for a host.
 type HostAPIModel struct {
-	InventoryId int64  `json:"inventory"`
+	InventoryID int64  `json:"inventory"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	URL         string `json:"url,omitempty"`
 	Variables   string `json:"variables,omitempty"`
 	Enabled     bool   `json:"enabled"`
-	Id          int64  `json:"id,omitempty"`
+	ID          int64  `json:"id,omitempty"`
 }
 
 // HostResourceModel maps the host resource schema to a Go struct
 type HostResourceModel struct {
-	InventoryId types.Int64                      `tfsdk:"inventory_id"`
+	InventoryID types.Int64                      `tfsdk:"inventory_id"`
 	Name        types.String                     `tfsdk:"name"`
 	URL         types.String                     `tfsdk:"url"`
 	Description types.String                     `tfsdk:"description"`
 	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
 	Groups      types.Set                        `tfsdk:"groups"`
 	Enabled     types.Bool                       `tfsdk:"enabled"`
-	Id          types.Int64                      `tfsdk:"id"`
+	ID          types.Int64                      `tfsdk:"id"`
 }
 
 // HostResource is the resource implementation.
 type HostResource struct {
-	client ProviderHTTPClient
+	client HTTPClient
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -107,7 +107,7 @@ func (r *HostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
-				Description: "Id of the host",
+				Description: "ID of the host",
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
@@ -163,7 +163,7 @@ func (r *HostResource) Create(ctx context.Context, req resource.CreateRequest, r
 	requestData := bytes.NewReader(createRequestBody)
 
 	// Create new host in AAP
-	hostsURL := path.Join(r.client.getApiEndpoint(), "hosts")
+	hostsURL := path.Join(r.client.getAPIEndpoint(), "hosts")
 	createResponseBody, diags := r.client.Create(hostsURL, requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -171,7 +171,7 @@ func (r *HostResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Save new host data into host resource model
-	diags = data.ParseHttpResponse(createResponseBody)
+	diags = data.ParseHTTPResponse(createResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -233,7 +233,7 @@ func (r *HostResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	}
 
 	// Save latest host data into host resource model
-	diags = data.ParseHttpResponse(readResponseBody)
+	diags = data.ParseHTTPResponse(readResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -284,7 +284,7 @@ func (r *HostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	// Save updated host data into host resource model
-	diags = data.ParseHttpResponse(updateResponseBody)
+	diags = data.ParseHTTPResponse(updateResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -357,7 +357,7 @@ func (r *HostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 func (r *HostResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	// Convert host resource data to API data model
 	host := HostAPIModel{
-		InventoryId: r.InventoryId.ValueInt64(),
+		InventoryID: r.InventoryID.ValueInt64(),
 		Name:        r.Name.ValueString(),
 		Description: r.Description.ValueString(),
 		Variables:   r.Variables.ValueString(),
@@ -378,26 +378,26 @@ func (r *HostResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	return jsonBody, nil
 }
 
-// ParseHttpResponse updates the host resource data from an AAP API response
-func (r *HostResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
+// ParseHTTPResponse updates the host resource data from an AAP API response
+func (r *HostResourceModel) ParseHTTPResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	// Unmarshal the JSON response
-	var resultApiHost HostAPIModel
-	err := json.Unmarshal(body, &resultApiHost)
+	var resultAPIHost HostAPIModel
+	err := json.Unmarshal(body, &resultAPIHost)
 	if err != nil {
 		diags.AddError("Error parsing JSON response from AAP", err.Error())
 		return diags
 	}
 
 	// Map response to the host resource schema and update attribute values
-	r.InventoryId = types.Int64Value(resultApiHost.InventoryId)
-	r.URL = types.StringValue(resultApiHost.URL)
-	r.Id = types.Int64Value(resultApiHost.Id)
-	r.Name = types.StringValue(resultApiHost.Name)
-	r.Enabled = basetypes.NewBoolValue(resultApiHost.Enabled)
-	r.Description = ParseStringValue(resultApiHost.Description)
-	r.Variables = ParseAAPCustomStringValue(resultApiHost.Variables)
+	r.InventoryID = types.Int64Value(resultAPIHost.InventoryID)
+	r.URL = types.StringValue(resultAPIHost.URL)
+	r.ID = types.Int64Value(resultAPIHost.ID)
+	r.Name = types.StringValue(resultAPIHost.Name)
+	r.Enabled = basetypes.NewBoolValue(resultAPIHost.Enabled)
+	r.Description = ParseStringValue(resultAPIHost.Description)
+	r.Variables = ParseAAPCustomStringValue(resultAPIHost.Variables)
 
 	return diags
 }
@@ -428,6 +428,7 @@ func sliceDifference(slice1 []int64, slice2 []int64) []int64 {
 	return difference
 }
 
+// HandleGroupAssociation manages the association between a host and its groups.
 func (r *HostResource) HandleGroupAssociation(ctx context.Context, data HostResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -468,6 +469,7 @@ func (r *HostResource) HandleGroupAssociation(ctx context.Context, data HostReso
 	return diags
 }
 
+// ReadAssociatedGroups retrieves the groups associated with a host.
 func (r *HostResource) ReadAssociatedGroups(data HostResourceModel) ([]int64, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	var result map[string]interface{}
@@ -495,6 +497,7 @@ func (r *HostResource) ReadAssociatedGroups(data HostResourceModel) ([]int64, di
 	return extractIDs(result), diags
 }
 
+// UpdateStateWithGroups updates the host resource state with the provided groups.
 func (r *HostResourceModel) UpdateStateWithGroups(ctx context.Context, groups []int64) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -508,6 +511,7 @@ func (r *HostResourceModel) UpdateStateWithGroups(ctx context.Context, groups []
 	return diags
 }
 
+// AssociateGroups associates groups with a host.
 func (r *HostResource) AssociateGroups(ctx context.Context, data []int64, url string, args ...bool) diag.Diagnostics {
 	var diags diag.Diagnostics
 	var wg sync.WaitGroup
@@ -540,15 +544,15 @@ func (r *HostResource) AssociateGroups(ctx context.Context, data []int64, url st
 			if disassociate {
 				body["disassociate"] = 1
 			}
-			json_raw, err := json.Marshal(body)
+			jsonRaw, err := json.Marshal(body)
 			if err != nil {
 				diags.Append(diag.NewErrorDiagnostic("Body JSON Marshal Error", err.Error()))
 				cancel()
 				return
 			}
-			req_data := bytes.NewReader(json_raw)
+			reqData := bytes.NewReader(jsonRaw)
 
-			resp, bodyreq, err := r.client.doRequest(http.MethodPost, url, req_data)
+			resp, bodyreq, err := r.client.doRequest(http.MethodPost, url, reqData)
 			diags.Append(ValidateResponse(resp, bodyreq, err, []int{http.StatusNoContent})...)
 			if diags.HasError() {
 				cancel()

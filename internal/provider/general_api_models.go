@@ -7,22 +7,26 @@ import (
 
 // ---------------------------------------------------------------------------
 
+// RelatedAPIModel represents related API model data
 type RelatedAPIModel struct {
-	NamedUrl string `json:"named_url,omitempty"`
+	NamedURL string `json:"named_url,omitempty"`
 }
 
+// SummaryField represents a summary field in AAP API responses.
 type SummaryField struct {
-	Id   int64  `json:"id"`
+	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
+// SummaryFieldsAPIModel represents the summary_fields section in AAP API responses.
 type SummaryFieldsAPIModel struct {
 	Organization SummaryField `json:"organization,omitempty"`
 	Inventory    SummaryField `json:"inventory,omitempty"`
 }
 
+// BaseDetailAPIModel represents the base structure for AAP API detail responses.
 type BaseDetailAPIModel struct {
-	Id          int64           `json:"id"`
+	ID          int64           `json:"id"`
 	URL         string          `json:"url"`
 	Description string          `json:"description,omitempty"`
 	Name        string          `json:"name,omitempty"`
@@ -30,6 +34,7 @@ type BaseDetailAPIModel struct {
 	Variables   string          `json:"variables,omitempty"`
 }
 
+// BaseDetailAPIModelWithOrg represents the base structure for AAP API detail responses with organization information.
 type BaseDetailAPIModelWithOrg struct {
 	BaseDetailAPIModel
 	SummaryFields SummaryFieldsAPIModel `json:"summary_fields"`
@@ -38,35 +43,38 @@ type BaseDetailAPIModelWithOrg struct {
 
 // ---------------------------------------------------------------------------
 
+// BaseDetailSourceModel represents the Terraform data source model for base detail resources.
 type BaseDetailSourceModel struct {
-	Id          tftypes.Int64                    `tfsdk:"id"`
+	ID          tftypes.Int64                    `tfsdk:"id"`
 	URL         tftypes.String                   `tfsdk:"url"`
 	Description tftypes.String                   `tfsdk:"description"`
 	Name        tftypes.String                   `tfsdk:"name"`
-	NamedUrl    tftypes.String                   `tfsdk:"named_url"`
+	NamedURL    tftypes.String                   `tfsdk:"named_url"`
 	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
-// TF representation of the BaseDetailSourceModel with organization information.
+// BaseDetailSourceModelWithOrg represents the Terraform data source model with organization information.
 type BaseDetailSourceModelWithOrg struct {
 	BaseDetailSourceModel
 	Organization     tftypes.Int64  `tfsdk:"organization"`
 	OrganizationName tftypes.String `tfsdk:"organization_name"`
 }
 
+// StringDescriptions holds string descriptions for Terraform schema attributes.
 type StringDescriptions struct {
-	ApiEntitySlug         string
+	APIEntitySlug         string
 	DescriptiveEntityName string
 	MetadataEntitySlug    string
 }
 
-// A struct to represent a base DataSource object, with a client and the slug name of
+// BaseDataSource represents a base DataSource object with a client and the slug name of
 // the API entity.
 type BaseDataSource struct {
-	client ProviderHTTPClient
+	client HTTPClient
 	StringDescriptions
 }
 
+// BaseDataSourceWithOrg represents a base DataSource object with organization support.
 type BaseDataSourceWithOrg struct {
 	BaseDataSource
 }
@@ -74,7 +82,7 @@ type BaseDataSourceWithOrg struct {
 // BaseResource describes infrastructure objects, such as Jobs, Hosts, or Groups.
 // See https://developer.hashicorp.com/terraform/language/resources
 type BaseResource struct {
-	client ProviderHTTPClient
+	client HTTPClient
 	StringDescriptions
 }
 
@@ -85,10 +93,10 @@ type BaseResourceWithOrg struct {
 
 // BaseResourceAPIModel represents the most basic AAP API model for resources.
 type BaseResourceAPIModel struct {
-	Url string `json:"url"`
+	URL string `json:"url"`
 }
 
-// BaseResourceModel describes fields in a Terraform resource.
+// BaseResourceSourceModel describes fields in a Terraform resource.
 type BaseResourceSourceModel struct {
-	Url tftypes.String `tfsdk:"url"`
+	URL tftypes.String `tfsdk:"url"`
 }

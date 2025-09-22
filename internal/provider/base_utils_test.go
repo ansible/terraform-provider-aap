@@ -31,14 +31,14 @@ func TestIsContextActive(t *testing.T) {
 	for _, test := range testTable {
 		t.Run("test_"+test.testName, func(t *testing.T) {
 			var diags = diag.Diagnostics{}
-			ctx, cancel := context.WithCancel(context.TODO())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			if test.shouldCancelContext {
 				cancel()
 			}
 
-			returnValue := IsContextActive(test.testName, ctx, &diags)
+			returnValue := IsContextActive(ctx, test.testName, &diags)
 
 			if returnValue != test.expectedReturnValue {
 				t.Errorf("Got an unexpected return value. got: %t, expected: %t", returnValue, test.expectedReturnValue)

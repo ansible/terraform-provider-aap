@@ -132,7 +132,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				URL:         types.StringUnknown(),
 				Variables:   customtypes.NewAAPCustomStringUnknown(),
 				Enabled:     basetypes.NewBoolValue(false),
-				InventoryId: types.Int64Value(0),
+				InventoryID: types.Int64Value(0),
 			},
 			expected: []byte(`{"inventory":0,"name":"test host","enabled":false}`),
 		},
@@ -144,7 +144,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 				URL:         types.StringNull(),
 				Variables:   customtypes.NewAAPCustomStringNull(),
 				Enabled:     basetypes.NewBoolValue(false),
-				InventoryId: types.Int64Value(0),
+				InventoryID: types.Int64Value(0),
 				Groups:      types.SetNull(types.Int64Type),
 			},
 			expected: []byte(`{"inventory":0,"name":"test host","enabled":false}`),
@@ -152,7 +152,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "test with some values",
 			input: HostResourceModel{
-				InventoryId: types.Int64Value(1),
+				InventoryID: types.Int64Value(1),
 				Name:        types.StringValue("host1"),
 				Description: types.StringNull(),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
@@ -165,7 +165,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "test with all values",
 			input: HostResourceModel{
-				InventoryId: types.Int64Value(1),
+				InventoryID: types.Int64Value(1),
 				Name:        types.StringValue("host1"),
 				Description: types.StringValue("A test host"),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
@@ -212,8 +212,8 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 			name:  "test with missing values",
 			input: []byte(`{"inventory":1, "id": 0, "name": "host1", "url": "/api/v2/hosts/1/", "description": ""}`),
 			expected: HostResourceModel{
-				InventoryId: types.Int64Value(1),
-				Id:          types.Int64Value(0),
+				InventoryID: types.Int64Value(1),
+				ID:          types.Int64Value(0),
 				Name:        types.StringValue("host1"),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
 				Description: types.StringNull(),
@@ -228,8 +228,8 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 				`"groups": [1, 2, 3], "id": 0}
 				`),
 			expected: HostResourceModel{
-				InventoryId: types.Int64Value(1),
-				Id:          types.Int64Value(0),
+				InventoryID: types.Int64Value(1),
+				ID:          types.Int64Value(0),
 				Name:        types.StringValue("host1"),
 				URL:         types.StringValue("/api/v2/hosts/1/"),
 				Description: types.StringValue("A basic test host"),
@@ -243,7 +243,7 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			resource := HostResourceModel{}
-			diags := resource.ParseHttpResponse(test.input)
+			diags := resource.ParseHTTPResponse(test.input)
 			if !test.errors.Equal(diags) {
 				t.Errorf("Expected error diagnostics (%s), actual was (%s)", test.errors, diags)
 			}
@@ -257,7 +257,7 @@ func TestHostResourceParseHttpResponse(t *testing.T) {
 // Acceptance tests
 
 func TestAccHostResource(t *testing.T) {
-	var hostApiModel HostAPIModel
+	var hostAPIModel HostAPIModel
 	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	hostName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	groupName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
@@ -279,16 +279,16 @@ func TestAccHostResource(t *testing.T) {
 				Config: testAccHostResourceMinimal(inventoryName, hostName),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					checkBasicHostAttributes(t, resourceNameHost, hostName),
-					testAccCheckHostResourceExists(resourceNameHost, &hostApiModel),
-					testAccCheckHostResourceValues(&hostApiModel, hostName, "", ""),
+					testAccCheckHostResourceExists(resourceNameHost, &hostAPIModel),
+					testAccCheckHostResourceValues(&hostAPIModel, hostName, "", ""),
 				),
 			},
 			// Update and Read testing
 			{
 				Config: testAccHostResourceComplete(inventoryName, groupName, updatedName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckHostResourceExists(resourceNameHost, &hostApiModel),
-					testAccCheckHostResourceValues(&hostApiModel, updatedName, updatedDescription, updatedVariables),
+					testAccCheckHostResourceExists(resourceNameHost, &hostAPIModel),
+					testAccCheckHostResourceValues(&hostAPIModel, updatedName, updatedDescription, updatedVariables),
 					checkBasicHostAttributes(t, resourceNameHost, updatedName),
 					resource.TestCheckResourceAttr(resourceNameHost, "description", updatedDescription),
 					resource.TestCheckResourceAttr(resourceNameHost, "variables", updatedVariables),
@@ -349,7 +349,7 @@ resource "aap_host" "test" {
 }
 
 func TestAccHostResourceDeleteWithRetry(t *testing.T) {
-	var hostApiModel HostAPIModel
+	var hostAPIModel HostAPIModel
 	hostName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	jobTemplateID := os.Getenv("AAP_TEST_JOB_FOR_HOST_RETRY_ID") // ID of a Job Template that Sleeps for 15secs
 
@@ -365,8 +365,8 @@ func TestAccHostResourceDeleteWithRetry(t *testing.T) {
 					resource.TestCheckResourceAttrSet(resourceNameHost, "id"),
 					resource.TestMatchResourceAttr(resourceNameHost, "url", reHostURL),
 					resource.TestCheckResourceAttr(resourceNameHost, "name", hostName),
-					testAccCheckHostResourceExists(resourceNameHost, &hostApiModel),
-					testAccCheckHostResourceValues(&hostApiModel, hostName, "", ""),
+					testAccCheckHostResourceExists(resourceNameHost, &hostAPIModel),
+					testAccCheckHostResourceValues(&hostAPIModel, hostName, "", ""),
 				),
 			},
 			// Delete Host Only
@@ -409,7 +409,7 @@ removed {
 }
 
 // testAccCheckHostResourceExists queries the AAP API and retrieves the matching host.
-func testAccCheckHostResourceExists(name string, hostApiModel *HostAPIModel) resource.TestCheckFunc {
+func testAccCheckHostResourceExists(name string, hostAPIModel *HostAPIModel) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		hostResource, ok := s.RootModule().Resources[name]
 		if !ok {
@@ -421,12 +421,12 @@ func testAccCheckHostResourceExists(name string, hostApiModel *HostAPIModel) res
 			return err
 		}
 
-		err = json.Unmarshal(hostResponseBody, &hostApiModel)
+		err = json.Unmarshal(hostResponseBody, &hostAPIModel)
 		if err != nil {
 			return err
 		}
 
-		if hostApiModel.Id == 0 {
+		if hostAPIModel.ID == 0 {
 			return fmt.Errorf("host (%s) not found in AAP", hostResource.Primary.ID)
 		}
 
@@ -435,22 +435,22 @@ func testAccCheckHostResourceExists(name string, hostApiModel *HostAPIModel) res
 }
 
 // testAccCheckHostResourcesValues verifies that the provided host retrieved from AAP contains the expected values.
-func testAccCheckHostResourceValues(hostApiModel *HostAPIModel, name string, description string, variables string) resource.TestCheckFunc {
+func testAccCheckHostResourceValues(hostAPIModel *HostAPIModel, name string, description string, variables string) resource.TestCheckFunc {
 	return func(_ *terraform.State) error {
-		if hostApiModel.URL == "" {
-			return fmt.Errorf("bad host URL in AAP, expected a URL path, got: %s", hostApiModel.URL)
+		if hostAPIModel.URL == "" {
+			return fmt.Errorf("bad host URL in AAP, expected a URL path, got: %s", hostAPIModel.URL)
 		}
-		if hostApiModel.Name != name {
-			return fmt.Errorf("bad host name in AAP, expected \"%s\", got: %s", name, hostApiModel.Name)
+		if hostAPIModel.Name != name {
+			return fmt.Errorf("bad host name in AAP, expected \"%s\", got: %s", name, hostAPIModel.Name)
 		}
-		if hostApiModel.Description != description {
-			return fmt.Errorf("bad host description in AAP, expected \"%s\", got: %s", description, hostApiModel.Description)
+		if hostAPIModel.Description != description {
+			return fmt.Errorf("bad host description in AAP, expected \"%s\", got: %s", description, hostAPIModel.Description)
 		}
-		if hostApiModel.Variables != variables {
-			return fmt.Errorf("bad host variables in AAP, expected \"%s\", got: %s", variables, hostApiModel.Variables)
+		if hostAPIModel.Variables != variables {
+			return fmt.Errorf("bad host variables in AAP, expected \"%s\", got: %s", variables, hostAPIModel.Variables)
 		}
-		if hostApiModel.Enabled != true {
-			return fmt.Errorf("bad enabled value in AAP, expected %t, got: %t", true, hostApiModel.Enabled)
+		if hostAPIModel.Enabled != true {
+			return fmt.Errorf("bad enabled value in AAP, expected %t, got: %t", true, hostAPIModel.Enabled)
 		}
 
 		return nil
@@ -466,7 +466,7 @@ func testAccCheckHostResourceDestroy(s *terraform.State) error {
 
 		_, err := testGetResource(rs.Primary.Attributes["url"])
 		if err == nil {
-			return fmt.Errorf("host (%s) still exists.", rs.Primary.Attributes["id"])
+			return fmt.Errorf("host (%s) still exists", rs.Primary.Attributes["id"])
 		}
 
 		if !strings.Contains(err.Error(), "404") {

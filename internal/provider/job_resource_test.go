@@ -229,7 +229,7 @@ func TestJobResourceParseHttpResponse(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			resource := JobResourceModel{}
-			diags := resource.ParseHttpResponse(test.input)
+			diags := resource.ParseHTTPResponse(test.input)
 			if !test.errors.Equal(diags) {
 				t.Errorf("Expected error diagnostics (%s), actual was (%s)", test.errors, diags)
 			}
@@ -456,7 +456,7 @@ func TestAccAAPJob_WaitForCompletion(t *testing.T) {
 // deleted.
 func testAccCheckJobPause(ctx context.Context, name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		var jobApiModel JobAPIModel
+		var jobAPIModel JobAPIModel
 		job, ok := s.RootModule().Resources[name]
 		if !ok {
 			return fmt.Errorf("job (%s) not found in terraform state", name)
@@ -468,11 +468,11 @@ func testAccCheckJobPause(ctx context.Context, name string) resource.TestCheckFu
 			if err != nil {
 				return retry.NonRetryableError(err)
 			}
-			err = json.Unmarshal(body, &jobApiModel)
+			err = json.Unmarshal(body, &jobAPIModel)
 			if err != nil {
 				return retry.NonRetryableError(err)
 			}
-			if IsFinalStateAAPJob(jobApiModel.Status) {
+			if IsFinalStateAAPJob(jobAPIModel.Status) {
 				return nil
 			}
 			return retry.RetryableError(fmt.Errorf("error when waiting for AAP job to complete in test"))
@@ -529,7 +529,7 @@ resource "aap_job" "test" {
 }
 
 func TestAccAAPJob_disappears(t *testing.T) {
-	var jobUrl string
+	var jobURL string
 
 	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
 	ctx := context.Background()
@@ -543,7 +543,7 @@ func TestAccAAPJob_disappears(t *testing.T) {
 				Config: testAccBasicJob(jobTemplateID),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					checkBasicJobAttributes(t, resourceNameJob, reJobStatus),
-					testAccCheckJobUpdate(&jobUrl, false),
+					testAccCheckJobUpdate(&jobURL, false),
 				),
 			},
 			// Wait for the job to finish.
@@ -560,7 +560,7 @@ func TestAccAAPJob_disappears(t *testing.T) {
 				Config: testAccBasicJob(jobTemplateID),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					checkBasicJobAttributes(t, resourceNameJob, reJobStatusFinal),
-					testAccDeleteJob(&jobUrl),
+					testAccDeleteJob(&jobURL),
 				),
 				ExpectNonEmptyPlan: true,
 			},
@@ -569,16 +569,16 @@ func TestAccAAPJob_disappears(t *testing.T) {
 				Config: testAccBasicJob(jobTemplateID),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					checkBasicJobAttributes(t, resourceNameJob, reJobStatus),
-					testAccCheckJobUpdate(&jobUrl, true),
+					testAccCheckJobUpdate(&jobURL, true),
 				),
 			},
 		},
 	})
 }
 
-func testAccDeleteJob(jobUrl *string) func(s *terraform.State) error {
+func testAccDeleteJob(jobURL *string) func(s *terraform.State) error {
 	return func(_ *terraform.State) error {
-		_, err := testDeleteResource(*jobUrl)
+		_, err := testDeleteResource(*jobURL)
 		return err
 	}
 }
@@ -611,7 +611,7 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 		if err == nil {
 			t.Errorf("expected error but got none")
 		}
-		// The retry function should return a retry.RetryError
+		// The retry function should return a retry.retry.RetryError
 		errStr := fmt.Sprintf("%v", err)
 		if !strings.Contains(errStr, "error fetching job status") {
 			t.Errorf("expected error to contain 'error fetching job status', got: %v", errStr)
@@ -763,11 +763,11 @@ func (m *ConfigurableSequenceMockClient) doRequest(_ string, _ string, _ io.Read
 	return nil, nil, nil
 }
 
-func (m *ConfigurableSequenceMockClient) setApiEndpoint() diag.Diagnostics {
+func (m *ConfigurableSequenceMockClient) setAPIEndpoint() diag.Diagnostics {
 	return diag.Diagnostics{}
 }
 
-func (m *ConfigurableSequenceMockClient) getApiEndpoint() string {
+func (m *ConfigurableSequenceMockClient) getAPIEndpoint() string {
 	return "/api/v2"
 }
 

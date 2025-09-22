@@ -26,7 +26,7 @@ import (
 // Default value for the wait_for_completion timeout, so the linter doesn't complain.
 const waitForCompletionTimeoutDefault int64 = 120
 
-// Job AAP API model
+// JobAPIModel represents the AAP API model.
 type JobAPIModel struct {
 	TemplateID    int64                  `json:"job_template,omitempty"`
 	Type          string                 `json:"job_type,omitempty"`
@@ -53,7 +53,7 @@ type JobResourceModel struct {
 
 // JobResource is the resource implementation.
 type JobResource struct {
-	client ProviderHTTPClient
+	client HTTPClient
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -71,7 +71,7 @@ func NewJobResource() resource.Resource {
 	return &JobResource{}
 }
 
-// Given a string with the name of an AAP Job state, this function returns `true`
+// IsFinalStateAAPJob returns `true` given a string with the name of an AAP Job state
 // if such state is final and cannot transition further; a.k.a, the job is completed.
 func IsFinalStateAAPJob(state string) bool {
 	finalStates := map[string]bool{
@@ -88,7 +88,8 @@ func IsFinalStateAAPJob(state string) bool {
 	return isPresent && result
 }
 
-func retryUntilAAPJobReachesAnyFinalState(ctx context.Context, client ProviderHTTPClient, model *JobResourceModel) retry.RetryFunc {
+func retryUntilAAPJobReachesAnyFinalState(ctx context.Context, client HTTPClient,
+	model *JobResourceModel) retry.RetryFunc {
 	return func() *retry.RetryError {
 		responseBody, diagnostics := client.Get(model.URL.ValueString())
 		if diagnostics.HasError() {
@@ -96,7 +97,7 @@ func retryUntilAAPJobReachesAnyFinalState(ctx context.Context, client ProviderHT
 		}
 
 		// Parse the response to update the model with current job status
-		parseDiags := model.ParseHttpResponse(responseBody)
+		parseDiags := model.ParseHTTPResponse(responseBody)
 		if parseDiags.HasError() {
 			return retry.RetryableError(fmt.Errorf("error parsing job status response: %s", parseDiags.Errors()))
 		}
@@ -107,10 +108,10 @@ func retryUntilAAPJobReachesAnyFinalState(ctx context.Context, client ProviderHT
 		})
 
 		if !IsFinalStateAAPJob(model.Status.ValueString()) {
-			return retry.RetryableError(fmt.Errorf("job at: %s hasn't yet reached a final state. Current state: %s", model.URL, model.Status.ValueString()))
-		} else {
-			return nil
+			return retry.RetryableError(fmt.Errorf("job at: %s hasn't yet reached a final state. "+
+				"Current state: %s", model.URL, model.Status.ValueString()))
 		}
+		return nil
 	}
 }
 
@@ -145,7 +146,7 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 		Attributes: map[string]schema.Attribute{
 			"job_template_id": schema.Int64Attribute{
 				Required:    true,
-				Description: "Id of the job template.",
+				Description: "ID of the job template.",
 			},
 			"inventory_id": schema.Int64Attribute{
 				Optional: true,
@@ -214,6 +215,7 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 	}
 }
 
+// Create creates a new job resource.
 func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data JobResourceModel
 
@@ -276,7 +278,7 @@ func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	}
 
 	// Save latest hob data into job resource model
-	diags = data.ParseHttpResponse(readResponseBody)
+	diags = data.ParseHTTPResponse(readResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -289,6 +291,7 @@ func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	}
 }
 
+// Update updates an existing job resource.
 func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var data JobResourceModel
 
@@ -357,28 +360,29 @@ func (r *JobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	return jsonBody, diags
 }
 
-// ParseHttpResponse updates the job resource data from an AAP API response
-func (r *JobResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
+// ParseHTTPResponse updates the job resource data from an AAP API response.
+func (r *JobResourceModel) ParseHTTPResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	// Unmarshal the JSON response
-	var resultApiJob JobAPIModel
-	err := json.Unmarshal(body, &resultApiJob)
+	var resultAPIJob JobAPIModel
+	err := json.Unmarshal(body, &resultAPIJob)
 	if err != nil {
 		diags.AddError("Error parsing JSON response from AAP", err.Error())
 		return diags
 	}
 
 	// Map response to the job resource schema and update attribute values
-	r.Type = types.StringValue(resultApiJob.Type)
-	r.URL = types.StringValue(resultApiJob.URL)
-	r.Status = types.StringValue(resultApiJob.Status)
-	r.TemplateID = types.Int64Value(resultApiJob.TemplateID)
-	r.InventoryID = types.Int64Value(resultApiJob.Inventory)
-	diags = r.ParseIgnoredFields(resultApiJob.IgnoredFields)
+	r.Type = types.StringValue(resultAPIJob.Type)
+	r.URL = types.StringValue(resultAPIJob.URL)
+	r.Status = types.StringValue(resultAPIJob.Status)
+	r.TemplateID = types.Int64Value(resultAPIJob.TemplateID)
+	r.InventoryID = types.Int64Value(resultAPIJob.Inventory)
+	diags = r.ParseIgnoredFields(resultAPIJob.IgnoredFields)
 	return diags
 }
 
+// ParseIgnoredFields parses ignored fields from the AAP API response.
 func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]interface{}) (diags diag.Diagnostics) {
 	r.IgnoredFields = types.ListNull(types.StringType)
 	var keysList = []attr.Value{}
@@ -398,6 +402,7 @@ func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]interface
 	return diags
 }
 
+// LaunchJob launches a job using the provided resource data.
 func (r *JobResource) LaunchJob(data *JobResourceModel) diag.Diagnostics {
 	// Create new Job from job template
 	var diags diag.Diagnostics
@@ -410,7 +415,7 @@ func (r *JobResource) LaunchJob(data *JobResourceModel) diag.Diagnostics {
 	}
 
 	requestData := bytes.NewReader(requestBody)
-	var postURL = path.Join(r.client.getApiEndpoint(), "job_templates", data.GetTemplateID(), "launch")
+	var postURL = path.Join(r.client.getAPIEndpoint(), "job_templates", data.GetTemplateID(), "launch")
 	resp, body, err := r.client.doRequest(http.MethodPost, postURL, requestData)
 	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
 	if diags.HasError() {
@@ -418,7 +423,7 @@ func (r *JobResource) LaunchJob(data *JobResourceModel) diag.Diagnostics {
 	}
 
 	// Save new job data into job resource model
-	diags.Append(data.ParseHttpResponse(body)...)
+	diags.Append(data.ParseHTTPResponse(body)...)
 	if diags.HasError() {
 		return diags
 	}
@@ -426,6 +431,7 @@ func (r *JobResource) LaunchJob(data *JobResourceModel) diag.Diagnostics {
 	return diags
 }
 
+// GetTemplateID returns the job template ID as a string.
 func (r *JobResourceModel) GetTemplateID() string {
 	return r.TemplateID.String()
 }

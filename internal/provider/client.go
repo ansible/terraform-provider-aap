@@ -13,8 +13,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 )
 
-// Provider Http Client interface (will be useful for unit tests)
-type ProviderHTTPClient interface {
+// HTTPClient interface provides HTTP client functionality for the provider.
+type HTTPClient interface {
 	doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error)
 	Create(path string, data io.Reader) ([]byte, diag.Diagnostics)
 	Get(path string) ([]byte, diag.Diagnostics)
@@ -23,31 +23,32 @@ type ProviderHTTPClient interface {
 	UpdateWithStatus(path string, data io.Reader) ([]byte, diag.Diagnostics, int)
 	Delete(path string) ([]byte, diag.Diagnostics)
 	DeleteWithStatus(path string) ([]byte, diag.Diagnostics, int)
-	setApiEndpoint() diag.Diagnostics
-	getApiEndpoint() string
+	setAPIEndpoint() diag.Diagnostics
+	getAPIEndpoint() string
 }
 
-// Client -
+// AAPClient provides functionality for interacting with the AAP API.
 type AAPClient struct {
 	HostURL       string
 	Authenticator AAPClientAuthenticator
 	httpClient    *http.Client
-	ApiEndpoint   string
+	APIEndpoint   string
 }
 
-type AAPApiEndpointResponse struct {
-	Apis struct {
+// AAPAPIEndpointResponse represents a response from an AAP API endpoint.
+type AAPAPIEndpointResponse struct {
+	APIs struct {
 		Controller string `json:"controller"`
 	} `json:"apis"`
 	CurrentVersion string `json:"current_version"`
 }
 
-func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
+func readAPIEndpoint(client HTTPClient) (string, diag.Diagnostics) {
 	body, diags := client.Get("/api/")
 	if diags.HasError() {
 		return "", diags
 	}
-	var response AAPApiEndpointResponse
+	var response AAPAPIEndpointResponse
 	err := json.Unmarshal(body, &response)
 	if err != nil {
 		diags.AddError(
@@ -56,8 +57,8 @@ func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
 		)
 		return "", diags
 	}
-	if len(response.Apis.Controller) > 0 {
-		body, diags = client.Get(response.Apis.Controller)
+	if len(response.APIs.Controller) > 0 {
+		body, diags = client.Get(response.APIs.Controller)
 		if diags.HasError() {
 			return "", diags
 		}
@@ -79,7 +80,8 @@ func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
 }
 
 // NewClient - create new AAPClient instance
-func NewClient(host string, authenticator AAPClientAuthenticator, insecureSkipVerify bool, timeout int64) (*AAPClient, diag.Diagnostics) {
+func NewClient(host string, authenticator AAPClientAuthenticator, insecureSkipVerify bool, timeout int64) (
+	*AAPClient, diag.Diagnostics) {
 	hostURL, _ := url.JoinPath(host, "/")
 	client := AAPClient{
 		HostURL:       hostURL,
@@ -87,30 +89,43 @@ func NewClient(host string, authenticator AAPClientAuthenticator, insecureSkipVe
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify}, //nolint:gosec // User configurable option
 	}
 	client.httpClient = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
 
 	// Set AAP API endpoint
-	diags := client.setApiEndpoint()
+	diags := client.setAPIEndpoint()
 	return &client, diags
 }
 
-func (c *AAPClient) setApiEndpoint() diag.Diagnostics {
-	endpoint, diags := readApiEndpoint(c)
+func (c *AAPClient) setAPIEndpoint() diag.Diagnostics {
+	endpoint, diags := readAPIEndpoint(c)
 	if diags.HasError() {
 		return diags
 	}
-	c.ApiEndpoint = endpoint
+	c.APIEndpoint = endpoint
 	return diags
 }
 
-func (c *AAPClient) getApiEndpoint() string {
-	return c.ApiEndpoint
+func (c *AAPClient) getAPIEndpoint() string {
+	return c.APIEndpoint
 }
 
 func (c *AAPClient) computeURLPath(path string) string {
-	fullPath, _ := url.JoinPath(c.HostURL, path, "/")
+	// Parse the input path to separate path and query
+	u, err := url.Parse(path)
+	if err != nil {
+		// If parsing fails, fallback to joining as is
+		fullPath, _ := url.JoinPath(c.HostURL, path, "/")
+		return fullPath
+	}
+	// Join only the Path part with HostURL
+	fullPath, _ := url.JoinPath(c.HostURL, u.Path, "/")
+
+	// Reattach query if exists
+	if u.RawQuery != "" {
+		fullPath = fullPath + "?" + u.RawQuery
+	}
 	return fullPath
 }
 
@@ -132,7 +147,7 @@ func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http
 		return nil, []byte{}, err
 	}
 
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, []byte{}, err
@@ -148,7 +163,7 @@ func (c *AAPClient) Create(path string, data io.Reader) ([]byte, diag.Diagnostic
 	return body, diags
 }
 
-// Get sends a GET request to the provided path, checks for errors, and returns the response body with any errors as diagnostics.
+// GetWithStatus sends a GET request to the provided path and returns the response body, diagnostics, and status code.
 func (c *AAPClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
 	getResponse, body, err := c.doRequest("GET", path, nil)
 	diags := ValidateResponse(getResponse, body, err, []int{http.StatusOK})
@@ -159,6 +174,7 @@ func (c *AAPClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
 	return body, diags, getResponse.StatusCode
 }
 
+// Get sends a GET request to the provided path and returns the response body with any errors as diagnostics.
 func (c *AAPClient) Get(path string) ([]byte, diag.Diagnostics) {
 	body, diags, _ := c.GetWithStatus(path)
 	return body, diags
@@ -189,10 +205,12 @@ func (c *AAPClient) Delete(path string) ([]byte, diag.Diagnostics) {
 	return body, diags
 }
 
-// DeleteWithStatus sends a DELETE request to the provided path, checks for errors, and returns any errors as diagnostics and the status code.
+// DeleteWithStatus sends a DELETE request to the provided path, checks for errors,
+// and returns any errors as diagnostics and the status code.
 func (c *AAPClient) DeleteWithStatus(path string) ([]byte, diag.Diagnostics, int) {
 	deleteResponse, body, err := c.doRequest("DELETE", path, nil)
-	// Note: the AAP API documentation says that an inventory delete request should return a 204 response, but it currently returns a 202.
+	// Note: the AAP API documentation says that an inventory delete request should return a 204 response,
+	// but it currently returns a 202.
 	// Once that bug is fixed we should be able to update this to just expect http.StatusNoContent.
 	diags := ValidateResponse(deleteResponse, body, err, []int{http.StatusAccepted, http.StatusNoContent})
 	if deleteResponse == nil {

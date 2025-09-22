@@ -248,8 +248,7 @@ func TestRetryOperation(t *testing.T) {
 }
 
 // validateBasicRetryConfig validates common config fields
-func validateBasicRetryConfig(t *testing.T, config *RetryConfig, operationName string, ctx context.Context,
-	expectedSuccessCodes []int) {
+func validateBasicRetryConfig(ctx context.Context, t *testing.T, config *RetryConfig, operationName string, expectedSuccessCodes []int) {
 	assert.Equal(t, operationName, config.operationName)
 	assert.Equal(t, ctx, config.ctx)
 	assert.Equal(t, expectedSuccessCodes, config.successStatusCodes)
@@ -335,7 +334,7 @@ func TestCreateRetryConfig(t *testing.T) {
 
 				assert.False(t, err.HasError())
 				assert.NotNil(t, config)
-				validateBasicRetryConfig(t, config, operationName, ctx, tt.expectedSuccess)
+				validateBasicRetryConfig(ctx, t, config, operationName, tt.expectedSuccess)
 			})
 		}
 	})
@@ -346,7 +345,7 @@ func TestCreateRetryConfig(t *testing.T) {
 
 		assert.False(t, err.HasError())
 		assert.NotNil(t, config)
-		validateBasicRetryConfig(t, config, operationName, ctx, successCodes)
+		validateBasicRetryConfig(ctx, t, config, operationName, successCodes)
 		validateRetryStateConf(t, config, 300*time.Second, 3*time.Second, 7*time.Second)
 	})
 }

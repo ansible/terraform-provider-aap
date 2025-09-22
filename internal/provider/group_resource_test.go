@@ -52,7 +52,7 @@ func TestGroupResourceCreateRequestBody(t *testing.T) {
 				Description: types.StringUnknown(),
 				URL:         types.StringUnknown(),
 				Variables:   customtypes.NewAAPCustomStringUnknown(),
-				InventoryId: types.Int64Value(0),
+				InventoryID: types.Int64Value(0),
 			},
 			expected: []byte(`{"inventory":0,"name":"test group"}`),
 		},
@@ -63,14 +63,14 @@ func TestGroupResourceCreateRequestBody(t *testing.T) {
 				Description: types.StringNull(),
 				URL:         types.StringNull(),
 				Variables:   customtypes.NewAAPCustomStringNull(),
-				InventoryId: types.Int64Value(0),
+				InventoryID: types.Int64Value(0),
 			},
 			expected: []byte(`{"inventory":0,"name":"test group"}`),
 		},
 		{
 			name: "test with some values",
 			input: GroupResourceModel{
-				InventoryId: types.Int64Value(1),
+				InventoryID: types.Int64Value(1),
 				Name:        types.StringValue("group1"),
 				Description: types.StringNull(),
 				URL:         types.StringValue("/api/v2/groups/1/"),
@@ -83,7 +83,7 @@ func TestGroupResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "test with all values",
 			input: GroupResourceModel{
-				InventoryId: types.Int64Value(1),
+				InventoryID: types.Int64Value(1),
 				Name:        types.StringValue("group1"),
 				Description: types.StringValue("A test group"),
 				URL:         types.StringValue("/api/v2/groups/1/"),
@@ -136,8 +136,8 @@ func TestGroupResourceParseHttpResponse(t *testing.T) {
 			name:  "test with missing values",
 			input: []byte(`{"inventory":1, "id": 0, "name": "group1", "url": "/api/v2/groups/1/", "description": ""}`),
 			expected: GroupResourceModel{
-				InventoryId: types.Int64Value(1),
-				Id:          types.Int64Value(0),
+				InventoryID: types.Int64Value(1),
+				ID:          types.Int64Value(0),
 				Name:        types.StringValue("group1"),
 				URL:         types.StringValue("/api/v2/groups/1/"),
 				Description: types.StringNull(),
@@ -148,8 +148,8 @@ func TestGroupResourceParseHttpResponse(t *testing.T) {
 			name:  "test with all values",
 			input: []byte(groupJSON),
 			expected: GroupResourceModel{
-				InventoryId: types.Int64Value(1),
-				Id:          types.Int64Value(0),
+				InventoryID: types.Int64Value(1),
+				ID:          types.Int64Value(0),
 				Name:        types.StringValue("group1"),
 				URL:         types.StringValue("/api/v2/groups/1/"),
 				Description: types.StringValue("A basic test group"),
@@ -162,7 +162,7 @@ func TestGroupResourceParseHttpResponse(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			resource := GroupResourceModel{}
-			diags := resource.ParseHttpResponse(testCase.input)
+			diags := resource.ParseHTTPResponse(testCase.input)
 			if !testCase.errors.Equal(diags) {
 				t.Errorf("Expected error diagnostics (%s), actual was (%s)", testCase.errors, diags)
 			}
@@ -176,7 +176,7 @@ func TestGroupResourceParseHttpResponse(t *testing.T) {
 // Acceptance tests
 
 func TestAccGroupResource(t *testing.T) {
-	var groupApiModel GroupAPIModel
+	var groupAPIModel GroupAPIModel
 	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	groupName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	updatedName := "updated" + groupName
@@ -195,16 +195,16 @@ func TestAccGroupResource(t *testing.T) {
 			{
 				Config: testAccGroupResourceMinimal(inventoryName, groupName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckGroupResourceExists(resourceNameGroup, &groupApiModel),
-					testAccCheckGroupResourceValues(&groupApiModel, groupName, "", ""),
+					testAccCheckGroupResourceExists(resourceNameGroup, &groupAPIModel),
+					testAccCheckGroupResourceValues(&groupAPIModel, groupName, "", ""),
 					checkBasicGroupAttributes(t, resourceNameGroup, groupName),
 				),
 			},
 			{
 				Config: testAccGroupResourceComplete(inventoryName, updatedName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckGroupResourceExists(resourceNameGroup, &groupApiModel),
-					testAccCheckGroupResourceValues(&groupApiModel, updatedName, description, variables),
+					testAccCheckGroupResourceExists(resourceNameGroup, &groupAPIModel),
+					testAccCheckGroupResourceValues(&groupAPIModel, updatedName, description, variables),
 					checkBasicGroupAttributes(t, resourceNameGroup, updatedName),
 					resource.TestCheckResourceAttr(resourceNameGroup, "name", updatedName),
 					resource.TestCheckResourceAttr(resourceNameGroup, "description", description),
@@ -257,7 +257,7 @@ resource "aap_group" "test" {
 }
 
 // testAccCheckGroupResourceExists queries the AAP API and retrieves the matching group.
-func testAccCheckGroupResourceExists(name string, groupApiModel *GroupAPIModel) resource.TestCheckFunc {
+func testAccCheckGroupResourceExists(name string, groupAPIModel *GroupAPIModel) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		groupResource, ok := s.RootModule().Resources[name]
 		if !ok {
@@ -269,12 +269,12 @@ func testAccCheckGroupResourceExists(name string, groupApiModel *GroupAPIModel) 
 			return err
 		}
 
-		err = json.Unmarshal(groupResponseBody, &groupApiModel)
+		err = json.Unmarshal(groupResponseBody, &groupAPIModel)
 		if err != nil {
 			return err
 		}
 
-		if groupApiModel.Id == 0 {
+		if groupAPIModel.ID == 0 {
 			return fmt.Errorf("group (%s) not found in AAP", groupResource.Primary.ID)
 		}
 
@@ -282,19 +282,19 @@ func testAccCheckGroupResourceExists(name string, groupApiModel *GroupAPIModel) 
 	}
 }
 
-func testAccCheckGroupResourceValues(groupApiModel *GroupAPIModel, name string, description string, variables string) resource.TestCheckFunc {
+func testAccCheckGroupResourceValues(groupAPIModel *GroupAPIModel, name string, description string, variables string) resource.TestCheckFunc {
 	return func(_ *terraform.State) error {
-		if groupApiModel.URL == "" {
-			return fmt.Errorf("bad group URL in AAP, expected a URL path, got: %s", groupApiModel.URL)
+		if groupAPIModel.URL == "" {
+			return fmt.Errorf("bad group URL in AAP, expected a URL path, got: %s", groupAPIModel.URL)
 		}
-		if groupApiModel.Name != name {
-			return fmt.Errorf("bad group name in AAP, expected \"%s\", got: %s", name, groupApiModel.Name)
+		if groupAPIModel.Name != name {
+			return fmt.Errorf("bad group name in AAP, expected \"%s\", got: %s", name, groupAPIModel.Name)
 		}
-		if groupApiModel.Description != description {
-			return fmt.Errorf("bad group description in AAP, expected \"%s\", got: %s", description, groupApiModel.Description)
+		if groupAPIModel.Description != description {
+			return fmt.Errorf("bad group description in AAP, expected \"%s\", got: %s", description, groupAPIModel.Description)
 		}
-		if groupApiModel.Variables != variables {
-			return fmt.Errorf("bad group variables in AAP, expected \"%s\", got: %s", variables, groupApiModel.Variables)
+		if groupAPIModel.Variables != variables {
+			return fmt.Errorf("bad group variables in AAP, expected \"%s\", got: %s", variables, groupAPIModel.Variables)
 		}
 
 		return nil
@@ -310,7 +310,7 @@ func testAccCheckGroupResourceDestroy(s *terraform.State) error {
 
 		_, err := testGetResource(rs.Primary.Attributes["url"])
 		if err == nil {
-			return fmt.Errorf("group (%s) still exists.", rs.Primary.Attributes["id"])
+			return fmt.Errorf("group (%s) still exists", rs.Primary.Attributes["id"])
 		}
 
 		if !strings.Contains(err.Error(), "404") {

@@ -50,11 +50,11 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 		{
 			name: "unknown values",
 			input: InventoryResourceModel{
-				Id:               tftypes.Int64Unknown(),
+				ID:               tftypes.Int64Unknown(),
 				Organization:     tftypes.Int64Unknown(),
 				OrganizationName: tftypes.StringUnknown(),
-				Url:              tftypes.StringUnknown(),
-				NamedUrl:         tftypes.StringUnknown(),
+				URL:              tftypes.StringUnknown(),
+				NamedURL:         tftypes.StringUnknown(),
 				Name:             tftypes.StringUnknown(),
 				Description:      tftypes.StringUnknown(),
 				Variables:        customtypes.NewAAPCustomStringUnknown(),
@@ -64,11 +64,11 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 		{
 			name: "null values",
 			input: InventoryResourceModel{
-				Id:               tftypes.Int64Null(),
+				ID:               tftypes.Int64Null(),
 				Organization:     tftypes.Int64Null(),
 				OrganizationName: tftypes.StringNull(),
-				Url:              tftypes.StringNull(),
-				NamedUrl:         tftypes.StringNull(),
+				URL:              tftypes.StringNull(),
+				NamedURL:         tftypes.StringNull(),
 				Name:             tftypes.StringNull(),
 				Description:      tftypes.StringNull(),
 				Variables:        customtypes.NewAAPCustomStringNull(),
@@ -78,10 +78,10 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 		{
 			name: "provided values",
 			input: InventoryResourceModel{
-				Id:               tftypes.Int64Value(1),
+				ID:               tftypes.Int64Value(1),
 				Organization:     tftypes.Int64Value(2),
 				OrganizationName: tftypes.StringValue("test organization"),
-				Url:              tftypes.StringValue("/inventories/1/"),
+				URL:              tftypes.StringValue("/inventories/1/"),
 				Name:             tftypes.StringValue("test inventory"),
 				Description:      tftypes.StringValue("A test inventory for testing"),
 				Variables:        customtypes.NewAAPCustomStringValue("{\"foo\": \"bar\", \"nested\": {\"foobar\": \"baz\"}}"),
@@ -127,9 +127,9 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 			name:  "missing values",
 			input: []byte(`{"id":1,"type":"inventory","name":"test inventory","organization":2,"url":"/inventories/1/"}`),
 			expected: InventoryResourceModel{
-				Id:           tftypes.Int64Value(1),
+				ID:           tftypes.Int64Value(1),
 				Organization: tftypes.Int64Value(2),
-				Url:          tftypes.StringValue("/inventories/1/"),
+				URL:          tftypes.StringValue("/inventories/1/"),
 				Name:         tftypes.StringValue("test inventory"),
 				Description:  tftypes.StringNull(),
 				Variables:    customtypes.NewAAPCustomStringNull(),
@@ -143,9 +143,9 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 					`"type":"inventory","url":"/inventories/1/","variables":"{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"}`,
 			),
 			expected: InventoryResourceModel{
-				Id:           tftypes.Int64Value(1),
+				ID:           tftypes.Int64Value(1),
 				Organization: tftypes.Int64Value(2),
-				Url:          tftypes.StringValue("/inventories/1/"),
+				URL:          tftypes.StringValue("/inventories/1/"),
 				Name:         tftypes.StringValue("test inventory"),
 				Description:  tftypes.StringValue("A test inventory for testing"),
 				Variables:    customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\",\"nested\":{\"foobar\":\"baz\"}}"),
@@ -171,7 +171,7 @@ func TestInventoryResourceParseHttpResponse(t *testing.T) {
 func TestAccInventoryResource(t *testing.T) {
 	var inventory InventoryAPIModel
 	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
-	updatedOrgId := os.Getenv("AAP_TEST_ORGANIZATION_ID")
+	updatedOrgID := os.Getenv("AAP_TEST_ORGANIZATION_ID")
 	updatedName := "updated " + randomName
 	updatedDescription := "A test inventory"
 	updatedVariables := "{\"foo\": \"bar\"}"
@@ -191,8 +191,8 @@ func TestAccInventoryResource(t *testing.T) {
 			},
 			// Update with new org and Read testing
 			{
-				Config: testAccInventoryResourceWithOrg(updatedName, updatedOrgId),
-				Check:  checkBasicInventoryAttributes(t, resourceNameInventory, inventory, updatedName, updatedOrgId, "Non-Default", updatedDescription, updatedVariables),
+				Config: testAccInventoryResourceWithOrg(updatedName, updatedOrgID),
+				Check:  checkBasicInventoryAttributes(t, resourceNameInventory, inventory, updatedName, updatedOrgID, "Non-Default", updatedDescription, updatedVariables),
 			},
 			// Update without new org and Read testing
 			{
@@ -260,7 +260,7 @@ func testAccCheckInventoryResourceExists(name string, inventory *InventoryAPIMod
 			return err
 		}
 
-		if inventory.Id == 0 {
+		if inventory.ID == 0 {
 			return fmt.Errorf("inventory (%s) not found in AAP", inventoryResource.Primary.ID)
 		}
 
@@ -271,8 +271,8 @@ func testAccCheckInventoryResourceExists(name string, inventory *InventoryAPIMod
 // testAccCheckInventoryResourcesValues verifies that the provided inventory retrieved from AAP contains the expected values.
 func testAccCheckInventoryResourceValues(inventory *InventoryAPIModel, name string, description string, variables string) resource.TestCheckFunc {
 	return func(_ *terraform.State) error {
-		if inventory.Id == 0 {
-			return fmt.Errorf("bad inventory ID in AAP, expected a positive int64, got: %dv", inventory.Id)
+		if inventory.ID == 0 {
+			return fmt.Errorf("bad inventory ID in AAP, expected a positive int64, got: %dv", inventory.ID)
 		}
 		if inventory.Organization == 0 {
 			return fmt.Errorf("bad inventory organization in AAP, expected a positive int64, got: %d", inventory.Organization)
@@ -302,7 +302,7 @@ func testAccCheckInventoryResourceDestroy(s *terraform.State) error {
 
 		_, err := testGetResource(rs.Primary.Attributes["url"])
 		if err == nil {
-			return fmt.Errorf("inventory (%s) still exists.", rs.Primary.Attributes["id"])
+			return fmt.Errorf("inventory (%s) still exists", rs.Primary.Attributes["id"])
 		}
 
 		if !strings.Contains(err.Error(), "404") {

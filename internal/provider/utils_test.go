@@ -68,21 +68,21 @@ func checkBasicInventoryAttributes(
 	name string,
 	inventory InventoryAPIModel,
 	expectedName string,
-	expectedOrgId string,
+	expectedOrgID string,
 	expectedOrgName string,
 	expectedDescription string,
 	expectedVariables string,
 ) resource.TestCheckFunc {
 	t.Helper()
-	expectedNamedUrlPattern := regexp.MustCompile(fmt.Sprintf(`^/api(/controller)?/v2/inventories/%s\+\+%s/`, expectedName, expectedOrgName))
+	expectedNamedURLPattern := regexp.MustCompile(fmt.Sprintf(`^/api(/controller)?/v2/inventories/%s\+\+%s/`, expectedName, expectedOrgName))
 	return resource.ComposeAggregateTestCheckFunc(
 		testAccCheckInventoryResourceExists(name, &inventory),
 		testAccCheckInventoryResourceValues(&inventory, expectedName, expectedDescription, expectedVariables),
 		resource.TestCheckResourceAttr(name, "name", expectedName),
-		resource.TestCheckResourceAttr(name, "organization", expectedOrgId),
+		resource.TestCheckResourceAttr(name, "organization", expectedOrgID),
 		resource.TestCheckResourceAttr(name, "organization_name", expectedOrgName),
 		resource.TestMatchResourceAttr(name, "url", reInventoryURLPattern),
-		resource.TestMatchResourceAttr(name, "named_url", expectedNamedUrlPattern),
+		resource.TestMatchResourceAttr(name, "named_url", expectedNamedURLPattern),
 		resource.TestCheckResourceAttrSet(name, "id"),
 		resource.TestCheckResourceAttrSet(resourceNameInventory, "url"),
 	)
@@ -144,7 +144,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 		orgName     types.String
 		URI         string
 		expectError error
-		expectedUrl string
+		expectedURL string
 	}{
 		{
 			testName:    "id only",
@@ -153,7 +153,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			orgName:     types.StringNull(),
 			URI:         "inventories",
 			expectError: nil,
-			expectedUrl: "inventories/1",
+			expectedURL: "inventories/1",
 		},
 		{
 
@@ -163,7 +163,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			orgName:     types.StringValue("org1"),
 			URI:         "inventories",
 			expectError: nil,
-			expectedUrl: "inventories/1",
+			expectedURL: "inventories/1",
 		},
 		{
 			testName:    "id and org name",
@@ -172,7 +172,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			orgName:     types.StringValue("org1"),
 			URI:         "inventories",
 			expectError: nil,
-			expectedUrl: "inventories/1",
+			expectedURL: "inventories/1",
 		},
 		{
 			testName:    "id and name",
@@ -181,7 +181,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			orgName:     types.StringNull(),
 			URI:         "inventories",
 			expectError: nil,
-			expectedUrl: "inventories/1",
+			expectedURL: "inventories/1",
 		},
 		{
 
@@ -191,7 +191,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			orgName:     types.StringValue("org1"),
 			URI:         "inventories",
 			expectError: nil,
-			expectedUrl: "inventories/test++org1",
+			expectedURL: "inventories/test++org1",
 		},
 		{
 
@@ -201,7 +201,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			orgName:     types.StringValue("org1"),
 			URI:         "inventories",
 			expectError: nil,
-			expectedUrl: "inventories/test++org1",
+			expectedURL: "inventories/test++org1",
 		},
 		{
 
@@ -211,7 +211,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			orgName:     types.StringNull(),
 			URI:         "inventories",
 			expectError: errors.New("invalid lookup parameters"),
-			expectedUrl: "",
+			expectedURL: "",
 		},
 		{
 
@@ -221,7 +221,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			orgName:     types.StringNull(),
 			URI:         "inventories",
 			expectError: errors.New("invalid lookup parameters"),
-			expectedUrl: "",
+			expectedURL: "",
 		},
 		{
 			testName:    "id and org name null, name provided",
@@ -230,7 +230,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			orgName:     types.StringNull(),
 			URI:         "inventories",
 			expectError: errors.New("invalid lookup parameters"),
-			expectedUrl: "",
+			expectedURL: "",
 		},
 		{
 			testName:    "id and name null, org name provided",
@@ -239,7 +239,7 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			orgName:     types.StringValue("org1"),
 			URI:         "inventories",
 			expectError: errors.New("invalid lookup parameters"),
-			expectedUrl: "",
+			expectedURL: "",
 		},
 	}
 	for _, test := range testTable {
@@ -248,8 +248,8 @@ func TestReturnAAPNamedURL(t *testing.T) {
 			if err != nil && err.Error() != test.expectError.Error() {
 				t.Errorf("Expected error: %v but got %v", test.expectError.Error(), err.Error())
 			}
-			if url != test.expectedUrl {
-				t.Errorf("Expected %v but got %v", test.expectedUrl, url)
+			if url != test.expectedURL {
+				t.Errorf("Expected %v but got %v", test.expectedURL, url)
 			}
 		})
 	}

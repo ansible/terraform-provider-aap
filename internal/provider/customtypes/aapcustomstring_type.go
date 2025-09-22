@@ -1,3 +1,4 @@
+// Package customtypes provides custom Terraform types for the AAP provider.
 package customtypes
 
 import (
@@ -20,7 +21,7 @@ type AAPCustomStringType struct {
 	basetypes.StringType
 }
 
-// / Equal returns true if the given type is equivalent.
+// Equal returns true if the given type is equivalent.
 func (t AAPCustomStringType) Equal(o attr.Type) bool {
 	other, ok := o.(AAPCustomStringType)
 	if !ok {
@@ -35,8 +36,9 @@ func (t AAPCustomStringType) String() string {
 	return "customtypes.AAPCustomStringType"
 }
 
-// / ValueFromString returns a StringValuable type given a StringValue.
-func (t AAPCustomStringType) ValueFromString(_ context.Context, in basetypes.StringValue) (basetypes.StringValuable, diag.Diagnostics) {
+// ValueFromString returns a StringValuable type given a StringValue.
+func (t AAPCustomStringType) ValueFromString(_ context.Context, in basetypes.StringValue) (
+	basetypes.StringValuable, diag.Diagnostics) {
 	value := AAPCustomStringValue{
 		StringValue: in,
 	}
@@ -82,7 +84,8 @@ func (t AAPCustomStringType) Validate(_ context.Context, in tftypes.Value, path 
 		diags.AddAttributeError(
 			path,
 			"AAPCustomString Type Validation Error",
-			"An unexpected error was encountered trying to validate an attribute value. This is always an error in the provider. "+
+			"An unexpected error was encountered trying to validate an attribute value. "+
+				"This is always an error in the provider. "+
 				"Please report the following to the provider developer:\n\n"+err.Error(),
 		)
 		return diags
@@ -98,7 +101,8 @@ func (t AAPCustomStringType) Validate(_ context.Context, in tftypes.Value, path 
 		diags.AddAttributeError(
 			path,
 			"AAPCustomString Type Validation Error",
-			"An unexpected error was encountered trying to validate an attribute value. This is always an error in the provider. "+
+			"An unexpected error was encountered trying to validate an attribute value. "+
+				"This is always an error in the provider. "+
 				"Please report the following to the provider developer:\n\n"+err.Error(),
 		)
 

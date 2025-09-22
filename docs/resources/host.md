@@ -126,5 +126,5 @@ output "host_xyz" {
 
 ### Read-Only
 
-- `id` (Number) Id of the host
+- `id` (Number) ID of the host
 - `url` (String) URL of the host

@@ -143,7 +143,7 @@ resource "aap_workflow_job" "workflow_job" {
 
 ### Required
 
-- `workflow_job_template_id` (Number) Id of the workflow job template.
+- `workflow_job_template_id` (Number) ID of the workflow job template.
 
 ### Optional
 

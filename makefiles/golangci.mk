@@ -3,14 +3,14 @@ ifndef GOLANGCI_LINT_MK_INCLUDED
 
 TOOLS_DIR := $(CURDIR)/.tools
 GOLANGCI_LINT := $(TOOLS_DIR)/golangci-lint
-GOLANGCI_LINT_VERSION ?= v1.60.1
+GOLANGCI_LINT_VERSION ?= v2.5.0
 
 export GOLANGCI_LINT
 
 $(GOLANGCI_LINT):
 	@echo "==> Installing golangci-lint into $(TOOLS_DIR)..."
 	@mkdir -p $(TOOLS_DIR)
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(TOOLS_DIR) $(GOLANGCI_LINT_VERSION)
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(TOOLS_DIR) $(GOLANGCI_LINT_VERSION)
 
 .PHONY: lint-tools
 lint-tools: $(GOLANGCI_LINT)

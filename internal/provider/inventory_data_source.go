@@ -4,7 +4,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 )
 
-// Inventory AAP API model
+// InventoryAPIModel represents an Inventory AAP API model
 type InventoryAPIModel struct {
 	BaseDetailAPIModelWithOrg
 }
@@ -25,7 +25,7 @@ func NewInventoryDataSource() datasource.DataSource {
 		BaseDataSourceWithOrg: *NewBaseDataSourceWithOrg(nil, StringDescriptions{
 			MetadataEntitySlug:    "inventory",
 			DescriptiveEntityName: "Inventory",
-			ApiEntitySlug:         "inventories",
+			APIEntitySlug:         "inventories",
 		}),
 	}
 }
