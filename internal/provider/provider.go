@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/hashicorp/terraform-plugin-framework/action"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -17,7 +18,8 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ provider.Provider = &aapProvider{}
+	_ provider.Provider            = &aapProvider{}
+	_ provider.ProviderWithActions = &aapProvider{}
 )
 
 // New is a helper function to simplify provider server and testing implementation.
@@ -174,6 +176,7 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	// type Configure methods.
 	resp.DataSourceData = client
 	resp.ResourceData = client
+	resp.ActionData = client
 }
 
 // DataSources defines the data sources implemented in the provider.
@@ -194,6 +197,12 @@ func (p *aapProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewWorkflowJobResource,
 		NewGroupResource,
 		NewHostResource,
+	}
+}
+
+func (p *aapProvider) Actions(_ context.Context) []func() action.Action {
+	return []func() action.Action{
+		func() action.Action { return &JobAction{} },
 	}
 }
 
