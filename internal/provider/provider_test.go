@@ -60,6 +60,10 @@ func testAccPreCheck(t *testing.T) {
 }
 
 func testMethodResource(method string, urlPath string) ([]byte, error) {
+	return testMethodResourceWithParams(method, urlPath, nil)
+}
+
+func testMethodResourceWithParams(method string, urlPath string, params map[string]string) ([]byte, error) {
 	// Prefer AAP_HOSTNAME, fallback to AAP_HOST
 	host := os.Getenv("AAP_HOSTNAME")
 	if host == "" {
@@ -88,7 +92,11 @@ func testMethodResource(method string, urlPath string) ([]byte, error) {
 	var body []byte
 	switch method {
 	case http.MethodGet:
-		body, diags = client.Get(urlPath)
+		if params != nil {
+			body, diags = client.GetWithParams(urlPath, params)
+		} else {
+			body, diags = client.Get(urlPath)
+		}
 	case http.MethodDelete:
 		body, diags = client.Delete(urlPath)
 	}
