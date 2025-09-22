@@ -57,12 +57,12 @@ func TestJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			expected: JobTemplateDataSourceModel{
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
 					BaseDetailSourceModel: BaseDetailSourceModel{
-						Id:  tftypes.Int64Value(1),
+						ID:  tftypes.Int64Value(1),
 						URL: tftypes.StringValue("/job_templates/1/"),
 
 						Description: tftypes.StringNull(),
 						Name:        tftypes.StringNull(),
-						NamedUrl:    tftypes.StringNull(),
+						NamedURL:    tftypes.StringNull(),
 						Variables:   customtypes.NewAAPCustomStringNull(),
 					},
 					Organization:     tftypes.Int64Value(2),
@@ -79,11 +79,11 @@ func TestJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 			expected: JobTemplateDataSourceModel{
 				BaseDetailSourceModelWithOrg: BaseDetailSourceModelWithOrg{
 					BaseDetailSourceModel: BaseDetailSourceModel{
-						Id:          tftypes.Int64Value(1),
+						ID:          tftypes.Int64Value(1),
 						URL:         tftypes.StringValue("/job_templates/1/"),
 						Description: tftypes.StringValue("My Test Job Template"),
 						Name:        tftypes.StringValue("my job template"),
-						NamedUrl:    tftypes.StringNull(),
+						NamedURL:    tftypes.StringNull(),
 						Variables:   customtypes.NewAAPCustomStringValue("{\"foo\":\"bar\"}"),
 					},
 					Organization:     tftypes.Int64Value(2),
@@ -97,7 +97,7 @@ func TestJobTemplateDataSourceParseHttpResponse(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			source := JobTemplateDataSourceModel{}
-			diags := source.ParseHttpResponse(test.input)
+			diags := source.ParseHTTPResponse(test.input)
 			if !test.errors.Equal(diags) {
 				t.Errorf("Expected error diagnostics (%s), Received (%s)", test.errors, diags)
 			}
@@ -119,7 +119,7 @@ func TestAccJobTemplateDataSource(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Read
 			{
-				Config: testAccJobTemplateDataSourceFromId(jobTemplateID),
+				Config: testAccJobTemplateDataSourceFromID(jobTemplateID),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("data.aap_job_template.test", "name"),
 					resource.TestCheckResourceAttrSet("data.aap_job_template.test", "organization"),
@@ -128,7 +128,7 @@ func TestAccJobTemplateDataSource(t *testing.T) {
 			},
 			// Read
 			{
-				Config: testAccJobTemplateDataSourceFromNamedUrl(jobTemplateName, jobTemplateOrg),
+				Config: testAccJobTemplateDataSourceFromNamedURL(jobTemplateName, jobTemplateOrg),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("data.aap_job_template.test", "name"),
 					resource.TestCheckResourceAttrSet("data.aap_job_template.test", "organization"),
@@ -149,8 +149,8 @@ func TestAccJobTemplateDataSource(t *testing.T) {
 	})
 }
 
-// testAccJobTemplateDataSourceFromId configures the Job Template Data Source for testing
-func testAccJobTemplateDataSourceFromId(id string) string {
+// testAccJobTemplateDataSourceFromID configures the Job Template Data Source for testing
+func testAccJobTemplateDataSourceFromID(id string) string {
 	return fmt.Sprintf(`
 data "aap_job_template" "test" {
   id = %s
@@ -158,7 +158,7 @@ data "aap_job_template" "test" {
 `, id)
 }
 
-func testAccJobTemplateDataSourceFromNamedUrl(name string, orgName string) string {
+func testAccJobTemplateDataSourceFromNamedURL(name string, orgName string) string {
 	return fmt.Sprintf(`
 data "aap_job_template" "test" {
   name = "%s"

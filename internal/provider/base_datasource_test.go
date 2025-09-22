@@ -14,7 +14,7 @@ func TestBaseDataSourceMetadata(t *testing.T) {
 	t.Parallel()
 
 	testDataSource := NewBaseDataSource(nil, StringDescriptions{
-		ApiEntitySlug:         "datasource",
+		APIEntitySlug:         "datasource",
 		DescriptiveEntityName: "datasource",
 		MetadataEntitySlug:    "datasource",
 	})
@@ -35,7 +35,7 @@ func TestBaseDataSourceSchema(t *testing.T) {
 	t.Parallel()
 
 	testDataSource := NewBaseDataSource(nil, StringDescriptions{
-		ApiEntitySlug:         "datasource",
+		APIEntitySlug:         "datasource",
 		DescriptiveEntityName: "datasource",
 		MetadataEntitySlug:    "datasource",
 	})
@@ -68,7 +68,7 @@ func TestBaseDataSourceConfigValidators(t *testing.T) {
 		{
 			name: "base datasource",
 			datasource: NewBaseDataSource(nil, StringDescriptions{
-				ApiEntitySlug:         "datasource",
+				APIEntitySlug:         "datasource",
 				DescriptiveEntityName: "datasource",
 				MetadataEntitySlug:    "datasource",
 			}),
@@ -93,7 +93,7 @@ func TestBaseDataSourceConfigValidators(t *testing.T) {
 		{
 			name: "base datasource with org",
 			datasource: NewBaseDataSourceWithOrg(nil, StringDescriptions{
-				ApiEntitySlug:         "datasource",
+				APIEntitySlug:         "datasource",
 				DescriptiveEntityName: "datasource",
 				MetadataEntitySlug:    "datasource",
 			}),

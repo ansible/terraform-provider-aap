@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -550,7 +549,7 @@ func TestConfigure(t *testing.T) {
 
 			// To test aapProvider.Configure, we need a tfdsk.Config struct, which has a value and a schema
 			var schemaResp provider.SchemaResponse
-			p.Schema(context.TODO(), provider.SchemaRequest{}, &schemaResp)
+			p.Schema(t.Context(), provider.SchemaRequest{}, &schemaResp)
 
 			// Create a config value using the schema
 			configValue := tftypes.NewValue(tftypes.Object{
@@ -575,7 +574,7 @@ func TestConfigure(t *testing.T) {
 			}
 			response := provider.ConfigureResponse{}
 
-			p.Configure(context.TODO(), request, &response)
+			p.Configure(t.Context(), request, &response)
 
 			actualErrors := response.Diagnostics.ErrorsCount()
 			if actualErrors != tc.expectErrors {

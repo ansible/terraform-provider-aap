@@ -20,11 +20,11 @@ import (
 
 // InventoryResourceModel maps the inventory resource schema to a Go struct.
 type InventoryResourceModel struct {
-	Id               tftypes.Int64                    `tfsdk:"id"`
+	ID               tftypes.Int64                    `tfsdk:"id"`
 	Organization     tftypes.Int64                    `tfsdk:"organization"`
 	OrganizationName tftypes.String                   `tfsdk:"organization_name"`
-	Url              tftypes.String                   `tfsdk:"url"`
-	NamedUrl         tftypes.String                   `tfsdk:"named_url"`
+	URL              tftypes.String                   `tfsdk:"url"`
+	NamedURL         tftypes.String                   `tfsdk:"named_url"`
 	Name             tftypes.String                   `tfsdk:"name"`
 	Description      tftypes.String                   `tfsdk:"description"`
 	Variables        customtypes.AAPCustomStringValue `tfsdk:"variables"`
@@ -32,7 +32,7 @@ type InventoryResourceModel struct {
 
 // InventoryResource is the resource implementation.
 type InventoryResource struct {
-	client ProviderHTTPClient
+	client HTTPClient
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -52,7 +52,8 @@ func (r *InventoryResource) Metadata(_ context.Context, req resource.MetadataReq
 }
 
 // Configure adds the provider configured client to the resource.
-func (r *InventoryResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *InventoryResource) Configure(_ context.Context, req resource.ConfigureRequest,
+	resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -89,7 +90,8 @@ func (r *InventoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 					int64planmodifier.UseStateForUnknown(),
 				},
 				Description: "Identifier for the organization the inventory should be created in. " +
-					"If not provided, the inventory will be created in the default organization. NOTICE the organization attribute will be required in release 2.0.0",
+					"If not provided, the inventory will be created in the default organization. " +
+					"NOTICE the organization attribute will be required in release 2.0.0",
 			},
 			"organization_name": schema.StringAttribute{
 				Computed:    true,
@@ -145,7 +147,7 @@ func (r *InventoryResource) Create(ctx context.Context, req resource.CreateReque
 	requestData := bytes.NewReader(createRequestBody)
 
 	// Create new inventory in AAP
-	inventoriesURL := path.Join(r.client.getApiEndpoint(), "inventories")
+	inventoriesURL := path.Join(r.client.getAPIEndpoint(), "inventories")
 	createResponseBody, diags := r.client.Create(inventoriesURL, requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -180,7 +182,7 @@ func (r *InventoryResource) Read(ctx context.Context, req resource.ReadRequest, 
 	}
 
 	// Get latest inventory data from AAP
-	readResponseBody, diags := r.client.Get(data.Url.ValueString())
+	readResponseBody, diags := r.client.Get(data.URL.ValueString())
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -222,7 +224,7 @@ func (r *InventoryResource) Update(ctx context.Context, req resource.UpdateReque
 	requestData := bytes.NewReader(updateRequestBody)
 
 	// Update inventory in AAP
-	updateResponseBody, diags := r.client.Update(data.Url.ValueString(), requestData)
+	updateResponseBody, diags := r.client.Update(data.URL.ValueString(), requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -256,7 +258,7 @@ func (r *InventoryResource) Delete(ctx context.Context, req resource.DeleteReque
 	}
 
 	// Delete inventory from AAP
-	_, diags = r.client.Delete(data.Url.ValueString())
+	_, diags = r.client.Delete(data.URL.ValueString())
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -266,47 +268,47 @@ func (r *InventoryResource) Delete(ctx context.Context, req resource.DeleteReque
 // generateRequestBody creates a JSON encoded request body from the inventory resource data.
 func (r *InventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics) {
 	// Convert inventory resource data to API data model
-	var organizationId int64
+	var organizationID int64
 
 	// Use default organization if not provided
 	if r.Organization.ValueInt64() == 0 {
-		organizationId = 1
+		organizationID = 1
 	} else {
-		organizationId = r.Organization.ValueInt64()
+		organizationID = r.Organization.ValueInt64()
 	}
 
 	// TODO: Replace ReturnAAPNamedURL with CreateNamedURL during Resource refactor
-	if !IsValueProvidedOrPromised(r.NamedUrl) {
-		namedURL, err := ReturnAAPNamedURL(r.Id, r.Name, r.OrganizationName, "inventories")
+	if !IsValueProvidedOrPromised(r.NamedURL) {
+		namedURL, err := ReturnAAPNamedURL(r.ID, r.Name, r.OrganizationName, "inventories")
 		// Squashing error here. If we can't generate the named url just leave it blank
 		if err == nil {
-			r.NamedUrl = tftypes.StringValue(namedURL)
+			r.NamedURL = tftypes.StringValue(namedURL)
 		}
 	}
 
 	inventory := InventoryAPIModel{
 		BaseDetailAPIModelWithOrg: BaseDetailAPIModelWithOrg{
 			BaseDetailAPIModel: BaseDetailAPIModel{
-				Id:          r.Id.ValueInt64(),
-				URL:         r.Url.ValueString(),
+				ID:          r.ID.ValueInt64(),
+				URL:         r.URL.ValueString(),
 				Description: r.Description.ValueString(),
 				Name:        r.Name.ValueString(),
 				Related: RelatedAPIModel{
-					NamedUrl: r.NamedUrl.ValueString(),
+					NamedURL: r.NamedURL.ValueString(),
 				},
 				Variables: r.Variables.ValueString(),
 			},
 			SummaryFields: SummaryFieldsAPIModel{
 				Organization: SummaryField{
-					Id:   organizationId,
+					ID:   organizationID,
 					Name: r.OrganizationName.ValueString(),
 				},
 				Inventory: SummaryField{
-					Id:   r.Id.ValueInt64(),
+					ID:   r.ID.ValueInt64(),
 					Name: r.Name.ValueString(),
 				},
 			},
-			Organization: organizationId,
+			Organization: organizationID,
 		},
 	}
 
@@ -337,11 +339,11 @@ func (r *InventoryResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics
 	}
 
 	// Map response to the inventory resource schema and update attribute values
-	r.Id = tftypes.Int64Value(apiInventory.Id)
+	r.ID = tftypes.Int64Value(apiInventory.ID)
 	r.Organization = tftypes.Int64Value(apiInventory.Organization)
 	r.OrganizationName = ParseStringValue(apiInventory.SummaryFields.Organization.Name)
-	r.Url = tftypes.StringValue(apiInventory.URL)
-	r.NamedUrl = ParseStringValue(apiInventory.Related.NamedUrl)
+	r.URL = tftypes.StringValue(apiInventory.URL)
+	r.NamedURL = ParseStringValue(apiInventory.Related.NamedURL)
 	r.Name = tftypes.StringValue(apiInventory.Name)
 	r.Description = ParseStringValue(apiInventory.Description)
 	r.Variables = ParseAAPCustomStringValue(apiInventory.Variables)

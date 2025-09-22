@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
-// Organization AAP API model
+// OrganizationAPIModel represents the AAP API model for organizations.
 type OrganizationAPIModel struct {
 	BaseDetailAPIModel
 }
@@ -45,7 +45,7 @@ func NewOrganizationDataSource() datasource.DataSource {
 		BaseDataSource: *NewBaseDataSource(nil, StringDescriptions{
 			MetadataEntitySlug:    "organization",
 			DescriptiveEntityName: "Organization",
-			ApiEntitySlug:         "organizations",
+			APIEntitySlug:         "organizations",
 		}),
 	}
 }
@@ -54,6 +54,7 @@ func NewOrganizationDataSource() datasource.DataSource {
 // ValidateConfig
 // ---------------------------------------------------------------------------
 
+// ValidateConfig validates the configuration for the OrganizationDataSource.
 func (d *OrganizationDataSource) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, resp *datasource.ValidateConfigResponse) {
 	// Check that the response and diagnostics pointer is defined
 	if resp == nil {
@@ -62,7 +63,7 @@ func (d *OrganizationDataSource) ValidateConfig(ctx context.Context, req datasou
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("ValidateConfig", ctx, &resp.Diagnostics) {
+	if !IsContextActive(ctx, "ValidateConfig", &resp.Diagnostics) {
 		return
 	}
 
@@ -74,7 +75,7 @@ func (d *OrganizationDataSource) ValidateConfig(ctx context.Context, req datasou
 		return
 	}
 
-	if IsValueProvidedOrPromised(data.Id) {
+	if IsValueProvidedOrPromised(data.ID) {
 		return
 	}
 
@@ -82,7 +83,7 @@ func (d *OrganizationDataSource) ValidateConfig(ctx context.Context, req datasou
 		return
 	}
 
-	if !IsValueProvidedOrPromised(data.Id) {
+	if !IsValueProvidedOrPromised(data.ID) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Attribute Configuration",
@@ -103,10 +104,10 @@ func (d *OrganizationDataSource) Read(ctx context.Context, req datasource.ReadRe
 
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
-	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
+	uri := path.Join(d.client.getAPIEndpoint(), d.APIEntitySlug)
 	resourceURL, err := state.CreateNamedURL(uri, &OrganizationAPIModel{
 		BaseDetailAPIModel: BaseDetailAPIModel{
-			Id:   state.Id.ValueInt64(),
+			ID:   state.ID.ValueInt64(),
 			Name: state.Name.ValueString(),
 		},
 	})
@@ -121,7 +122,7 @@ func (d *OrganizationDataSource) Read(ctx context.Context, req datasource.ReadRe
 		return
 	}
 
-	diags = state.ParseHttpResponse(readResponseBody)
+	diags = state.ParseHTTPResponse(readResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

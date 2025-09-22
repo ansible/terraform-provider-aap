@@ -4,7 +4,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 )
 
-// JobTemplate AAP API model
+// JobTemplateAPIModel represents a JobTemplate AAP API model
 type JobTemplateAPIModel struct {
 	BaseDetailAPIModelWithOrg
 }
@@ -25,7 +25,7 @@ func NewJobTemplateDataSource() datasource.DataSource {
 		BaseDataSourceWithOrg: *NewBaseDataSourceWithOrg(nil, StringDescriptions{
 			MetadataEntitySlug:    "job_template",
 			DescriptiveEntityName: "JobTemplate",
-			ApiEntitySlug:         "job_templates",
+			APIEntitySlug:         "job_templates",
 		}),
 	}
 }

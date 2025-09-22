@@ -12,7 +12,7 @@ import (
 )
 
 // NewBaseResource creates a new instance of BaseResource.
-func NewBaseResource(client ProviderHTTPClient, stringDescriptions StringDescriptions) *BaseResource {
+func NewBaseResource(client HTTPClient, stringDescriptions StringDescriptions) *BaseResource {
 	return &BaseResource{
 		client:             client,
 		StringDescriptions: stringDescriptions,
@@ -25,7 +25,7 @@ func (r *BaseResource) GetBaseAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"url": schema.StringAttribute{
 			Computed:    true,
-			Description: fmt.Sprintf("Url of the %s", r.DescriptiveEntityName),
+			Description: fmt.Sprintf("URL of the %s", r.DescriptiveEntityName),
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 			},
@@ -54,7 +54,7 @@ func (r *BaseResource) Configure(ctx context.Context, req resource.ConfigureRequ
 		return
 	}
 
-	if !IsContextActive("Configure", ctx, &resp.Diagnostics) {
+	if !IsContextActive(ctx, "Configure", &resp.Diagnostics) {
 		return
 	}
 

@@ -1,3 +1,4 @@
+// Package main provides the entrypoint for the AAP Terraform provider.
 package main
 
 import (
@@ -12,7 +13,7 @@ import (
 
 var (
 	// Example version string that can be overwritten by a release process
-	version string = "dev"
+	version = "dev"
 )
 
 func main() {

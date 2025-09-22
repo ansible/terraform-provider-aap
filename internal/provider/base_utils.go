@@ -10,7 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
-func IsContextActive(operationName string, ctx context.Context, diagnostics *diag.Diagnostics) bool {
+// IsContextActive checks if the provided context is still active and adds diagnostics if cancelled.
+func IsContextActive(ctx context.Context, operationName string, diagnostics *diag.Diagnostics) bool {
 	if ctx.Err() != nil {
 		if diagnostics != nil {
 			diagnostics.AddError(
@@ -25,7 +26,8 @@ func IsContextActive(operationName string, ctx context.Context, diagnostics *dia
 	return ctx.Err() == nil
 }
 
-func DoReadPreconditionsMeet(ctx context.Context, resp any, client ProviderHTTPClient) bool {
+// DoReadPreconditionsMeet checks if all preconditions for a read operation are met.
+func DoReadPreconditionsMeet(ctx context.Context, resp any, client HTTPClient) bool {
 	if resp == nil {
 		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
 		return false
@@ -48,7 +50,7 @@ func DoReadPreconditionsMeet(ctx context.Context, resp any, client ProviderHTTPC
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("Read", ctx, diagnostics) {
+	if !IsContextActive(ctx, "Read", diagnostics) {
 		return false
 	}
 
