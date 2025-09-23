@@ -58,7 +58,7 @@ func TestEDAEventStreamActionMetadata(t *testing.T) {
 // Mock marshaler that always fails
 type failingMarshaler struct{}
 
-func (f failingMarshaler) Marshal(v any) ([]byte, error) {
+func (f failingMarshaler) Marshal(_ any) ([]byte, error) {
 	return nil, errors.New("marshal failed")
 }
 
@@ -67,10 +67,10 @@ func TestCreateEventPayload(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		name          string
-		marshaler     JSONMarshaler
-		expectError   bool
-		expectedItem  string
+		name         string
+		marshaler    JSONMarshaler
+		expectError  bool
+		expectedItem string
 	}{
 		{
 			name:         "success with default marshaler",
