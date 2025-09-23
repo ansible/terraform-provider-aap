@@ -57,8 +57,10 @@ func TestEDAEventStreamActionMetadata(t *testing.T) {
 // Test CreateEventPayload
 func TestCreateEventPayload(t *testing.T) {
 	t.Parallel()
-	// Creates a JSON
-	// write a test table here
+	// This is a simple test and not table-driven. Unable to produce a failure in the
+	// JSON marshaling because the struct is simple (strings only). Claude suggested
+	// some invalid UTF-8 string sequences would trigger failure but they do not.
+
 	model := EventStreamActionModel{
 		Limit: types.StringValue("test-limit"),
 	}
@@ -68,46 +70,121 @@ func TestCreateEventPayload(t *testing.T) {
 	if !strings.Contains(actual, expectedItem) {
 		t.Errorf("Expected to find item %q in payload, actual %q", expectedItem, actual)
 	}
-	// TODO: Test error case if possible
 }
 
 // Test CreateRequest
 func TestCreateRequest(t *testing.T) {
-	t.Parallel()
-	model := EventStreamActionModel{
-		EventStreamConfig: EventStreamConfigModel{
-			Username: types.StringValue("username"),
-			Password: types.StringValue("password"),
-			Url:      types.StringValue("https://test.example.org"),
+	testTable := []struct {
+		name            string
+		context         context.Context
+		username        string
+		password        string
+		url             string
+		body            string
+		expectedAuth    string
+		expectedFailure bool
+	}{
+		{
+			name:            "valid context produces POST request with auth header and body",
+			context:         t.Context(),
+			username:        "username",
+			password:        "password",
+			url:             "https://test.example.org",
+			body:            "test-body",
+			expectedAuth:    "Basic dXNlcm5hbWU6cGFzc3dvcmQ=", // base64 encoding of string "username:password"
+			expectedFailure: false,
+		},
+		{
+			name:            "empty context fails",
+			context:         nil,
+			expectedFailure: true,
 		},
 	}
 
-	body := strings.NewReader("test-body")
-	req, _ := model.CreateRequest(context.TODO(), body)
-	actual := req.Header["Authorization"][0]
-	// base64 encoding of string "username:password"
-	expected := "Basic dXNlcm5hbWU6cGFzc3dvcmQ="
-	if actual != expected {
-		t.Errorf("Expected request to be created with basic auth header %q, actual %q", expected, actual)
+	for _, tc := range testTable {
+		t.Run(tc.name, func(t *testing.T) {
+			model := EventStreamActionModel{
+				EventStreamConfig: EventStreamConfigModel{
+					Username: types.StringValue(tc.username),
+					Password: types.StringValue(tc.password),
+					Url:      types.StringValue(tc.url),
+				},
+			}
+
+			body := strings.NewReader(tc.body)
+			req, err := model.CreateRequest(tc.context, body)
+			if tc.expectedFailure {
+				if err.HasError() {
+					// Failure expected, return
+					return
+				} else {
+					t.Fatalf("Expecting success but received unexpected error %s", err)
+				}
+			}
+
+			// Check the method
+			expectedMethod := http.MethodPost
+			actualMethod := req.Method
+			if actualMethod != expectedMethod {
+				t.Errorf("Expected method %s, actual %s", expectedMethod, actualMethod)
+			}
+
+			actual := req.Header["Authorization"][0]
+			if actual != tc.expectedAuth {
+				t.Errorf("Expected request to be created with auth header %q, actual %q", tc.expectedAuth, actual)
+			}
+		})
 	}
-	// TODO: Test that it's a POST and the body
-	// TODO: Test the failure cases, maybe with a canceled context
 }
 
 func TestCreateClient(t *testing.T) {
 	t.Parallel()
-	model := EventStreamActionModel{
-		EventStreamConfig: EventStreamConfigModel{
-			InsecureSkipVerify: types.BoolValue(true),
+	testTable := []struct {
+		name                     string
+		config                   EventStreamConfigModel
+		expectInsecureSkipVerify bool
+	}{
+		{
+			name:                     "CreateClient defaults to InsecureSkipVerify false",
+			config:                   EventStreamConfigModel{},
+			expectInsecureSkipVerify: false,
+		},
+		{
+			name: "CreateClient honors InsecureSkipVerify true in config",
+			config: EventStreamConfigModel{
+				InsecureSkipVerify: types.BoolValue(true),
+			},
+			expectInsecureSkipVerify: true,
+		},
+		{
+			name: "CreateClient honors InsecureSkipVerify false in config",
+			config: EventStreamConfigModel{
+				InsecureSkipVerify: types.BoolValue(false),
+			},
+			expectInsecureSkipVerify: false,
+		},
+		{
+			name: "CreateClient defaults InsecureSkipVerify to false when unknown in config",
+			config: EventStreamConfigModel{
+				InsecureSkipVerify: types.BoolUnknown(),
+			},
+			expectInsecureSkipVerify: false,
 		},
 	}
-	client := model.CreateClient()
-	expected := true
-	actual := client.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify
-	if actual != expected {
-		t.Errorf("Expected client transport be created with InsecureSkipVerify %v, actual %v", expected, actual)
+
+	for _, tc := range testTable {
+		t.Run(tc.name, func(t *testing.T) {
+			model := EventStreamActionModel{
+				EventStreamConfig: tc.config,
+			}
+			client := model.CreateClient()
+			expected := tc.expectInsecureSkipVerify
+			actual := client.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify
+			if actual != expected {
+				t.Errorf("Expected client transport be created with InsecureSkipVerify %v, actual %v", expected, actual)
+			}
+		})
 	}
-	// TODO: Check other value of insecure
 }
 
 type MockClient struct {
