@@ -37,7 +37,6 @@ linters:
     - dogsled
     # - dupl  Terraform framework uses similar patterns so this linter creates a lot of false positives
     - errcheck
-    - exportloopref
     - gocheckcompilerdirectives
     - gochecknoinits
     - goconst
@@ -45,7 +44,6 @@ linters:
     - gocyclo
     - gofmt
     - goimports
-    - gomnd
     - goprintffuncname
     - gosec
     - gosimple
