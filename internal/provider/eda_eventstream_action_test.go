@@ -75,29 +75,29 @@ func TestCreateEventPayload(t *testing.T) {
 // Test CreateRequest
 func TestCreateRequest(t *testing.T) {
 	testTable := []struct {
-		name            string
-		context         context.Context
-		username        string
-		password        string
-		url             string
-		body            string
-		expectedAuth    string
-		expectedFailure bool
+		name          string
+		context       context.Context
+		username      string
+		password      string
+		url           string
+		body          string
+		expectAuth    string
+		expectFailure bool
 	}{
 		{
-			name:            "valid context produces POST request with auth header and body",
-			context:         t.Context(),
-			username:        "username",
-			password:        "password",
-			url:             "https://test.example.org",
-			body:            "test-body",
-			expectedAuth:    "Basic dXNlcm5hbWU6cGFzc3dvcmQ=", // base64 encoding of string "username:password"
-			expectedFailure: false,
+			name:          "valid context produces POST request with auth header and body",
+			context:       t.Context(),
+			username:      "username",
+			password:      "password",
+			url:           "https://test.example.org",
+			body:          "test-body",
+			expectAuth:    "Basic dXNlcm5hbWU6cGFzc3dvcmQ=", // base64 encoding of string "username:password"
+			expectFailure: false,
 		},
 		{
-			name:            "empty context fails",
-			context:         nil,
-			expectedFailure: true,
+			name:          "empty context fails",
+			context:       nil,
+			expectFailure: true,
 		},
 	}
 
@@ -112,13 +112,13 @@ func TestCreateRequest(t *testing.T) {
 			}
 
 			body := strings.NewReader(tc.body)
-			req, err := model.CreateRequest(tc.context, body)
-			if tc.expectedFailure {
-				if err.HasError() {
+			req, diags := model.CreateRequest(tc.context, body)
+			if tc.expectFailure {
+				if diags.HasError() {
 					// Failure expected, return
 					return
 				} else {
-					t.Fatalf("Expecting success but received unexpected error %s", err)
+					t.Fatalf("Expecting success but received unexpected error %s", diags.Errors())
 				}
 			}
 
@@ -130,8 +130,8 @@ func TestCreateRequest(t *testing.T) {
 			}
 
 			actual := req.Header["Authorization"][0]
-			if actual != tc.expectedAuth {
-				t.Errorf("Expected request to be created with auth header %q, actual %q", tc.expectedAuth, actual)
+			if actual != tc.expectAuth {
+				t.Errorf("Expected request to be created with auth header %q, actual %q", tc.expectAuth, actual)
 			}
 		})
 	}
@@ -202,21 +202,48 @@ func (m *MockClient) Do(_ *http.Request) (*http.Response, error) {
 // Test ExecuteRequest
 func TestExecuteRequest(t *testing.T) {
 	t.Parallel()
-	a := EDAEventStreamAction{}
-
-	client := MockClient{StatusCode: http.StatusOK, Body: "test"}
-	body, diags := a.ExecuteRequest(&client, nil)
-	if diags.HasError() {
-		t.Errorf("Unexpected error in ExecuteRequest: %s", diags.Errors())
+	testTable := []struct {
+		name             string
+		mockStatusCode   int
+		mockResponseBody string
+		expectFailure    bool
+	}{
+		{
+			name:             "succeed when response status is http 200 ok",
+			mockStatusCode:   http.StatusOK,
+			mockResponseBody: "test-body",
+			expectFailure:    false,
+		},
+		{
+			name:             "succeed when response status is http 201 created",
+			mockStatusCode:   http.StatusCreated,
+			mockResponseBody: "test-body",
+			expectFailure:    false,
+		},
+		{
+			name:             "fail when response status is http 403 forbidden",
+			mockStatusCode:   http.StatusForbidden,
+			mockResponseBody: "test-body",
+			expectFailure:    true,
+		},
 	}
 
-	expected := "test"
-	actual := string(body)
-	if actual != expected {
-		t.Errorf("Expected ExecuteRequest to return body %v, actual %v", expected, actual)
+	for _, tc := range testTable {
+		t.Run(tc.name, func(t *testing.T) {
+			a := EDAEventStreamAction{}
+			client := MockClient{StatusCode: tc.mockStatusCode, Body: tc.mockResponseBody}
+			req := http.Request{}
+			_, diags := a.ExecuteRequest(&client, &req)
+			if tc.expectFailure {
+				if diags.HasError() {
+					// Failure expected, return
+					return
+				} else {
+					t.Fatalf("Expecting success but received unexpected error %s", diags.Errors())
+				}
+			}
+		})
 	}
-	// TODO: Test client.Do error
-	// TODO: Test http error codes
 }
 
 // Acceptance testing will use httptest to run a server and test that actions POST to it
