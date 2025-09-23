@@ -198,7 +198,6 @@ func TestAccEDAEventStreamAction(t *testing.T) {
 	})
 	// TODO: Test that no actions are fired the second time
 	// TODO: Test that no actions are fired if lifecycle doesn't match
-
 }
 
 func testAccCheckActionReceived(t *testing.T, handler *testHandler) error {
