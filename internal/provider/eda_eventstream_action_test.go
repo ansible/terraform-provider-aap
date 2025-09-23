@@ -146,6 +146,7 @@ func TestExecuteRequest(t *testing.T) {
 
 type testHandler struct {
 	callCount     int
+	requestMethod string
 	responseCode  int
 	requestBody   string
 	requestBytes  int
@@ -162,6 +163,7 @@ func (h *testHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	buffer := make([]byte, req.ContentLength)
 	h.requestBytes, h.requestError = req.Body.Read(buffer)
 	h.requestBody = string(buffer)
+	h.requestMethod = req.Method
 
 	// write the response
 	writer.WriteHeader(h.responseCode)
@@ -201,6 +203,10 @@ func TestAccEDAEventStreamAction(t *testing.T) {
 
 func testAccCheckActionReceived(t *testing.T, handler *testHandler) error {
 	t.Helper()
+	// should be a POST
+	if handler.requestMethod != http.MethodPost {
+		return fmt.Errorf("Expected method %v, received %v", http.MethodPost, handler.requestMethod)
+	}
 	// Action should be received
 	expected := 132 // Length of the sample JSON
 	actual := handler.requestBytes
