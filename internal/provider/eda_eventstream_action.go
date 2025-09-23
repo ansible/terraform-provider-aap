@@ -159,7 +159,11 @@ func (m *EventStreamActionModel) CreateClient() *http.Client {
 	return client
 }
 
-func (a *EDAEventStreamAction) ExecuteRequest(client *http.Client, req *http.Request) ([]byte, diag.Diagnostics) {
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+func (a *EDAEventStreamAction) ExecuteRequest(client HttpClient, req *http.Request) ([]byte, diag.Diagnostics) {
 	// Perform the request
 	hresp, err := client.Do(req)
 	if err != nil {
