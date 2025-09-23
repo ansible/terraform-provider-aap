@@ -171,10 +171,11 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	client, diags := NewClient(host, authenticator, insecureSkipVerify, timeout)
 	resp.Diagnostics.Append(diags...)
 
-	// Make the http client available during DataSource and Resource
+	// Make the http client available during DataSource, Resource, and Action
 	// type Configure methods.
 	resp.DataSourceData = client
 	resp.ResourceData = client
+	resp.ActionData = client
 }
 
 // DataSources defines the data sources implemented in the provider.

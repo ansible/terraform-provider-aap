@@ -32,7 +32,7 @@ func (a *EDAEventStreamAction) Metadata(_ context.Context, req action.MetadataRe
 }
 
 // Schema
-func (a *EDAEventStreamAction) Schema(_ context.Context, req action.SchemaRequest, resp *action.SchemaResponse) {
+func (a *EDAEventStreamAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Sends an event payload to an EDA Event Stream URL",
 		Attributes: map[string]schema.Attribute{
