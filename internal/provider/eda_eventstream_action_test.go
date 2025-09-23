@@ -188,13 +188,13 @@ func TestCreateClient(t *testing.T) {
 	}
 }
 
-type MockClient struct {
+type mockClient struct {
 	StatusCode int
 	Body       string
 	Fail       bool
 }
 
-func (m *MockClient) Do(_ *http.Request) (*http.Response, error) {
+func (m *mockClient) Do(_ *http.Request) (*http.Response, error) {
 	if m.Fail {
 		return nil, errors.New("Test Error")
 	} else {
@@ -203,6 +203,25 @@ func (m *MockClient) Do(_ *http.Request) (*http.Response, error) {
 			Body:       io.NopCloser(strings.NewReader(m.Body)),
 		}, nil
 	}
+}
+
+type readFailer struct{}
+
+func (f *readFailer) Read(_ []byte) (n int, err error) {
+	return 0, errors.New("read failed")
+}
+
+func (f *readFailer) Close() error {
+	return nil
+}
+
+type mockReadFailClient struct{}
+
+func (m *mockReadFailClient) Do(_ *http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       &readFailer{},
+	}, nil
 }
 
 // Test ExecuteRequest
@@ -215,22 +234,27 @@ func TestExecuteRequest(t *testing.T) {
 	}{
 		{
 			name:          "succeed when response status is http 200 ok",
-			client:        &MockClient{StatusCode: http.StatusOK},
+			client:        &mockClient{StatusCode: http.StatusOK},
 			expectFailure: false,
 		},
 		{
 			name:          "succeed when response status is http 201 created",
-			client:        &MockClient{StatusCode: http.StatusCreated},
+			client:        &mockClient{StatusCode: http.StatusCreated},
 			expectFailure: false,
 		},
 		{
 			name:          "fail when response status is http 403 forbidden",
-			client:        &MockClient{StatusCode: http.StatusForbidden},
+			client:        &mockClient{StatusCode: http.StatusForbidden},
 			expectFailure: true,
 		},
 		{
 			name:          "fail when client returns failure",
-			client:        &MockClient{Fail: true},
+			client:        &mockClient{Fail: true},
+			expectFailure: true,
+		},
+		{
+			name:          "fail when reading the response fails",
+			client:        &mockReadFailClient{},
 			expectFailure: true,
 		},
 	}
