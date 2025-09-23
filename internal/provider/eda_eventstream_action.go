@@ -106,7 +106,21 @@ type EventStreamConfigAPIModel struct {
 	OrganizationName        string `json:"organization_name"`
 }
 
+type JSONMarshaler interface {
+	Marshal(v any) ([]byte, error)
+}
+
+type defaultJSONMarshaler struct{}
+
+func (d defaultJSONMarshaler) Marshal(v any) ([]byte, error) {
+	return json.Marshal(v)
+}
+
 func (m *EventStreamActionModel) CreateEventPayload() ([]byte, diag.Diagnostics) {
+	return m.CreateEventPayloadWithMarshaler(defaultJSONMarshaler{})
+}
+
+func (m *EventStreamActionModel) CreateEventPayloadWithMarshaler(marshaler JSONMarshaler) ([]byte, diag.Diagnostics) {
 	// Convert to the API Model
 	payload := EventStreamConfigAPIModel{
 		TemplateType:            m.TemplateType.ValueString(),
@@ -116,7 +130,7 @@ func (m *EventStreamActionModel) CreateEventPayload() ([]byte, diag.Diagnostics)
 		Limit:                   m.Limit.ValueString(),
 	}
 
-	jsonPayload, err := json.Marshal(payload)
+	jsonPayload, err := marshaler.Marshal(payload)
 	if err != nil {
 		var diags diag.Diagnostics
 		diags.AddError(

@@ -55,21 +55,61 @@ func TestEDAEventStreamActionMetadata(t *testing.T) {
 	}
 }
 
+// Mock marshaler that always fails
+type failingMarshaler struct{}
+
+func (f failingMarshaler) Marshal(v any) ([]byte, error) {
+	return nil, errors.New("marshal failed")
+}
+
 // Test CreateEventPayload
 func TestCreateEventPayload(t *testing.T) {
 	t.Parallel()
-	// This is a simple test and not table-driven. Unable to produce a failure in the
-	// JSON marshaling because the struct is simple (strings only). Claude suggested
-	// some invalid UTF-8 string sequences would trigger failure but they do not.
 
-	model := EventStreamActionModel{
-		Limit: types.StringValue("test-limit"),
+	testTable := []struct {
+		name          string
+		marshaler     JSONMarshaler
+		expectError   bool
+		expectedItem  string
+	}{
+		{
+			name:         "success with default marshaler",
+			marshaler:    defaultJSONMarshaler{},
+			expectError:  false,
+			expectedItem: `"limit":"test-limit"`,
+		},
+		{
+			name:        "error with failing marshaler",
+			marshaler:   failingMarshaler{},
+			expectError: true,
+		},
 	}
-	buf, _ := model.CreateEventPayload()
-	expectedItem := `"limit":"test-limit"`
-	actual := string(buf)
-	if !strings.Contains(actual, expectedItem) {
-		t.Errorf("Expected to find item %q in payload, actual %q", expectedItem, actual)
+
+	for _, tc := range testTable {
+		t.Run(tc.name, func(t *testing.T) {
+			model := EventStreamActionModel{
+				Limit: types.StringValue("test-limit"),
+			}
+
+			buf, diags := model.CreateEventPayloadWithMarshaler(tc.marshaler)
+
+			if tc.expectError {
+				if !diags.HasError() {
+					t.Errorf("Expected error but got none")
+				}
+				if buf != nil {
+					t.Errorf("Expected nil buffer on error, got %v", buf)
+				}
+			} else {
+				if diags.HasError() {
+					t.Errorf("Unexpected error: %v", diags.Errors())
+				}
+				actual := string(buf)
+				if !strings.Contains(actual, tc.expectedItem) {
+					t.Errorf("Expected to find item %q in payload, actual %q", tc.expectedItem, actual)
+				}
+			}
+		})
 	}
 }
 
