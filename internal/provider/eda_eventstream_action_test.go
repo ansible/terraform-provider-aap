@@ -305,12 +305,14 @@ func (h *testHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	h.responseBytes, h.responseError = writer.Write([]byte(h.responseBody))
 }
 
-func TestAccEDAEventStreamAction(t *testing.T) {
+func TestAccEDAEventStreamAfterCreateAction(t *testing.T) {
 	// Create an http test server
 	handler := testHandler{
 		responseCode: http.StatusOK,
 	}
 	testServer := httptest.NewServer(&handler)
+	defer testServer.Close()
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() {},
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -319,39 +321,119 @@ func TestAccEDAEventStreamAction(t *testing.T) {
 		},
 		Steps: []resource.TestStep{
 			{
-				Config: testAccBasicAction("after_create", testServer.URL),
+				Config: testAccBasicAction("test", "after_create", testServer.URL),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("terraform_data.trigger", "input", "test"),
 					func(_ *terraform.State) error {
-						testServer.Close()
-						return testAccCheckActionReceived(t, &handler)
+						return testAccCheckActionReceived(t, &handler, 1)
+					},
+				),
+			},
+			{
+				Config: testAccBasicAction("test", "after_create", testServer.URL),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					// Same config should contain the same resource
+					resource.TestCheckResourceAttr("terraform_data.trigger", "input", "test"),
+					// Confirm no additional actions were fired
+					func(_ *terraform.State) error {
+						return testAccCheckActionReceived(t, &handler, 1) // count should not change
 					},
 				),
 			},
 		},
 	})
-	// TODO: Test that no actions are fired the second time
-	// TODO: Test that no actions are fired if lifecycle doesn't match
 }
 
-func testAccCheckActionReceived(t *testing.T, handler *testHandler) error {
+func TestAccEDAEventStreamUnrelatedActionDoesNotTrigger(t *testing.T) {
+	handler := testHandler{
+		responseCode: http.StatusInternalServerError,
+	}
+	testServer := httptest.NewServer(&handler)
+	defer testServer.Close()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() {},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_14_0),
+		},
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBasicAction("test", "after_update", testServer.URL),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					// The resource should be created
+					resource.TestCheckResourceAttr("terraform_data.trigger", "input", "test"),
+					// Since the action is after_update, it should not fire on create
+					func(_ *terraform.State) error {
+						return testAccCheckActionReceived(t, &handler, 0)
+					},
+				),
+			},
+		},
+	})
+}
+
+func TestAccEDAEventStreamAfterUpdateAction(t *testing.T) {
+	// Create an http test server
+	handler := testHandler{
+		responseCode: http.StatusOK,
+	}
+	testServer := httptest.NewServer(&handler)
+	defer testServer.Close()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() {},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_14_0),
+		},
+		Steps: []resource.TestStep{
+			{
+				// Create a resource with an after_update action
+				Config: testAccBasicAction("test", "after_update", testServer.URL),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("terraform_data.trigger", "input", "test"),
+					func(_ *terraform.State) error {
+						return testAccCheckActionReceived(t, &handler, 0) // Create operation should trigger no update actions
+					},
+				),
+			},
+			{
+				// Reconfigure the resource to trigger an update
+				Config: testAccBasicAction("updated", "after_update", testServer.URL),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					// Same config should contain the same resource
+					resource.TestCheckResourceAttr("terraform_data.trigger", "input", "updated"),
+					func(_ *terraform.State) error {
+						return testAccCheckActionReceived(t, &handler, 1) // Update should trigger 1 action
+					},
+				),
+			},
+		},
+	})
+}
+
+func testAccCheckActionReceived(t *testing.T, handler *testHandler, expectedCallCount int) error {
 	t.Helper()
-	// should be a POST
+	if handler.callCount == 0 && expectedCallCount == 0 {
+		// Expected no calls, nothing else to check
+		return nil
+	}
+
+	// Check that call count matches expectations
+	if handler.callCount != expectedCallCount {
+		return fmt.Errorf("Expected call count %v, actual call count is %v", expectedCallCount, handler.callCount)
+	}
+
+	// Method should be POST
 	if handler.requestMethod != http.MethodPost {
 		return fmt.Errorf("Expected method %v, received %v", http.MethodPost, handler.requestMethod)
 	}
-	// Action should be received
-	expected := 132 // Length of the sample JSON
-	actual := handler.requestBytes
-	if expected != actual {
-		return fmt.Errorf("Expected %v bytes, received %v. Request body %s", expected, actual, handler.requestBody)
-	}
-	if handler.callCount != 1 {
-		return fmt.Errorf("Expected 1 call, received %v.", handler.callCount)
-	}
 
+	// The event payload should should have been sent as the request body
 	expectedBody := `{"limit":"limit","template_type":"job","job_template_name":"template",` +
 		`"workflow_job_template_name":"","organization_name":"Default"}`
+
 	actualBody := handler.requestBody
 	if actualBody != expectedBody {
 		return fmt.Errorf("Unexpected request body %s", actualBody)
@@ -359,10 +441,10 @@ func testAccCheckActionReceived(t *testing.T, handler *testHandler) error {
 	return nil
 }
 
-func testAccBasicAction(trigger_events string, url string) string {
+func testAccBasicAction(resourceInputName string, actionTriggerEvents string, eventStreamURL string) string {
 	return fmt.Sprintf(`
 	resource "terraform_data" "trigger" {
-		input = "test"
+		input = "%s"
 		lifecycle {
 			action_trigger {
 				events = [%s]
@@ -383,7 +465,6 @@ func testAccBasicAction(trigger_events string, url string) string {
 				url = "%s"
 			}
 		}
-
 	}
-	`, trigger_events, url)
+	`, resourceInputName, actionTriggerEvents, eventStreamURL)
 }
