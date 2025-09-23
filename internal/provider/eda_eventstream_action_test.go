@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -190,50 +191,55 @@ func TestCreateClient(t *testing.T) {
 type MockClient struct {
 	StatusCode int
 	Body       string
+	Fail       bool
 }
 
 func (m *MockClient) Do(_ *http.Request) (*http.Response, error) {
-	return &http.Response{
-		StatusCode: m.StatusCode,
-		Body:       io.NopCloser(strings.NewReader(m.Body)),
-	}, nil
+	if m.Fail {
+		return nil, errors.New("Test Error")
+	} else {
+		return &http.Response{
+			StatusCode: m.StatusCode,
+			Body:       io.NopCloser(strings.NewReader(m.Body)),
+		}, nil
+	}
 }
 
 // Test ExecuteRequest
 func TestExecuteRequest(t *testing.T) {
 	t.Parallel()
 	testTable := []struct {
-		name             string
-		mockStatusCode   int
-		mockResponseBody string
-		expectFailure    bool
+		name          string
+		client        HttpClient
+		expectFailure bool
 	}{
 		{
-			name:             "succeed when response status is http 200 ok",
-			mockStatusCode:   http.StatusOK,
-			mockResponseBody: "test-body",
-			expectFailure:    false,
+			name:          "succeed when response status is http 200 ok",
+			client:        &MockClient{StatusCode: http.StatusOK},
+			expectFailure: false,
 		},
 		{
-			name:             "succeed when response status is http 201 created",
-			mockStatusCode:   http.StatusCreated,
-			mockResponseBody: "test-body",
-			expectFailure:    false,
+			name:          "succeed when response status is http 201 created",
+			client:        &MockClient{StatusCode: http.StatusCreated},
+			expectFailure: false,
 		},
 		{
-			name:             "fail when response status is http 403 forbidden",
-			mockStatusCode:   http.StatusForbidden,
-			mockResponseBody: "test-body",
-			expectFailure:    true,
+			name:          "fail when response status is http 403 forbidden",
+			client:        &MockClient{StatusCode: http.StatusForbidden},
+			expectFailure: true,
+		},
+		{
+			name:          "fail when client returns failure",
+			client:        &MockClient{Fail: true},
+			expectFailure: true,
 		},
 	}
 
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
 			a := EDAEventStreamAction{}
-			client := MockClient{StatusCode: tc.mockStatusCode, Body: tc.mockResponseBody}
 			req := http.Request{}
-			_, diags := a.ExecuteRequest(&client, &req)
+			_, diags := a.ExecuteRequest(tc.client, &req)
 			if tc.expectFailure {
 				if diags.HasError() {
 					// Failure expected, return
@@ -246,7 +252,8 @@ func TestExecuteRequest(t *testing.T) {
 	}
 }
 
-// Acceptance testing will use httptest to run a server and test that actions POST to it
+// Acceptance tests use httptest to run a server, then applies config with actions
+// and tests that that httptest server received the expected POST
 
 type testHandler struct {
 	callCount     int
@@ -274,7 +281,6 @@ func (h *testHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	h.responseBytes, h.responseError = writer.Write([]byte(h.responseBody))
 }
 
-// Test Invoke (this should be an acceptance test)
 func TestAccEDAEventStreamAction(t *testing.T) {
 	// Create an http test server
 	handler := testHandler{
