@@ -297,7 +297,7 @@ func (r *WorkflowJobResource) LaunchWorkflowJob(data *WorkflowJobResourceModel) 
 
 	requestData := bytes.NewReader(requestBody)
 	var postURL = path.Join(r.client.getApiEndpoint(), "workflow_job_templates", data.GetTemplateID(), "launch")
-	resp, body, err := r.client.doRequest(http.MethodPost, postURL, requestData)
+	resp, body, err := r.client.doRequest(http.MethodPost, postURL, nil, requestData)
 	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
 	if diags.HasError() {
 		return diags
