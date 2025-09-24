@@ -594,3 +594,15 @@ func TestConfigure(t *testing.T) {
 		})
 	}
 }
+
+func TestActions(t *testing.T) {
+	p := aapProvider{
+		version: "test",
+	}
+	actions := p.Actions(t.Context())
+	expected := 1
+	actual := len(actions)
+	if expected != actual {
+		t.Errorf("Expected provider.Actions to return %v actions, found %v", expected, actual)
+	}
+}
