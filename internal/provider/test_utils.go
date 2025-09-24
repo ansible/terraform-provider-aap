@@ -47,7 +47,7 @@ func mergeStringMaps(m1 map[string]string, m2 map[string]string) map[string]stri
 	return merged
 }
 
-func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
+func (c *MockHTTPClient) doRequest(method string, path string, params map[string]string, data io.Reader) (*http.Response, []byte, error) {
 	if !slices.Contains(c.acceptMethods, method) {
 		return nil, nil, nil
 	}
@@ -82,30 +82,35 @@ func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (
 }
 
 func (c *MockHTTPClient) Create(path string, data io.Reader) ([]byte, diag.Diagnostics) {
-	createResponse, body, err := c.doRequest("POST", path, data)
+	createResponse, body, err := c.doRequest("POST", path, nil, data)
 	diags := ValidateResponse(createResponse, body, err, []int{http.StatusCreated})
 	return body, diags
 }
 
 func (c *MockHTTPClient) Get(path string) ([]byte, diag.Diagnostics) {
-	getResponse, body, err := c.doRequest("GET", path, nil)
+	getResponse, body, err := c.doRequest("GET", path, nil, nil)
 	diags := ValidateResponse(getResponse, body, err, []int{http.StatusOK})
 	return body, diags
 }
 
+func (c *MockHTTPClient) GetWithParams(path string, params map[string]string) ([]byte, diag.Diagnostics) {
+	body, diags, _ := c.GetWithStatus(path, params)
+	return body, diags
+}
+
 func (c *MockHTTPClient) Update(path string, data io.Reader) ([]byte, diag.Diagnostics) {
-	updateResponse, body, err := c.doRequest("PUT", path, data)
+	updateResponse, body, err := c.doRequest("PUT", path, nil, data)
 	diags := ValidateResponse(updateResponse, body, err, []int{http.StatusOK})
 	return body, diags
 }
 
 func (c *MockHTTPClient) Delete(path string) ([]byte, diag.Diagnostics) {
-	deleteResponse, body, err := c.doRequest("DELETE", path, nil)
+	deleteResponse, body, err := c.doRequest("DELETE", path, nil, nil)
 	diags := ValidateResponse(deleteResponse, body, err, []int{http.StatusNoContent})
 	return body, diags
 }
 
-func (c *MockHTTPClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
+func (c *MockHTTPClient) GetWithStatus(path string, params map[string]string) ([]byte, diag.Diagnostics, int) {
 	body, diags := c.Get(path)
 	return body, diags, c.httpCode
 }
@@ -126,4 +131,8 @@ func (c *MockHTTPClient) setApiEndpoint() diag.Diagnostics {
 
 func (c *MockHTTPClient) getApiEndpoint() string {
 	return "/api/v2"
+}
+
+func (c *MockHTTPClient) getEdaApiEndpoint() string {
+	return "/api/eda/v1"
 }
