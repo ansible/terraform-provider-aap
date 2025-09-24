@@ -47,7 +47,7 @@ func mergeStringMaps(m1 map[string]string, m2 map[string]string) map[string]stri
 	return merged
 }
 
-func (c *MockHTTPClient) doRequest(method string, path string, params map[string]string, data io.Reader) (*http.Response, []byte, error) {
+func (c *MockHTTPClient) doRequest(method string, path string, _ map[string]string, data io.Reader) (*http.Response, []byte, error) {
 	if !slices.Contains(c.acceptMethods, method) {
 		return nil, nil, nil
 	}
@@ -110,7 +110,7 @@ func (c *MockHTTPClient) Delete(path string) ([]byte, diag.Diagnostics) {
 	return body, diags
 }
 
-func (c *MockHTTPClient) GetWithStatus(path string, params map[string]string) ([]byte, diag.Diagnostics, int) {
+func (c *MockHTTPClient) GetWithStatus(path string, _ map[string]string) ([]byte, diag.Diagnostics, int) {
 	body, diags := c.Get(path)
 	return body, diags, c.httpCode
 }
