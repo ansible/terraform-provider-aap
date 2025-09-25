@@ -29,23 +29,31 @@ type ProviderHTTPClient interface {
 
 // Client -
 type AAPClient struct {
-	HostURL       string
-	Authenticator AAPClientAuthenticator
-	httpClient    *http.Client
-	ApiEndpoint   string
+	HostURL        string
+	Authenticator  AAPClientAuthenticator
+	httpClient     *http.Client
+	ApiEndpoint    string
+	EdaApiEndpoint string
 }
 
 type AAPApiEndpointResponse struct {
 	Apis struct {
 		Controller string `json:"controller"`
+		EDA        string `json:"eda"`
 	} `json:"apis"`
 	CurrentVersion string `json:"current_version"`
 }
 
-func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
+type aapDiscoveredEndpoints struct {
+	controllerEndpoint string
+	edaEndpoint        string
+}
+
+func readApiEndpoint(client ProviderHTTPClient) (aapDiscoveredEndpoints, diag.Diagnostics) {
+	discoveredEndpoints := aapDiscoveredEndpoints{}
 	body, diags := client.Get("/api/")
 	if diags.HasError() {
-		return "", diags
+		return discoveredEndpoints, diags
 	}
 	var response AAPApiEndpointResponse
 	err := json.Unmarshal(body, &response)
@@ -54,12 +62,13 @@ func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
 			fmt.Sprintf("Unable to parse AAP API endpoint response: %s", string(body)),
 			fmt.Sprintf("Unexpected error: %s", err.Error()),
 		)
-		return "", diags
+		return discoveredEndpoints, diags
 	}
+
 	if len(response.Apis.Controller) > 0 {
 		body, diags = client.Get(response.Apis.Controller)
 		if diags.HasError() {
-			return "", diags
+			return discoveredEndpoints, diags
 		}
 		// Parse response
 		err = json.Unmarshal(body, &response)
@@ -68,14 +77,46 @@ func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
 				fmt.Sprintf("Unable to parse AAP API endpoint response: %s", string(body)),
 				fmt.Sprintf("Unexpected error: %s", err.Error()),
 			)
-			return "", diags
+			return discoveredEndpoints, diags
 		}
+		discoveredEndpoints.controllerEndpoint = response.CurrentVersion
+	} else {
+		if len(response.CurrentVersion) == 0 {
+			diags.AddError("Unable to determine API Endpoint", "The controller endpoint is missing from response")
+			return discoveredEndpoints, diags
+		}
+		discoveredEndpoints.controllerEndpoint = response.CurrentVersion
 	}
-	if len(response.CurrentVersion) == 0 {
-		diags.AddError("Unable to determine API Endpoint", "The controller endpoint is missing from response")
-		return "", diags
+
+	if len(response.Apis.EDA) > 0 {
+		body, diags = client.Get(response.Apis.EDA)
+		if diags.HasError() {
+			return discoveredEndpoints, diags
+		}
+		err = json.Unmarshal(body, &response)
+		if err != nil {
+			diags.AddError(
+				fmt.Sprintf("Unable to parse EDA API endpoint response: %s", string(body)),
+				fmt.Sprintf("Unexpected error: %s", err.Error()),
+			)
+			return discoveredEndpoints, diags
+		}
+
+		// URL Parse because the EDA endpoint's current_version gives a full URL instead of a URL path
+		u, err := url.Parse(response.CurrentVersion)
+		if err != nil {
+			diags.AddError(
+				fmt.Sprintf("Unable to parse EDA API URL: %s", response.CurrentVersion),
+				fmt.Sprintf("Unexpected error: %s", err.Error()),
+			)
+			return discoveredEndpoints, diags
+		}
+		discoveredEndpoints.edaEndpoint = u.Path
+	} else {
+		diags.AddWarning("Unable to determine EDA API endpoint", "The EDA endpoint is missing from response")
 	}
-	return response.CurrentVersion, diags
+
+	return discoveredEndpoints, diags
 }
 
 // NewClient - create new AAPClient instance
@@ -97,16 +138,21 @@ func NewClient(host string, authenticator AAPClientAuthenticator, insecureSkipVe
 }
 
 func (c *AAPClient) setApiEndpoint() diag.Diagnostics {
-	endpoint, diags := readApiEndpoint(c)
+	discoveredEndpoints, diags := readApiEndpoint(c)
 	if diags.HasError() {
 		return diags
 	}
-	c.ApiEndpoint = endpoint
+	c.ApiEndpoint = discoveredEndpoints.controllerEndpoint
+	c.EdaApiEndpoint = discoveredEndpoints.edaEndpoint
 	return diags
 }
 
 func (c *AAPClient) getApiEndpoint() string {
 	return c.ApiEndpoint
+}
+
+func (c *AAPClient) getEdaApiEndpoint() string {
+	return c.EdaApiEndpoint
 }
 
 func (c *AAPClient) computeURLPath(path string) string {
