@@ -38,20 +38,24 @@ func (d *BaseEdaDataSource) Metadata(_ context.Context, req datasource.MetadataR
 	fmt.Println(resp.TypeName)
 }
 
+// GetBaseAttributes returns the base set of attributes for an EDA data source. This
+// function is intended to be used by resource types that inherit from BaseEdaDatasource.
+func (d *BaseEdaDataSource) GetBaseAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"id": schema.Int64Attribute{
+			Computed: true,
+		},
+		"name": schema.StringAttribute{
+			Required: true,
+		},
+	}
+}
+
 // Schema defines the schema fields for the data source.
 func (d *BaseEdaDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Attributes: map[string]schema.Attribute{
-			"name": schema.StringAttribute{
-				Required: true,
-			},
-			"url": schema.StringAttribute{
-				Computed: true,
-			},
-			"id": schema.Int64Attribute{
-				Computed: true,
-			},
-		},
+		Attributes:  d.GetBaseAttributes(),
+		Description: fmt.Sprintf("Creates a %s.", d.DescriptiveEntityName),
 	}
 }
 
