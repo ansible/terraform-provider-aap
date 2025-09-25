@@ -201,7 +201,7 @@ func (p *aapProvider) Resources(_ context.Context) []func() resource.Resource {
 // Actions defines the actions implemented in the provider.
 func (p *aapProvider) Actions(_ context.Context) []func() action.Action {
 	return []func() action.Action{
-		NewEDAEventStreamAction,
+		NewEDAEventStreamPostAction,
 	}
 }
 

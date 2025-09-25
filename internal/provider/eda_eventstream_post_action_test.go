@@ -17,14 +17,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
 
-func TestEDAEventStreamActionSchema(t *testing.T) {
+func TestEDAEventStreamPostActionSchema(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
 	schemaRequest := fwaction.SchemaRequest{}
 	schemaResponse := fwaction.SchemaResponse{}
 
-	NewEDAEventStreamAction().Schema(ctx, schemaRequest, &schemaResponse)
+	NewEDAEventStreamPostAction().Schema(ctx, schemaRequest, &schemaResponse)
 
 	if schemaResponse.Diagnostics.HasError() {
 		t.Fatalf("Schema method diagnostics: %+v", schemaResponse.Diagnostics)
@@ -39,7 +39,7 @@ func TestEDAEventStreamActionSchema(t *testing.T) {
 }
 
 // Test Metadata
-func TestEDAEventStreamActionMetadata(t *testing.T) {
+func TestEDAEventStreamPostActionMetadata(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	metadataRequest := fwaction.MetadataRequest{
@@ -47,8 +47,8 @@ func TestEDAEventStreamActionMetadata(t *testing.T) {
 	}
 	metadataResponse := fwaction.MetadataResponse{}
 
-	NewEDAEventStreamAction().Metadata(ctx, metadataRequest, &metadataResponse)
-	expected := "test_eda_eventstream"
+	NewEDAEventStreamPostAction().Metadata(ctx, metadataRequest, &metadataResponse)
+	expected := "test_eda_eventstream_post"
 	actual := metadataResponse.TypeName
 	if expected != actual {
 		t.Errorf("Expected metadata TypeName %q, received %q", expected, actual)
@@ -301,7 +301,7 @@ func TestExecuteRequest(t *testing.T) {
 
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
-			a := EDAEventStreamAction{}
+			a := EDAEventStreamPostAction{}
 			req := http.Request{}
 			_, diags := a.ExecuteRequest(tc.client, &req)
 			if tc.expectFailure {
@@ -488,12 +488,12 @@ func testAccBasicAction(resourceInputName string, actionTriggerEvents string, ev
 		lifecycle {
 			action_trigger {
 				events = [%s]
-				actions = [action.aap_eda_eventstream.action]
+				actions = [action.aap_eda_eventstream_post.action]
 			}
 		}
 	}
 
-	action "aap_eda_eventstream" "action" {
+	action "aap_eda_eventstream_post" "action" {
 		config {
 			limit = "limit"
 			template_type = "job"

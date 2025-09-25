@@ -17,22 +17,22 @@ import (
 )
 
 var (
-	_ action.Action = (*EDAEventStreamAction)(nil)
+	_ action.Action = (*EDAEventStreamPostAction)(nil)
 )
 
-func NewEDAEventStreamAction() action.Action {
-	return &EDAEventStreamAction{}
+func NewEDAEventStreamPostAction() action.Action {
+	return &EDAEventStreamPostAction{}
 }
 
-type EDAEventStreamAction struct{}
+type EDAEventStreamPostAction struct{}
 
 // Metadata
-func (a *EDAEventStreamAction) Metadata(_ context.Context, req action.MetadataRequest, resp *action.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_eda_eventstream"
+func (a *EDAEventStreamPostAction) Metadata(_ context.Context, req action.MetadataRequest, resp *action.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_eda_eventstream_post"
 }
 
 // Schema
-func (a *EDAEventStreamAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
+func (a *EDAEventStreamPostAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Sends an event payload to an EDA Event Stream URL",
 		Attributes: map[string]schema.Attribute{
@@ -155,8 +155,8 @@ func (m *EventStreamActionModel) CreateRequest(ctx context.Context, body io.Read
 		return nil, diags
 	}
 
-	const EDAEventStreamActionContentType = "application/json"
-	req.Header.Set("Content-Type", EDAEventStreamActionContentType)
+	const EDAEventStreamPostActionContentType = "application/json"
+	req.Header.Set("Content-Type", EDAEventStreamPostActionContentType)
 
 	// Only Basic auth supported at this time
 	req.SetBasicAuth(m.EventStreamConfig.Username.ValueString(), m.EventStreamConfig.Password.ValueString())
@@ -177,7 +177,7 @@ type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-func (a *EDAEventStreamAction) ExecuteRequest(client HttpClient, req *http.Request) ([]byte, diag.Diagnostics) {
+func (a *EDAEventStreamPostAction) ExecuteRequest(client HttpClient, req *http.Request) ([]byte, diag.Diagnostics) {
 	// Perform the request
 	hresp, err := client.Do(req)
 	if err != nil {
@@ -222,7 +222,7 @@ func (a *EDAEventStreamAction) ExecuteRequest(client HttpClient, req *http.Reque
 }
 
 // Invoke the action
-func (a *EDAEventStreamAction) Invoke(ctx context.Context, req action.InvokeRequest, resp *action.InvokeResponse) {
+func (a *EDAEventStreamPostAction) Invoke(ctx context.Context, req action.InvokeRequest, resp *action.InvokeResponse) {
 	var config EventStreamActionModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
