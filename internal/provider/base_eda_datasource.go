@@ -6,21 +6,17 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/hashicorp/terraform-plugin-framework-validators/datasourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	tfpath "github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ datasource.DataSource                     = &BaseEdaDataSource{}
-	_ datasource.DataSourceWithConfigure        = &BaseEdaDataSource{}
-	_ datasource.DataSourceWithConfigValidators = &BaseEdaDataSource{}
-	_ datasource.DataSourceWithValidateConfig   = &BaseEdaDataSource{}
+	_ datasource.DataSource              = &BaseEdaDataSource{}
+	_ datasource.DataSourceWithConfigure = &BaseEdaDataSource{}
 )
 
 // NewBaseEdaDataSource creates a new `BaseEdaDataSource`.
@@ -56,51 +52,6 @@ func (d *BaseEdaDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 	resp.Schema = schema.Schema{
 		Attributes:  d.GetBaseAttributes(),
 		Description: fmt.Sprintf("Creates a %s.", d.DescriptiveEntityName),
-	}
-}
-
-// ConfigValidators validates configuration in a declarative way.
-func (d *BaseEdaDataSource) ConfigValidators(_ context.Context) []datasource.ConfigValidator {
-	// You have at least an name
-	return []datasource.ConfigValidator{
-		datasourcevalidator.Any(
-			datasourcevalidator.AtLeastOneOf(
-				tfpath.MatchRoot("name")),
-		),
-	}
-}
-
-// ValidateConfig validates configuration in an imperative way.
-func (d *BaseEdaDataSource) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, resp *datasource.ValidateConfigResponse) {
-	// Check that the response and diagnostics pointer is defined
-	if resp == nil {
-		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
-		return
-	}
-
-	// Check that the current context is active
-	if !IsContextActive("ValidateConfig", ctx, &resp.Diagnostics) {
-		return
-	}
-
-	var data BaseEdaSourceModel
-
-	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
-
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	if IsValueProvidedOrPromised(data.Name) {
-		return
-	}
-
-	if !IsValueProvidedOrPromised(data.Name) {
-		resp.Diagnostics.AddAttributeWarning(
-			tfpath.Root("id"),
-			"Missing Attribute Configuration",
-			"Expected [id]",
-		)
 	}
 }
 
