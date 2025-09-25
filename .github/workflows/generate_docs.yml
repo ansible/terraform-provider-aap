@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - dev-preview
       - stable-*
 
 jobs:
@@ -34,7 +35,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.10.4"
+          terraform_version: "beta"
 
       - name: Generate documentation
         run: make generatedocs

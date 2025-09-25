@@ -14,6 +14,7 @@ on:
       - synchronize
     branches:
       - main
+      - dev-preview
       - stable-*
 
 jobs:
