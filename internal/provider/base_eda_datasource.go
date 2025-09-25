@@ -109,11 +109,6 @@ func (d *BaseEdaDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		return
 	}
 
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
 	diags = state.ParseHttpResponse(responseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
