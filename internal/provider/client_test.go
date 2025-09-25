@@ -57,29 +57,34 @@ func TestReadAPIEndpoint(t *testing.T) {
 		switch r.URL.Path {
 		case "/api/":
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"apis":{"gateway": "/api/gateway/", "controller": "/api/controller/"}}`))
+			w.Write([]byte(`{"apis":{"gateway": "/api/gateway/", "controller": "/api/controller/", "eda": "/api/eda/"}}`)) //nolint:errcheck
 		case "/api/controller/":
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"current_version": "/api/controller/v2/"}`))
+			w.Write([]byte(`{"current_version": "/api/controller/v2/"}`)) //nolint:errcheck
+		case "/api/eda/":
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"current_version": "http://localhost/api/eda/v1/"}`)) //nolint:errcheck
 		default:
-			t.Errorf("Expected to request one of '/api/', '/api/controller/', got: %s", r.URL.Path)
+			t.Errorf("Expected to request one of '/api/', '/api/controller/', '/api/eda/', got: %s", r.URL.Path)
 		}
 	}))
 	defer server25.Close()
 
 	testTable := []struct {
-		Name     string
-		URL      string
-		expected string
+		Name                   string
+		URL                    string
+		expectedControllerPath string
+		expectedEDAPath        string
 	}{
-		{Name: "AAP 2.4", URL: server24.URL, expected: "/api/v2/"},
-		{Name: "AAP 2.5+", URL: server25.URL, expected: "/api/controller/v2/"},
+		{Name: "AAP 2.4", URL: server_24.URL, expectedControllerPath: "/api/v2/", expectedEDAPath: ""},
+		{Name: "AAP 2.5+", URL: server_25.URL, expectedControllerPath: "/api/controller/v2/", expectedEDAPath: "/api/eda/v1/"},
 	}
 	for _, tc := range testTable {
 		t.Run(tc.Name, func(t *testing.T) {
-			client, diags := NewClient(tc.URL, &MockAuthenticator{}, true, 0) // readAPIEndpoint() is called when creating client
-			assert.Equal(t, false, diags.HasError(), fmt.Sprintf("readAPIEndpoint() returns errors (%v)", diags))
-			assert.Equal(t, tc.expected, client.getAPIEndpoint())
+			client, diags := NewClient(tc.URL, &MockAuthenticator{}, true, 0) // readApiEndpoint() is called when creating client
+			assert.Equal(t, false, diags.HasError(), fmt.Sprintf("readApiEndpoint() returns errors (%v)", diags))
+			assert.Equal(t, tc.expectedControllerPath, client.getApiEndpoint())
+			assert.Equal(t, tc.expectedEDAPath, client.getEdaApiEndpoint())
 		})
 	}
 }
