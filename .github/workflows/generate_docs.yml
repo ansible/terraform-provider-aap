@@ -35,7 +35,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "beta"
+          terraform_version: "1.14.0-beta1"
 
       - name: Generate documentation
         run: make generatedocs
