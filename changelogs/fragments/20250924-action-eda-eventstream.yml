@@ -1,0 +1,2 @@
+major_changes:
+  - New Action 'aap_eda_eventstream_post' enabling action-based AAP integration via EDA Event Streams.
