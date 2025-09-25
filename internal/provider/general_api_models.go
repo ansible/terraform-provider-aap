@@ -36,6 +36,16 @@ type BaseDetailAPIModelWithOrg struct {
 	Organization  int64                 `json:"organization"`
 }
 
+type BaseEdaAPIModel struct {
+	Name string `json:"name"`
+	Id   int64  `json:"id"`
+	URL  string `json:"url"`
+}
+
+type BaseEdaAPIModelList struct {
+	Results []BaseEdaAPIModel `json:"results"`
+}
+
 // ---------------------------------------------------------------------------
 
 type BaseDetailSourceModel struct {
@@ -54,6 +64,12 @@ type BaseDetailSourceModelWithOrg struct {
 	OrganizationName tftypes.String `tfsdk:"organization_name"`
 }
 
+type BaseEdaSourceModel struct {
+	ID   tftypes.Int64  `tfsdk:"id"`
+	Name tftypes.String `tfsdk:"name"`
+	URL  tftypes.String `tfsdk:"url"`
+}
+
 type StringDescriptions struct {
 	ApiEntitySlug         string
 	DescriptiveEntityName string
@@ -69,6 +85,11 @@ type BaseDataSource struct {
 
 type BaseDataSourceWithOrg struct {
 	BaseDataSource
+}
+
+type BaseEdaDataSource struct {
+	client ProviderHTTPClient
+	StringDescriptions
 }
 
 // BaseResource describes infrastructure objects, such as Jobs, Hosts, or Groups.

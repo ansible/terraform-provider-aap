@@ -15,16 +15,18 @@ import (
 
 // Provider Http Client interface (will be useful for unit tests)
 type ProviderHTTPClient interface {
-	doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error)
+	doRequest(method string, path string, params map[string]string, data io.Reader) (*http.Response, []byte, error)
 	Create(path string, data io.Reader) ([]byte, diag.Diagnostics)
 	Get(path string) ([]byte, diag.Diagnostics)
-	GetWithStatus(path string) ([]byte, diag.Diagnostics, int)
+	GetWithParams(path string, params map[string]string) ([]byte, diag.Diagnostics)
+	GetWithStatus(path string, params map[string]string) ([]byte, diag.Diagnostics, int)
 	Update(path string, data io.Reader) ([]byte, diag.Diagnostics)
 	UpdateWithStatus(path string, data io.Reader) ([]byte, diag.Diagnostics, int)
 	Delete(path string) ([]byte, diag.Diagnostics)
 	DeleteWithStatus(path string) ([]byte, diag.Diagnostics, int)
 	setApiEndpoint() diag.Diagnostics
 	getApiEndpoint() string
+	getEdaApiEndpoint() string
 }
 
 // Client -
@@ -160,7 +162,7 @@ func (c *AAPClient) computeURLPath(path string) string {
 	return fullPath
 }
 
-func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
+func (c *AAPClient) doRequest(method string, path string, params map[string]string, data io.Reader) (*http.Response, []byte, error) {
 	ctx := context.Background()
 	req, err := http.NewRequestWithContext(ctx, method, c.computeURLPath(path), data)
 	if err != nil {
@@ -172,6 +174,14 @@ func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
+
+	if params != nil {
+		queryParams := req.URL.Query()
+		for k, v := range params {
+			queryParams.Add(k, v)
+		}
+		req.URL.RawQuery = queryParams.Encode()
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -189,14 +199,14 @@ func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http
 // Create sends a POST request with the provided data to the provided path, checks for errors,
 // and returns the response body with any errors as diagnostics.
 func (c *AAPClient) Create(path string, data io.Reader) ([]byte, diag.Diagnostics) {
-	createResponse, body, err := c.doRequest("POST", path, data)
+	createResponse, body, err := c.doRequest("POST", path, nil, data)
 	diags := ValidateResponse(createResponse, body, err, []int{http.StatusCreated})
 	return body, diags
 }
 
 // Get sends a GET request to the provided path, checks for errors, and returns the response body with any errors as diagnostics.
-func (c *AAPClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
-	getResponse, body, err := c.doRequest("GET", path, nil)
+func (c *AAPClient) GetWithStatus(path string, params map[string]string) ([]byte, diag.Diagnostics, int) {
+	getResponse, body, err := c.doRequest("GET", path, params, nil)
 	diags := ValidateResponse(getResponse, body, err, []int{http.StatusOK})
 	if getResponse == nil {
 		diags.AddError("HTTP response error", "No HTTP response from server")
@@ -206,7 +216,12 @@ func (c *AAPClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
 }
 
 func (c *AAPClient) Get(path string) ([]byte, diag.Diagnostics) {
-	body, diags, _ := c.GetWithStatus(path)
+	body, diags, _ := c.GetWithStatus(path, nil)
+	return body, diags
+}
+
+func (c *AAPClient) GetWithParams(path string, params map[string]string) ([]byte, diag.Diagnostics) {
+	body, diags, _ := c.GetWithStatus(path, params)
 	return body, diags
 }
 
@@ -220,7 +235,7 @@ func (c *AAPClient) Update(path string, data io.Reader) ([]byte, diag.Diagnostic
 // UpdateWithStatus sends a PUT request with the provided data to the provided path, checks for errors,
 // and returns the response body with any errors as diagnostics and the status code.
 func (c *AAPClient) UpdateWithStatus(path string, data io.Reader) ([]byte, diag.Diagnostics, int) {
-	updateResponse, body, err := c.doRequest("PUT", path, data)
+	updateResponse, body, err := c.doRequest("PUT", path, nil, data)
 	diags := ValidateResponse(updateResponse, body, err, []int{http.StatusOK})
 	if updateResponse == nil {
 		diags.AddError("HTTP response error", "No HTTP response from server")
@@ -237,7 +252,7 @@ func (c *AAPClient) Delete(path string) ([]byte, diag.Diagnostics) {
 
 // DeleteWithStatus sends a DELETE request to the provided path, checks for errors, and returns any errors as diagnostics and the status code.
 func (c *AAPClient) DeleteWithStatus(path string) ([]byte, diag.Diagnostics, int) {
-	deleteResponse, body, err := c.doRequest("DELETE", path, nil)
+	deleteResponse, body, err := c.doRequest("DELETE", path, nil, nil)
 	// Note: the AAP API documentation says that an inventory delete request should return a 204 response, but it currently returns a 202.
 	// Once that bug is fixed we should be able to update this to just expect http.StatusNoContent.
 	diags := ValidateResponse(deleteResponse, body, err, []int{http.StatusAccepted, http.StatusNoContent})
