@@ -48,14 +48,14 @@ action "aap_eda_eventstream_post" "create" {
     event_stream_config = {
       username = var.event_stream_username
       password = var.event_stream_password
-      url      = "http://aap-event-stream-url.myaap.example.com/"
+      url      = "https://aap-event-stream-url.myaap.example.com/"
     }
   }
 }
 
 # Configure the action to trigger after a resource is created
 resource "terraform_data" "trigger" {
-  input = "%s"
+  input = "example"
   lifecycle {
     action_trigger {
       events  = [after_create]
