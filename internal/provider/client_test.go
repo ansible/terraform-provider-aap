@@ -63,7 +63,7 @@ func TestReadApiEndpoint(t *testing.T) {
 			w.Write([]byte(`{"current_version": "/api/controller/v2/"}`)) //nolint:errcheck
 		case "/api/eda/":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"current_version": "http://localhost/api/eda/v1/"}`))
+			w.Write([]byte(`{"current_version": "http://localhost/api/eda/v1/"}`)) //nolint:errcheck
 		default:
 			t.Errorf("Expected to request one of '/api/', '/api/controller/', '/api/eda/', got: %s", r.URL.Path)
 		}
