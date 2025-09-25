@@ -99,7 +99,15 @@ func (d *BaseEdaDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 
 	// Create the EDA path with query parameters
-	resourceURL := path.Join(d.client.getEdaApiEndpoint(), d.ApiEntitySlug)
+	edaEndpoint := d.client.getEdaApiEndpoint()
+	if edaEndpoint == "" {
+		resp.Diagnostics.AddError(
+			"EDA API Endpoint is empty",
+			"Expected a valid endpoint but was an empty string. Please report this issue to the provider developers.",
+		)
+		return
+	}
+	resourceURL := path.Join(edaEndpoint, d.ApiEntitySlug)
 	params := map[string]string{
 		"name": state.Name.ValueString(),
 	}
