@@ -41,6 +41,16 @@ type BaseDetailAPIModelWithOrg struct {
 	Organization  int64                 `json:"organization"`
 }
 
+type BaseEdaAPIModel struct {
+	Name string `json:"name"`
+	Id   int64  `json:"id"`
+	URL  string `json:"url"`
+}
+
+type BaseEdaAPIModelList struct {
+	Results []BaseEdaAPIModel `json:"results"`
+}
+
 // ---------------------------------------------------------------------------
 
 // BaseDetailSourceModel represents the Terraform data source model for base detail resources.
@@ -60,7 +70,12 @@ type BaseDetailSourceModelWithOrg struct {
 	OrganizationName tftypes.String `tfsdk:"organization_name"`
 }
 
-// StringDescriptions holds string descriptions for Terraform schema attributes.
+type BaseEdaSourceModel struct {
+	ID   tftypes.Int64  `tfsdk:"id"`
+	Name tftypes.String `tfsdk:"name"`
+	URL  tftypes.String `tfsdk:"url"`
+}
+
 type StringDescriptions struct {
 	APIEntitySlug         string
 	DescriptiveEntityName string
@@ -77,6 +92,11 @@ type BaseDataSource struct {
 // BaseDataSourceWithOrg represents a base DataSource object with organization support.
 type BaseDataSourceWithOrg struct {
 	BaseDataSource
+}
+
+type BaseEdaDataSource struct {
+	client ProviderHTTPClient
+	StringDescriptions
 }
 
 // BaseResource describes infrastructure objects, such as Jobs, Hosts, or Groups.

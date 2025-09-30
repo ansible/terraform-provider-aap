@@ -552,7 +552,7 @@ func (r *HostResource) AssociateGroups(ctx context.Context, data []int64, url st
 			}
 			reqData := bytes.NewReader(jsonRaw)
 
-			resp, bodyreq, err := r.client.doRequest(http.MethodPost, url, reqData)
+			resp, bodyreq, err := r.client.doRequest(http.MethodPost, url, nil, req_data)
 			diags.Append(ValidateResponse(resp, bodyreq, err, []int{http.StatusNoContent})...)
 			if diags.HasError() {
 				cancel()

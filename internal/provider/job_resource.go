@@ -261,7 +261,7 @@ func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	}
 
 	// Get latest job data from AAP
-	readResponseBody, diags, status := r.client.GetWithStatus(data.URL.ValueString())
+	readResponseBody, diags, status := r.client.GetWithStatus(data.URL.ValueString(), nil)
 
 	// Check if the response is 404, meaning the job does not exist and should be recreated
 	if status == http.StatusNotFound {
@@ -415,8 +415,8 @@ func (r *JobResource) LaunchJob(data *JobResourceModel) diag.Diagnostics {
 	}
 
 	requestData := bytes.NewReader(requestBody)
-	var postURL = path.Join(r.client.getAPIEndpoint(), "job_templates", data.GetTemplateID(), "launch")
-	resp, body, err := r.client.doRequest(http.MethodPost, postURL, requestData)
+	var postURL = path.Join(r.client.getApiEndpoint(), "job_templates", data.GetTemplateID(), "launch")
+	resp, body, err := r.client.doRequest(http.MethodPost, postURL, nil, requestData)
 	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
 	if diags.HasError() {
 		return diags

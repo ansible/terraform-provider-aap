@@ -49,7 +49,7 @@ func mergeStringMaps(m1 map[string]string, m2 map[string]string) map[string]stri
 	return merged
 }
 
-func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (*http.Response, []byte, error) {
+func (c *MockHTTPClient) doRequest(method string, path string, _ map[string]string, data io.Reader) (*http.Response, []byte, error) {
 	if !slices.Contains(c.acceptMethods, method) {
 		return nil, nil, nil
 	}
@@ -85,34 +85,37 @@ func (c *MockHTTPClient) doRequest(method string, path string, data io.Reader) (
 
 // Create performs a mock HTTP CREATE request
 func (c *MockHTTPClient) Create(path string, data io.Reader) ([]byte, diag.Diagnostics) {
-	createResponse, body, err := c.doRequest("POST", path, data)
+	createResponse, body, err := c.doRequest("POST", path, nil, data)
 	diags := ValidateResponse(createResponse, body, err, []int{http.StatusCreated})
 	return body, diags
 }
 
 // Get performs a mock HTTP GET request
 func (c *MockHTTPClient) Get(path string) ([]byte, diag.Diagnostics) {
-	getResponse, body, err := c.doRequest("GET", path, nil)
+	getResponse, body, err := c.doRequest("GET", path, nil, nil)
 	diags := ValidateResponse(getResponse, body, err, []int{http.StatusOK})
 	return body, diags
 }
 
-// Update performs a mock HTTP UPDATE request
+func (c *MockHTTPClient) GetWithParams(path string, params map[string]string) ([]byte, diag.Diagnostics) {
+	body, diags, _ := c.GetWithStatus(path, params)
+	return body, diags
+}
+
 func (c *MockHTTPClient) Update(path string, data io.Reader) ([]byte, diag.Diagnostics) {
-	updateResponse, body, err := c.doRequest("PUT", path, data)
+	updateResponse, body, err := c.doRequest("PUT", path, nil, data)
 	diags := ValidateResponse(updateResponse, body, err, []int{http.StatusOK})
 	return body, diags
 }
 
 // Delete performs a mock HTTP DELETE request
 func (c *MockHTTPClient) Delete(path string) ([]byte, diag.Diagnostics) {
-	deleteResponse, body, err := c.doRequest("DELETE", path, nil)
+	deleteResponse, body, err := c.doRequest("DELETE", path, nil, nil)
 	diags := ValidateResponse(deleteResponse, body, err, []int{http.StatusNoContent})
 	return body, diags
 }
 
-// GetWithStatus performs a mock HTTP GET request with status
-func (c *MockHTTPClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
+func (c *MockHTTPClient) GetWithStatus(path string, _ map[string]string) ([]byte, diag.Diagnostics, int) {
 	body, diags := c.Get(path)
 	return body, diags, c.httpCode
 }
@@ -135,4 +138,8 @@ func (c *MockHTTPClient) setAPIEndpoint() diag.Diagnostics {
 
 func (c *MockHTTPClient) getAPIEndpoint() string {
 	return "/api/v2"
+}
+
+func (c *MockHTTPClient) getEdaApiEndpoint() string {
+	return "/api/eda/v1"
 }
