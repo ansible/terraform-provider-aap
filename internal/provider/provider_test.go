@@ -770,7 +770,6 @@ func TestDataSources(t *testing.T) {
 		"NewInventoryDataSource",
 		"NewJobTemplateDataSource",
 		"NewWorkflowJobTemplateDataSource",
-		"NewOrganizationDataSource",
 	}
 
 	if len(dataSources) != len(expectedDataSources) {
