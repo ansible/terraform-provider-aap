@@ -171,13 +171,23 @@ func (r *WorkflowJobResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 
 	// Get latest workflow job data from AAP
-	readResponseBody, diags := r.client.Get(data.URL.ValueString())
+	readResponseBody, diags, status := r.client.GetWithStatus(data.URL.ValueString())
+
+	// Check if the response is 404, meaning the job does not exist and should be recreated
+	if status == http.StatusNotFound {
+		resp.Diagnostics.AddWarning(
+			"Workflow job not found",
+			"The workflow job was not found. It may have been deleted. The workflow job will be recreated.",
+		)
+		resp.State.RemoveResource(ctx)
+		return
+	}
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Save latest hob data into workflow job resource model
+	// Save latest workflow job data into workflow job resource model
 	diags = data.ParseHTTPResponse(readResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {

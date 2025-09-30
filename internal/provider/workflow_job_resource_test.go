@@ -485,3 +485,51 @@ resource "aap_workflow_job" "test" {
 }
 `, jobTemplateID)
 }
+
+func TestAccAAPWorkflowJobDisappears(t *testing.T) {
+	var workflowJobUrl string
+
+	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID")
+	ctx := context.Background()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Apply a basic terraform plan that creates an AAP workflow job and records it to state with a URL.
+			{
+				Config: testAccBasicWorkflowJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicWorkflowJobAttributes(t, resourceNameWorkflowJob, reJobStatus),
+					testAccCheckWorkflowJobUpdate(&workflowJobUrl, false),
+				),
+			},
+			// Wait for the workflow job to finish.
+			{
+				Config: testAccBasicWorkflowJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicWorkflowJobAttributes(t, resourceNameWorkflowJob, reJobStatus),
+					// Wait for the workflow job to finish so the inventory can be deleted
+					testAccCheckWorkflowJobPause(ctx, resourceNameWorkflowJob),
+				),
+			},
+			// Confirm the workflow job is finished (fewer options in status), then delete directly via API, outside of terraform.
+			{
+				Config: testAccBasicWorkflowJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicWorkflowJobAttributes(t, resourceNameWorkflowJob, reJobStatusFinal),
+					testAccDeleteJob(&workflowJobUrl),
+				),
+				ExpectNonEmptyPlan: true,
+			},
+			// Apply the plan again and confirm the workflow job is re-created with a different URL.
+			{
+				Config: testAccBasicWorkflowJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicWorkflowJobAttributes(t, resourceNameWorkflowJob, reJobStatus),
+					testAccCheckWorkflowJobUpdate(&workflowJobUrl, true),
+				),
+			},
+		},
+	})
+}
