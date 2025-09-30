@@ -733,6 +733,10 @@ func (m *ConfigurableSequenceMockClient) Get(_ string) ([]byte, diag.Diagnostics
 	return []byte(`{}`), diag.Diagnostics{}
 }
 
+func (m *ConfigurableSequenceMockClient) GetWithParams(path string, _ map[string]string) ([]byte, diag.Diagnostics) {
+	return m.Get(path)
+}
+
 // Stub implementations for the remaining interface methods
 func (m *ConfigurableSequenceMockClient) Create(_ string, _ io.Reader) ([]byte, diag.Diagnostics) {
 	return nil, diag.Diagnostics{}
@@ -746,7 +750,7 @@ func (m *ConfigurableSequenceMockClient) Delete(_ string) ([]byte, diag.Diagnost
 	return nil, diag.Diagnostics{}
 }
 
-func (m *ConfigurableSequenceMockClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
+func (m *ConfigurableSequenceMockClient) GetWithStatus(path string, _ map[string]string) ([]byte, diag.Diagnostics, int) {
 	body, diags := m.Get(path)
 	return body, diags, 200
 }
@@ -759,7 +763,7 @@ func (m *ConfigurableSequenceMockClient) DeleteWithStatus(_ string) ([]byte, dia
 	return nil, diag.Diagnostics{}, 204
 }
 
-func (m *ConfigurableSequenceMockClient) doRequest(_ string, _ string, _ io.Reader) (*http.Response, []byte, error) {
+func (m *ConfigurableSequenceMockClient) doRequest(_ string, _ string, _ map[string]string, _ io.Reader) (*http.Response, []byte, error) {
 	return nil, nil, nil
 }
 
@@ -769,6 +773,10 @@ func (m *ConfigurableSequenceMockClient) setApiEndpoint() diag.Diagnostics {
 
 func (m *ConfigurableSequenceMockClient) getApiEndpoint() string {
 	return "/api/v2"
+}
+
+func (m *ConfigurableSequenceMockClient) getEdaApiEndpoint() string {
+	return "/api/eda/v1"
 }
 
 // assertLogFieldEquals validates a specific field in the parsed log entry
