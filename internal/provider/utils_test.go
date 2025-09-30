@@ -13,11 +13,12 @@ import (
 )
 
 const (
-	resourceNameJob       = "aap_job.test"
-	resourceNameHost      = "aap_host.test"
-	resourceNameGroup     = "aap_group.test"
-	resourceNameInventory = "aap_inventory.test"
-	resourceNameUser      = "aap_user.test"
+	resourceNameJob         = "aap_job.test"
+	resourceNameHost        = "aap_host.test"
+	resourceNameGroup       = "aap_group.test"
+	resourceNameInventory   = "aap_inventory.test"
+	resourceNameUser        = "aap_user.test"
+	resourceNameWorkflowJob = "aap_workflow_job.test"
 )
 
 var (
@@ -28,6 +29,8 @@ var (
 	reJobStatusFinal = regexp.MustCompile(`^(failed|complete|successful)$`)
 	reJobType        = regexp.MustCompile(`^(run|check)$`)
 	reJobURL         = regexp.MustCompile(`^/api(/controller)?/v2/jobs/\d+/$`)
+
+	reWorkflowJobURL = regexp.MustCompile(`^/api(/controller)?/v2/workflow_jobs/\d+/$`)
 
 	reHostURL             = regexp.MustCompile(`^/api(/controller)?/v2/hosts/\d+/$`)
 	reInventoryURLPattern = regexp.MustCompile(`^/api(/controller)?/v2/inventories/\d+/$`)
@@ -40,6 +43,15 @@ func checkBasicJobAttributes(t *testing.T, name string, statusPattern *regexp.Re
 		resource.TestMatchResourceAttr(name, "status", statusPattern),
 		resource.TestMatchResourceAttr(name, "job_type", reJobType),
 		resource.TestMatchResourceAttr(name, "url", reJobURL),
+	)
+}
+
+//nolint:unparam // keeping name parameter for future test reuse
+func checkBasicWorkflowJobAttributes(t *testing.T, name string, statusPattern *regexp.Regexp) resource.TestCheckFunc {
+	t.Helper()
+	return resource.ComposeAggregateTestCheckFunc(
+		resource.TestMatchResourceAttr(name, "status", statusPattern),
+		resource.TestMatchResourceAttr(name, "url", reWorkflowJobURL),
 	)
 }
 
