@@ -86,7 +86,6 @@ func (d *BaseDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 				Description: fmt.Sprintf("The Named Url of the %s", d.DescriptiveEntityName),
 			},
 			"name": schema.StringAttribute{
-				Computed:    true,
 				Optional:    true,
 				Description: fmt.Sprintf("Name of the %s", d.DescriptiveEntityName),
 			},
@@ -115,11 +114,10 @@ func (d *BaseDataSourceWithOrg) Schema(_ context.Context, _ datasource.SchemaReq
 				Description: fmt.Sprintf("%s id", d.DescriptiveEntityName),
 			},
 			"organization": schema.Int64Attribute{
-				Computed:    true,
+				Optional:    true,
 				Description: fmt.Sprintf("Identifier for the organization to which the %s belongs", d.DescriptiveEntityName),
 			},
 			"organization_name": schema.StringAttribute{
-				Computed:    true,
 				Optional:    true,
 				Description: fmt.Sprintf("The name for the organization to which the %s belongs", d.DescriptiveEntityName),
 			},
@@ -132,7 +130,6 @@ func (d *BaseDataSourceWithOrg) Schema(_ context.Context, _ datasource.SchemaReq
 				Description: fmt.Sprintf("The Named Url of the %s", d.DescriptiveEntityName),
 			},
 			"name": schema.StringAttribute{
-				Computed:    true,
 				Optional:    true,
 				Description: fmt.Sprintf("Name of the %s", d.DescriptiveEntityName),
 			},
@@ -191,7 +188,7 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("ValidateConfig", ctx, resp.Diagnostics) {
+	if !IsContextActive("ValidateConfig", ctx, &resp.Diagnostics) {
 		return
 	}
 
@@ -203,11 +200,11 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 		return
 	}
 
-	if IsValueProvided(data.Id) {
+	if IsValueProvidedOrPromised(data.Id) {
 		return
 	}
 
-	if !IsValueProvided(data.Id) {
+	if !IsValueProvidedOrPromised(data.Id) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Attribute Configuration",
@@ -224,7 +221,7 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("ValidateConfig", ctx, resp.Diagnostics) {
+	if !IsContextActive("ValidateConfig", ctx, &resp.Diagnostics) {
 		return
 	}
 
@@ -236,15 +233,15 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 		return
 	}
 
-	if IsValueProvided(data.Id) {
+	if IsValueProvidedOrPromised(data.Id) {
 		return
 	}
 
-	if IsValueProvided(data.Name) && IsValueProvided(data.OrganizationName) {
+	if IsValueProvidedOrPromised(data.Name) && IsValueProvidedOrPromised(data.OrganizationName) {
 		return
 	}
 
-	if !IsValueProvided(data.Id) && !IsValueProvided(data.Name) {
+	if !IsValueProvidedOrPromised(data.Id) && !IsValueProvidedOrPromised(data.Name) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Attribute Configuration",
@@ -252,7 +249,7 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 		)
 	}
 
-	if IsValueProvided(data.Name) && !IsValueProvided(data.OrganizationName) {
+	if IsValueProvidedOrPromised(data.Name) && !IsValueProvidedOrPromised(data.OrganizationName) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("organization_name"),
 			"Missing Attribute Configuration",
@@ -260,7 +257,7 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 		)
 	}
 
-	if !IsValueProvided(data.Name) && IsValueProvided(data.OrganizationName) {
+	if !IsValueProvidedOrPromised(data.Name) && IsValueProvidedOrPromised(data.OrganizationName) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("name"),
 			"Missing Attribute Configuration",
@@ -282,7 +279,7 @@ func (d *BaseDataSource) Configure(ctx context.Context, req datasource.Configure
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("Configure", ctx, resp.Diagnostics) {
+	if !IsContextActive("Configure", ctx, &resp.Diagnostics) {
 		return
 	}
 
@@ -325,7 +322,7 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		Name: state.Name.ValueString(),
 	})
 	if err != nil {
-		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id] or [name]")
+		resp.Diagnostics.AddError("Minimal Data Not Supplied", "Expected [id]")
 		return
 	}
 

@@ -135,6 +135,15 @@ func TestAccJobTemplateDataSource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("data.aap_job_template.test", "url"),
 				),
 			},
+			// Read
+			{
+				Config: testAccJobTemplateDataSourceVariable(),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.aap_job_template.test", "name"),
+					resource.TestCheckResourceAttrSet("data.aap_job_template.test", "organization"),
+					resource.TestCheckResourceAttrSet("data.aap_job_template.test", "url"),
+				),
+			},
 		},
 		CheckDestroy: testAccCheckInventoryResourceDestroy,
 	})
@@ -156,4 +165,18 @@ data "aap_job_template" "test" {
   organization_name = "%s"
 }
 `, name, orgName)
+}
+
+func testAccJobTemplateDataSourceVariable() string {
+	return `
+variable "job_template_name" {
+  description = "Name of the AAP job template to run"
+  type        = string
+  default     = "Demo Job Template"
+}
+
+data "aap_job_template" "test" {
+  name = var.job_template_name
+  organization_name = "Default"
+}`
 }

@@ -50,25 +50,36 @@ Create an admin user for the AAP instance and set the following environment vari
 export AAP_USERNAME=<your admin username>
 export AAP_PASSWORD=<your admin password>
 export AAP_INSECURE_SKIP_VERIFY=true
-export AAP_HOST=<your aap instance host url> # "http://localhost:9080" or "https://localhost:8043"
+export AAP_HOSTNAME=<your aap instance host url> # "http://localhost:9080" or "https://localhost:8043"
 ```
 
-In order to run the acceptance tests for the job resource, you must have templates for job and worklow already in your AAP instance. The templates must be set to require an inventory on launch and the Workflow Template must be named "Demo Workflow Job Template". Export the IDs of these job templates:
+In order to run acceptance tests, there are multiple resources that must exist in AAP. While the provider can create some AAP resources, it is not designed for comprehensive management of all platform resources. We've added a playbook `testing/playbook.yml` to create the necessary resources to enable acceptance testing.
+
+For example, the provider implements a `datasource.aap_organization` but does not implement a Terraform `resource` to create organizations. Executing the playbook creates `organization` and writes a file with `export AAP_TEST_ORGANIZATION_ID=#`.
+
+The playbook uses modules from [console.redhat.com](https://console.redhat.com/ansible/automation-hub/repo/published/ansible/controller/). To configure `ansible-galaxy` to access this content, see https://access.redhat.com/solutions/6983440.
+
+To install the collection and run the playbook:
 
 ```bash
-export AAP_TEST_JOB_TEMPLATE_ID=<the ID of a job template in your AAP instance>
-export AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID=<the ID of a workflow job template in your AAP instance>
+# See https://access.redhat.com/solutions/6983440 to enable installation from console.redhat.com
+ansible-galaxy collection install -r testing/requirements.yml
+# AAP_USERNAME, AAP_PASSWORD, AAP_HOSTNAME must be set
+# If you need to disable TLS verification, set AAP_VALIDATE_CERTS
+export AAP_VALIDATE_CERTS=false
+# For AAP 2.4, set CONTROLLER_OPTIONAL_API_URLPATTERN_PREFIX
+export CONTROLLER_OPTIONAL_API_URLPATTERN_PREFIX="/api/"
+ansible-playbook testing/playbook.yml
 ```
 
-The inventory resource test requires the AAP instance to have a second organization with the name `Non-Default` and export that ID:
+This will produce a file called `testing/acceptance_test_vars.env`. Source this file before running acceptance tests with `make testacc`.
 
 ```bash
-export AAP_TEST_ORGANIZATION_ID=<the ID of the second organization in your AAP instance>
+source testing/acceptance_test_vars.env
+make testacc
 ```
 
-Then you can run acceptance tests with `make testacc`.
-
-**WARNING**: running acceptance tests for the job resource will launch several jobs for the specified job template. It's strongly recommended that you create a "check" type job template for testing to ensure the launched jobs do not deploy any actual infrastructure.
+**WARNING**: running acceptance tests for the job resource will launch several jobs for the specified job template. Strongly recommended that you create a "check" type job template for testing to ensure the launched jobs do not deploy any actual infrastructure.
 
 ## Examples
 
@@ -90,7 +101,8 @@ To release a new version of the provider:
 
 ## Supported Platforms
 
-1. Linux / AMD64
+1. Linux AMD64 and ARM64
+2. Darwin AMD64 and ARM64
 
 ## Licensing
 

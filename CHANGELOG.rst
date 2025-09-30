@@ -4,6 +4,34 @@ Terraform Provider for AAP Release Notes
 
 .. contents:: Topics
 
+v1.3.0
+======
+
+Release Summary
+---------------
+
+Feature release
+
+Major Changes
+-------------
+
+- New Datasource - aap_organization
+
+Minor Changes
+-------------
+
+- Add Darwin and arm64 platform builds
+- Update to Golang 1.23.9
+
+Bugfixes
+--------
+
+- datasource/base_datasource - Fixed an issue where unknown values were consider missing (#75,
+- resource/aap_host - Deleting a host will be retried for a default of 30 minutes or until the job completion timeout has been reached (#68)
+- resource/aap_job - A default inventory-id of 1 will no longer be enforced if a value is not present
+- resource/aap_workflow_job - A default inventory-id of 1 will no longer be enforced if a value is not present (#111)
+- resource/job - Jobs now correctly transition from pending to final states when using wait_for_completion = true (#78)
+
 v1.2.0
 ======
 

@@ -9,13 +9,12 @@ description: |-
 The Red Hat Ansible Automation Platform (AAP) provider allows Terraform to reference and manage
 a subset of AAP resources.
 
-
 ## Example Usage
 
 ```terraform
 # This example creates an inventory named `My new inventory`
 # and adds a host `tf_host` and a group `tf_group` to it,
-# and then launches a job based on the "Demo Job Template" 
+# and then launches a job based on the "Demo Job Template"
 # in the "Default" organization using the inventory created.
 #
 terraform {
@@ -27,9 +26,14 @@ terraform {
 }
 
 provider "aap" {
-  host     = "https://AAP_HOST"
-  username = "ansible"
-  password = "test123!"
+  host = "https://AAP_HOST" # Also supports AAP_HOSTNAME environment variable
+
+  # Token authentication is recommended
+  token = "my-aap-token" # Also supports AAP_TOKEN environment variable
+
+  # Basic authentication is also supported, ignored if token is set
+  username = "my-aap-username" # Also supports AAP_USERNAME environment variable
+  password = "my-aap-password" # Also supports AAP_PASSWORD environment variable
 }
 
 resource "aap_inventory" "my_inventory" {
@@ -86,12 +90,22 @@ resource "aap_job" "my_job" {
 
 ### Optional
 
-- `host` (String)
-- `insecure_skip_verify` (Boolean)
-- `password` (String, Sensitive)
-- `timeout` (Number) Timeout specifies a time limit for requests made to the AAP server.Defaults to 5 if not provided. A Timeout of zero means no timeout.
-- `username` (String)
+- `host` (String) AAP Server URL. Can also be configured using the `AAP_HOSTNAME` environment variable.
+- `insecure_skip_verify` (Boolean) If true, configures the provider to skip TLS certificate verification. Can also be configured by setting the `AAP_INSECURE_SKIP_VERIFY` environment variable.
+- `password` (String, Sensitive) Password to use for basic authentication. Ignored if token is set. Can also be configured by setting the `AAP_PASSWORD` environment variable.
+- `timeout` (Number) Timeout specifies a time limit for requests made to the AAP server. Defaults to 5 if not provided. A Timeout of zero means no timeout. Can also be configured by setting the `AAP_TIMEOUT` environment variable
+- `token` (String, Sensitive) Token to use for token authentication. Can also be configured by setting the `AAP_TOKEN` environment variable.
+- `username` (String) Username to use for basic authentication. Ignored if token is set. Can also be configured by setting the `AAP_USERNAME` environment variable.
 
-## Supported Platform
+## Authentication Methods
 
-Linux / AMD64
+The provider supports multiple authentication methods with Red Hat Ansible Automation Platform (AAP). Token Authentication is the recommend method, since users can manage tokens for specific integrations (e.g. Terraform), limit token access, and have full control over token lifecycle.
+
+For more information on creating tokens, see [Red Hat Ansible Automation Platform 2.5 - Access management and Authentication](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.5/html/access_management_and_authentication/gw-token-based-authentication#proc-controller-apps-create-tokens) for AAP 2.5+ or [Red Hat Ansible Automation Platform 2.4 - Managing Users in automation controller](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.4/html/automation_controller_user_guide/assembly-controller-users#proc-controller-user-tokens) for AAP 2.4.
+
+The provider also supports basic authentication with a username and password. If a token is configured, username and password will be ignored.
+
+## Supported Platforms
+
+- Linux AMD64 and ARM64
+- macOS AMD64 and ARM64

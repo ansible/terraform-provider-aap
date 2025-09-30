@@ -20,18 +20,19 @@ type ProviderHTTPClient interface {
 	Get(path string) ([]byte, diag.Diagnostics)
 	GetWithStatus(path string) ([]byte, diag.Diagnostics, int)
 	Update(path string, data io.Reader) ([]byte, diag.Diagnostics)
+	UpdateWithStatus(path string, data io.Reader) ([]byte, diag.Diagnostics, int)
 	Delete(path string) ([]byte, diag.Diagnostics)
+	DeleteWithStatus(path string) ([]byte, diag.Diagnostics, int)
 	setApiEndpoint() diag.Diagnostics
 	getApiEndpoint() string
 }
 
 // Client -
 type AAPClient struct {
-	HostURL     string
-	Username    *string
-	Password    *string
-	httpClient  *http.Client
-	ApiEndpoint string
+	HostURL       string
+	Authenticator AAPClientAuthenticator
+	httpClient    *http.Client
+	ApiEndpoint   string
 }
 
 type AAPApiEndpointResponse struct {
@@ -78,12 +79,11 @@ func readApiEndpoint(client ProviderHTTPClient) (string, diag.Diagnostics) {
 }
 
 // NewClient - create new AAPClient instance
-func NewClient(host string, username *string, password *string, insecureSkipVerify bool, timeout int64) (*AAPClient, diag.Diagnostics) {
+func NewClient(host string, authenticator AAPClientAuthenticator, insecureSkipVerify bool, timeout int64) (*AAPClient, diag.Diagnostics) {
 	hostURL, _ := url.JoinPath(host, "/")
 	client := AAPClient{
-		HostURL:  hostURL,
-		Username: username,
-		Password: password,
+		HostURL:       hostURL,
+		Authenticator: authenticator,
 	}
 
 	tr := &http.Transport{
@@ -120,8 +120,8 @@ func (c *AAPClient) doRequest(method string, path string, data io.Reader) (*http
 	if err != nil {
 		return nil, []byte{}, err
 	}
-	if c.Username != nil && c.Password != nil {
-		req.SetBasicAuth(*c.Username, *c.Password)
+	if c.Authenticator != nil {
+		c.Authenticator.Configure(req)
 	}
 
 	req.Header.Set("Accept", "application/json")
@@ -167,16 +167,37 @@ func (c *AAPClient) Get(path string) ([]byte, diag.Diagnostics) {
 // Update sends a PUT request with the provided data to the provided path, checks for errors,
 // and returns the response body with any errors as diagnostics.
 func (c *AAPClient) Update(path string, data io.Reader) ([]byte, diag.Diagnostics) {
+	body, diags, _ := c.UpdateWithStatus(path, data)
+	return body, diags
+}
+
+// UpdateWithStatus sends a PUT request with the provided data to the provided path, checks for errors,
+// and returns the response body with any errors as diagnostics and the status code.
+func (c *AAPClient) UpdateWithStatus(path string, data io.Reader) ([]byte, diag.Diagnostics, int) {
 	updateResponse, body, err := c.doRequest("PUT", path, data)
 	diags := ValidateResponse(updateResponse, body, err, []int{http.StatusOK})
-	return body, diags
+	if updateResponse == nil {
+		diags.AddError("HTTP response error", "No HTTP response from server")
+		return body, diags, http.StatusInternalServerError
+	}
+	return body, diags, updateResponse.StatusCode
 }
 
 // Delete sends a DELETE request to the provided path, checks for errors, and returns any errors as diagnostics.
 func (c *AAPClient) Delete(path string) ([]byte, diag.Diagnostics) {
+	body, diags, _ := c.DeleteWithStatus(path)
+	return body, diags
+}
+
+// DeleteWithStatus sends a DELETE request to the provided path, checks for errors, and returns any errors as diagnostics and the status code.
+func (c *AAPClient) DeleteWithStatus(path string) ([]byte, diag.Diagnostics, int) {
 	deleteResponse, body, err := c.doRequest("DELETE", path, nil)
 	// Note: the AAP API documentation says that an inventory delete request should return a 204 response, but it currently returns a 202.
 	// Once that bug is fixed we should be able to update this to just expect http.StatusNoContent.
 	diags := ValidateResponse(deleteResponse, body, err, []int{http.StatusAccepted, http.StatusNoContent})
-	return body, diags
+	if deleteResponse == nil {
+		diags.AddError("HTTP response error", "No HTTP response from server")
+		return body, diags, http.StatusInternalServerError
+	}
+	return body, diags, deleteResponse.StatusCode
 }

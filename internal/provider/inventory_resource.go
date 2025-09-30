@@ -275,7 +275,8 @@ func (r *InventoryResourceModel) generateRequestBody() ([]byte, diag.Diagnostics
 		organizationId = r.Organization.ValueInt64()
 	}
 
-	if !IsValueProvided(r.NamedUrl) {
+	// TODO: Replace ReturnAAPNamedURL with CreateNamedURL during Resource refactor
+	if !IsValueProvidedOrPromised(r.NamedUrl) {
 		namedURL, err := ReturnAAPNamedURL(r.Id, r.Name, r.OrganizationName, "inventories")
 		// Squashing error here. If we can't generate the named url just leave it blank
 		if err == nil {

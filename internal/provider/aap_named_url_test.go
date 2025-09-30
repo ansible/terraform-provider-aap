@@ -5,7 +5,47 @@ import (
 	"testing"
 )
 
-func TestCreateNamedURLBaseDetailAPIModel(t *testing.T) {
+func TestCreateNamedURLBaseDetailModelAPIModel(t *testing.T) {
+	var testTable = []struct {
+		testName    string
+		id          int64
+		URI         string
+		expectError error
+		expectedUrl string
+	}{
+		{
+			testName:    "id only",
+			id:          1,
+			URI:         "localhost:44925/api/organizations",
+			expectError: nil,
+			expectedUrl: "localhost:44925/api/organizations/1",
+		},
+		{
+			testName:    "null values",
+			id:          0,
+			URI:         "localhost:44925/api/organizations",
+			expectError: errors.New("invalid lookup parameters: id required"),
+			expectedUrl: "",
+		},
+	}
+	for _, test := range testTable {
+		t.Run("test_"+test.testName, func(t *testing.T) {
+			apiModel := &BaseDetailAPIModel{
+				Id: test.id,
+			}
+			sourceModel := &BaseDetailSourceModel{}
+			url, err := sourceModel.CreateNamedURL(test.URI, apiModel)
+			if err != nil && err.Error() != test.expectError.Error() {
+				t.Errorf("Expected error: %v but got %v", test.expectError.Error(), err.Error())
+			}
+			if url != test.expectedUrl {
+				t.Errorf("Expected %v but got %v", test.expectedUrl, url)
+			}
+		})
+	}
+}
+
+func TestCreateNamedURLOrganizationAPIModel(t *testing.T) {
 	var testTable = []struct {
 		testName    string
 		id          int64
@@ -51,11 +91,13 @@ func TestCreateNamedURLBaseDetailAPIModel(t *testing.T) {
 	}
 	for _, test := range testTable {
 		t.Run("test_"+test.testName, func(t *testing.T) {
-			apiModel := &BaseDetailAPIModel{
-				Id:   test.id,
-				Name: test.name,
+			apiModel := &OrganizationAPIModel{
+				BaseDetailAPIModel: BaseDetailAPIModel{
+					Id:   test.id,
+					Name: test.name,
+				},
 			}
-			sourceModel := &BaseDetailSourceModel{}
+			sourceModel := &OrganizationDataSourceModel{}
 			url, err := sourceModel.CreateNamedURL(test.URI, apiModel)
 			if err != nil && err.Error() != test.expectError.Error() {
 				t.Errorf("Expected error: %v but got %v", test.expectError.Error(), err.Error())

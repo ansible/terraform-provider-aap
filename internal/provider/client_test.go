@@ -1,14 +1,21 @@
 package provider
 
 import (
+	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"fmt"
-
 	"github.com/stretchr/testify/assert"
 )
+
+type MockAuthenticator struct {
+}
+
+func (m *MockAuthenticator) Configure(_ *http.Request) {
+	// Do nothing
+}
 
 func TestComputeURLPath(t *testing.T) {
 	testTable := []struct {
@@ -21,15 +28,14 @@ func TestComputeURLPath(t *testing.T) {
 		{name: "case 3", url: "https://localhost:8043/", path: "/api/v2/state"},
 		{name: "case 4", url: "https://localhost:8043", path: "api/v2/state"},
 	}
-	var expected = "https://localhost:8043/api/v2/state/"
+	expected := "https://localhost:8043/api/v2/state/"
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
 			client := AAPClient{
-				HostURL:     tc.url,
-				Username:    nil,
-				Password:    nil,
-				httpClient:  nil,
-				ApiEndpoint: "",
+				HostURL:       tc.url,
+				Authenticator: &MockAuthenticator{},
+				httpClient:    nil,
+				ApiEndpoint:   "",
 			}
 			result := client.computeURLPath(tc.path)
 			assert.Equal(t, expected, result, fmt.Sprintf("expected (%s), got (%s)", expected, result))
@@ -71,9 +77,197 @@ func TestReadApiEndpoint(t *testing.T) {
 	}
 	for _, tc := range testTable {
 		t.Run(tc.Name, func(t *testing.T) {
-			client, diags := NewClient(tc.URL, nil, nil, true, 0) // readApiEndpoint() is called when creating client
+			client, diags := NewClient(tc.URL, &MockAuthenticator{}, true, 0) // readApiEndpoint() is called when creating client
 			assert.Equal(t, false, diags.HasError(), fmt.Sprintf("readApiEndpoint() returns errors (%v)", diags))
 			assert.Equal(t, tc.expected, client.getApiEndpoint())
 		})
 	}
+}
+
+func TestUpdateWithStatus(t *testing.T) {
+	testCases := []struct {
+		name           string
+		statusCode     int
+		responseBody   string
+		expectedError  bool
+		expectedStatus int
+	}{
+		{
+			name:           "successful update",
+			statusCode:     http.StatusOK,
+			responseBody:   `{"id": 1, "name": "test"}`,
+			expectedError:  false,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "conflict error",
+			statusCode:     http.StatusConflict,
+			responseBody:   `{"detail": "Host is being used by running jobs"}`,
+			expectedError:  true,
+			expectedStatus: http.StatusConflict,
+		},
+		{
+			name:           "not found error",
+			statusCode:     http.StatusNotFound,
+			responseBody:   `{"detail": "Host not found"}`,
+			expectedError:  true,
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "server error",
+			statusCode:     http.StatusInternalServerError,
+			responseBody:   `{"detail": "Internal server error"}`,
+			expectedError:  true,
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "PUT", r.Method)
+				assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+				w.WriteHeader(tc.statusCode)
+				w.Write([]byte(tc.responseBody)) //nolint:errcheck
+			}))
+			defer server.Close()
+
+			client := AAPClient{
+				HostURL:       server.URL,
+				Authenticator: &MockAuthenticator{},
+				httpClient:    &http.Client{},
+				ApiEndpoint:   "",
+			}
+
+			requestData := bytes.NewReader([]byte(`{"name": "test"}`))
+			body, diags, statusCode := client.UpdateWithStatus("/test", requestData)
+
+			if tc.expectedError {
+				assert.True(t, diags.HasError())
+			} else {
+				assert.False(t, diags.HasError())
+			}
+
+			assert.Equal(t, tc.expectedStatus, statusCode)
+			assert.Equal(t, tc.responseBody, string(body))
+		})
+	}
+}
+
+func TestDeleteWithStatus(t *testing.T) {
+	testCases := []struct {
+		name           string
+		statusCode     int
+		responseBody   string
+		expectedError  bool
+		expectedStatus int
+	}{
+		{
+			name:           "successful delete - accepted",
+			statusCode:     http.StatusAccepted,
+			responseBody:   "",
+			expectedError:  false,
+			expectedStatus: http.StatusAccepted,
+		},
+		{
+			name:           "successful delete - no content",
+			statusCode:     http.StatusNoContent,
+			responseBody:   "",
+			expectedError:  false,
+			expectedStatus: http.StatusNoContent,
+		},
+		{
+			name:           "conflict error",
+			statusCode:     http.StatusConflict,
+			responseBody:   `{"detail": "Host is being used by running jobs"}`,
+			expectedError:  true,
+			expectedStatus: http.StatusConflict,
+		},
+		{
+			name:           "not found error",
+			statusCode:     http.StatusNotFound,
+			responseBody:   `{"detail": "Host not found"}`,
+			expectedError:  true,
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "server error",
+			statusCode:     http.StatusInternalServerError,
+			responseBody:   `{"detail": "Internal server error"}`,
+			expectedError:  true,
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "DELETE", r.Method)
+				w.WriteHeader(tc.statusCode)
+				w.Write([]byte(tc.responseBody)) //nolint:errcheck
+			}))
+			defer server.Close()
+
+			client := AAPClient{
+				HostURL:       server.URL,
+				Authenticator: &MockAuthenticator{},
+				httpClient:    &http.Client{},
+				ApiEndpoint:   "",
+			}
+
+			body, diags, statusCode := client.DeleteWithStatus("/test")
+
+			if tc.expectedError {
+				assert.True(t, diags.HasError())
+			} else {
+				assert.False(t, diags.HasError())
+			}
+
+			assert.Equal(t, tc.expectedStatus, statusCode)
+			assert.Equal(t, tc.responseBody, string(body))
+		})
+	}
+}
+
+func TestUpdateReusesUpdateWithStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "PUT", r.Method)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"id": 1, "name": "test"}`)) //nolint:errcheck
+	}))
+	defer server.Close()
+
+	client := AAPClient{
+		HostURL:       server.URL,
+		Authenticator: &MockAuthenticator{},
+		httpClient:    &http.Client{},
+		ApiEndpoint:   "",
+	}
+
+	requestData := bytes.NewReader([]byte(`{"name": "test"}`))
+	body, diags := client.Update("/test", requestData)
+
+	assert.False(t, diags.HasError())
+	assert.Equal(t, `{"id": 1, "name": "test"}`, string(body))
+}
+
+func TestDeleteReusesDeleteWithStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "DELETE", r.Method)
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte("")) //nolint:errcheck
+	}))
+	defer server.Close()
+
+	client := AAPClient{
+		HostURL:       server.URL,
+		Authenticator: &MockAuthenticator{},
+		httpClient:    &http.Client{},
+		ApiEndpoint:   "",
+	}
+
+	body, diags := client.Delete("/test")
+
+	assert.False(t, diags.HasError())
+	assert.Equal(t, "", string(body))
 }

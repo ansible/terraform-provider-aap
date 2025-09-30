@@ -148,7 +148,7 @@ resource "aap_workflow_job" "workflow_job" {
 ### Optional
 
 - `extra_vars` (String) Extra Variables. Must be provided as either a JSON or YAML string.
-- `inventory_id` (Number) Identifier for the inventory the job will be run against. If not provided, the job will run against the default inventory.
+- `inventory_id` (Number) Identifier for the inventory the job will be run against.
 - `triggers` (Map of String) Map of arbitrary keys and values that, when changed, will trigger a creation of a new Workflow Job on AAP. Use 'terraform taint' if you want to force the creation of a new workflow job without changing this value.
 
 ### Read-Only

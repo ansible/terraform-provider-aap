@@ -28,3 +28,42 @@ releases:
     - 20250507-fix-aap-job-disappear.yaml
     - 20250529.yaml
     release_date: '2025-06-03'
+  1.3.0:
+    changes:
+      bugfixes:
+      - datasource/base_datasource - Fixed an issue where unknown values were consider
+        missing (#75)
+      - resource/aap_host - Deleting a host will be retried for a default of 30 minutes
+        or until the job completion timeout has been reached (#68)
+      - resource/aap_job - A default inventory-id of 1 will no longer be enforced
+        if a value is not present
+      - resource/aap_workflow_job - A default inventory-id of 1 will no longer be
+        enforced if a value is not present (#111)
+      - resource/job - Jobs now correctly transition from pending to final states
+        when using wait_for_completion = true (#78)
+      major_changes:
+      - New Datasource - aap_organization
+      minor_changes:
+      - Add Darwin and arm64 platform builds
+      - Update to Golang 1.23.9
+    fragments:
+    - 20250730-fix-job-inventory-id.yml
+    - bugs.yml
+    release_date: '2025-08-19'
+  1.3.0-prerelease:
+    changes:
+      minor_changes:
+      - Adds support for Darwin arm64/amd64 and Linux arm64.
+      - Fixes issue where Inventory could become inconsistent.
+      release_summary: Feature release
+    fragments:
+    - v1.3.0-prerelease.yml
+    release_date: '2025-07-10'
+  1.3.0-prerelease2:
+    changes:
+      bugfixes:
+      - Fix issue with unknown values during plan phase.
+      - Prevent workflow job from using a default inventory id.
+    fragments:
+    - 20250715-fix-workflow-job-inventory-id.yml
+    release_date: '2025-07-17'

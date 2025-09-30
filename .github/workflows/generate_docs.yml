@@ -9,21 +9,28 @@ on:
 jobs:
   generate-docs:
     runs-on: ubuntu-latest
+    env:
+        go_version: '1.23.9'
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Checkout Provider
+        uses: actions/checkout@v4
         with:
-          go-version: '1.23'
+          fetch-depth: 0
 
-      - name: Install dependencies
+      - name: Setup Go ${{ env.go_version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.go_version }}
+
+      - name: Install Go dependencies
         run: go get .
 
-      - name: Install tfplugindocs
-        run: go get github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
-
-      - name: Build
+      - name: Build the Provider
         run: go build -v ./...
+
+      - name: Install tfplugindocs
+        run: go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
 
       - uses: hashicorp/setup-terraform@v3
         with:

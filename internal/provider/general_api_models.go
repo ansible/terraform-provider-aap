@@ -47,6 +47,7 @@ type BaseDetailSourceModel struct {
 	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
 }
 
+// TF representation of the BaseDetailSourceModel with organization information.
 type BaseDetailSourceModelWithOrg struct {
 	BaseDetailSourceModel
 	Organization     tftypes.Int64  `tfsdk:"organization"`
@@ -68,4 +69,26 @@ type BaseDataSource struct {
 
 type BaseDataSourceWithOrg struct {
 	BaseDataSource
+}
+
+// BaseResource describes infrastructure objects, such as Jobs, Hosts, or Groups.
+// See https://developer.hashicorp.com/terraform/language/resources
+type BaseResource struct {
+	client ProviderHTTPClient
+	StringDescriptions
+}
+
+// BaseResourceWithOrg represents a resource with an associated AAP Organization.
+type BaseResourceWithOrg struct {
+	BaseResource
+}
+
+// BaseResourceAPIModel represents the most basic AAP API model for resources.
+type BaseResourceAPIModel struct {
+	Url string `json:"url"`
+}
+
+// BaseResourceModel describes fields in a Terraform resource.
+type BaseResourceSourceModel struct {
+	Url tftypes.String `tfsdk:"url"`
 }

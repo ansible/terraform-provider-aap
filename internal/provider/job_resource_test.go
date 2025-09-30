@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,10 +18,16 @@ import (
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-log/tflogtest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
+)
+
+const (
+	statusRunningConst = "running"
+	statusPendingConst = "pending"
 )
 
 func TestJobResourceSchema(t *testing.T) {
@@ -44,7 +53,7 @@ func TestJobResourceSchema(t *testing.T) {
 }
 
 func TestIsFinalStateAAPJob(t *testing.T) {
-	var testTable = []struct {
+	testTable := []struct {
 		name     string
 		input    string
 		expected bool
@@ -71,7 +80,7 @@ func TestIsFinalStateAAPJob(t *testing.T) {
 }
 
 func TestJobResourceCreateRequestBody(t *testing.T) {
-	var testTable = []struct {
+	testTable := []struct {
 		name     string
 		input    JobResourceModel
 		expected []byte
@@ -83,7 +92,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 				InventoryID: basetypes.NewInt64Unknown(),
 				TemplateID:  types.Int64Value(1),
 			},
-			expected: []byte(`{"inventory":1}`),
+			expected: []byte(`{}`),
 		},
 		{
 			name: "null values",
@@ -92,7 +101,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 				InventoryID: basetypes.NewInt64Null(),
 				TemplateID:  types.Int64Value(1),
 			},
-			expected: []byte(`{"inventory":1}`),
+			expected: []byte(`{}`),
 		},
 		{
 			name: "extra vars only",
@@ -100,7 +109,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 				ExtraVars:   customtypes.NewAAPCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
 				InventoryID: basetypes.NewInt64Null(),
 			},
-			expected: []byte(`{"inventory":1,"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
+			expected: []byte(`{"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
 		},
 		{
 			name: "inventory vars only",
@@ -174,7 +183,7 @@ func TestJobResourceParseHttpResponse(t *testing.T) {
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
-	var testTable = []struct {
+	testTable := []struct {
 		name     string
 		input    []byte
 		expected JobResourceModel
@@ -287,6 +296,7 @@ func testAccJobResourcePreCheck(t *testing.T) {
 
 	requiredAAPJobEnvVars := []string{
 		"AAP_TEST_JOB_TEMPLATE_ID",
+		"AAP_TEST_JOB_FOR_HOST_RETRY_ID",
 	}
 
 	for _, key := range requiredAAPJobEnvVars {
@@ -407,6 +417,40 @@ func TestAccAAPJob_UpdateWithTrigger(t *testing.T) {
 	})
 }
 
+// TestAccAAPJob_WaitForCompletion tests that job status is correctly updated to final state
+// when wait_for_completion=true. This test demonstrates the bug described in Issue #78
+// Expected to FAIL on main branch, PASS after PR #131 and #132 are merged.
+func TestAccAAPJob_WaitForCompletion(t *testing.T) {
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_FOR_HOST_RETRY_ID")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccJobWithWaitForCompletion(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckJobExists,
+					// This check should FAIL on main branch due to issue #78
+					// The job status should be "successful" or "failed", not "pending"
+					resource.TestCheckResourceAttrWith("aap_job.test", "status", func(value string) error {
+						if value == statusPendingConst {
+							return fmt.Errorf("issue #78 bug: job status is still in 'pending' instead of final state")
+						}
+						if !IsFinalStateAAPJob(value) {
+							return fmt.Errorf("job status '%s' is not a final state", value)
+						}
+						return nil
+					}),
+					// Verify wait_for_completion was actually used
+					resource.TestCheckResourceAttr("aap_job.test", "wait_for_completion", "true"),
+					resource.TestCheckResourceAttr("aap_job.test", "wait_for_completion_timeout_seconds", "300"),
+				),
+			},
+		},
+	})
+}
+
 // testAccCheckJobPause is designed to force the acceptance test framework to wait
 // until a job is finished. This is needed when the associated inventory also must be
 // deleted.
@@ -474,6 +518,16 @@ resource "aap_job" "test" {
 `, jobTemplateID)
 }
 
+func testAccJobWithWaitForCompletion(jobTemplateID string) string {
+	return fmt.Sprintf(`
+resource "aap_job" "test" {
+	job_template_id                     = %s
+	wait_for_completion                 = true
+	wait_for_completion_timeout_seconds = 300
+}
+`, jobTemplateID)
+}
+
 func TestAccAAPJob_disappears(t *testing.T) {
 	var jobUrl string
 
@@ -527,4 +581,287 @@ func testAccDeleteJob(jobUrl *string) func(s *terraform.State) error {
 		_, err := testDeleteResource(*jobUrl)
 		return err
 	}
+}
+
+// TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling tests the fixed error handling
+// in the retryUntilAAPJobReachesAnyFinalState function. This validates that:
+// 1. Diagnostics errors from client.Get() are properly handled (not standard Go errors)
+// 2. The function returns retryable errors for transient failures
+// 3. Model state is updated correctly as jobs transition from non-final to final states
+func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	// Test diagnostics error handling (500 server error)
+	t.Run("handles diagnostics errors", func(t *testing.T) {
+		model := &JobResourceModel{
+			URL:    types.StringValue("/api/v2/jobs/999/"), // Path not in MockConfig
+			Status: types.StringValue("pending"),
+		}
+
+		// Verify initial state
+		if model.Status.ValueString() != statusPendingConst {
+			t.Errorf("expected initial status 'pending', got '%s'", model.Status.ValueString())
+		}
+
+		mockClient := NewMockHTTPClient([]string{"GET"}, 500) // Server error
+		retryFunc := retryUntilAAPJobReachesAnyFinalState(context.Background(), mockClient, model)
+		err := retryFunc()
+
+		// Should return a retryable error due to 500 status
+		if err == nil {
+			t.Errorf("expected error but got none")
+		}
+		// The retry function should return a retry.RetryError
+		errStr := fmt.Sprintf("%v", err)
+		if !strings.Contains(errStr, "error fetching job status") {
+			t.Errorf("expected error to contain 'error fetching job status', got: %v", errStr)
+		}
+
+		// Model state should remain unchanged since parsing never succeeded
+		if model.Status.ValueString() != statusPendingConst {
+			t.Errorf("expected status to remain 'pending' after error, got '%s'", model.Status.ValueString())
+		}
+	})
+
+	// Test that non-final state returns retryable error
+	t.Run("returns retryable error for non-final state", func(t *testing.T) {
+		model := &JobResourceModel{
+			URL:    types.StringValue("/api/v2/jobs/1/"), // MockConfig has "running" status
+			Status: types.StringValue("pending"),
+		}
+
+		mockClient := NewMockHTTPClient([]string{"GET"}, 200)
+		retryFunc := retryUntilAAPJobReachesAnyFinalState(context.Background(), mockClient, model)
+		err := retryFunc()
+
+		// Should return retryable error since "running" is not a final state
+		if err == nil {
+			t.Errorf("expected error but got none")
+		}
+		// Model should be updated with "running" status from mock response
+		if model.Status.ValueString() != "running" {
+			t.Errorf("expected status 'running', got '%s'", model.Status.ValueString())
+		}
+		// Error should indicate non-final state
+		errStr := fmt.Sprintf("%v", err)
+		if !strings.Contains(errStr, "hasn't yet reached a final state") {
+			t.Errorf("expected error to contain 'hasn't yet reached a final state', got: %v", errStr)
+		}
+	})
+
+	// Test job state transition from running to successful
+	t.Run("handles job state transition from running to successful", func(t *testing.T) {
+		model := &JobResourceModel{
+			URL:    types.StringValue("/api/v2/jobs/123/"), // Use realistic job URL with ID
+			Status: types.StringValue("pending"),
+		}
+
+		// Configure mock responses: first call returns "running", subsequent calls return "successful"
+		responses := []MockResponse{
+			{
+				Data:        []byte(`{"status": "running", "url": "/api/v2/jobs/123/", "type": "run"}`),
+				Diagnostics: diag.Diagnostics{},
+			},
+			{
+				Data:        []byte(`{"status": "successful", "url": "/api/v2/jobs/123/", "type": "run"}`),
+				Diagnostics: diag.Diagnostics{},
+			},
+		}
+		mockClient := NewConfigurableSequenceMockClient(responses)
+
+		retryFunc := retryUntilAAPJobReachesAnyFinalState(context.Background(), mockClient, model)
+
+		// First call - job should be running (returns retryable error)
+		err1 := retryFunc()
+		if err1 == nil {
+			t.Errorf("expected retryable error for running job but got none")
+		}
+		if model.Status.ValueString() != statusRunningConst {
+			t.Errorf("expected status 'running' after first call, got '%s'", model.Status.ValueString())
+		}
+
+		// Second call - job should be successful (returns no error)
+		err2 := retryFunc()
+		if err2 != nil {
+			t.Errorf("expected no error for successful job but got: %v", err2)
+		}
+		if model.Status.ValueString() != "successful" {
+			t.Errorf("expected status 'successful' after second call, got '%s'", model.Status.ValueString())
+		}
+	})
+}
+
+// MockResponse represents a single response in a sequence
+type MockResponse struct {
+	Data        []byte
+	Diagnostics diag.Diagnostics
+}
+
+// ConfigurableSequenceMockClient allows configuring a sequence of responses for multi-call scenarios
+// This is useful for testing retry logic, state transitions, and other multi-step operations
+type ConfigurableSequenceMockClient struct {
+	callCount *int
+	responses []MockResponse
+}
+
+// NewConfigurableSequenceMockClient creates a new mock client with a predefined sequence of responses
+func NewConfigurableSequenceMockClient(responses []MockResponse) *ConfigurableSequenceMockClient {
+	callCount := 0
+	return &ConfigurableSequenceMockClient{
+		callCount: &callCount,
+		responses: responses,
+	}
+}
+
+func (m *ConfigurableSequenceMockClient) Get(_ string) ([]byte, diag.Diagnostics) {
+	*m.callCount++
+
+	// Return the response for this call number (1-indexed)
+	if *m.callCount <= len(m.responses) {
+		response := m.responses[*m.callCount-1]
+		return response.Data, response.Diagnostics
+	}
+
+	// If we've run out of configured responses, return the last one
+	// This handles cases where retry logic might make more calls than expected
+	if len(m.responses) > 0 {
+		lastResponse := m.responses[len(m.responses)-1]
+		return lastResponse.Data, lastResponse.Diagnostics
+	}
+
+	// Fallback: return empty response
+	return []byte(`{}`), diag.Diagnostics{}
+}
+
+// Stub implementations for the remaining interface methods
+func (m *ConfigurableSequenceMockClient) Create(_ string, _ io.Reader) ([]byte, diag.Diagnostics) {
+	return nil, diag.Diagnostics{}
+}
+
+func (m *ConfigurableSequenceMockClient) Update(_ string, _ io.Reader) ([]byte, diag.Diagnostics) {
+	return nil, diag.Diagnostics{}
+}
+
+func (m *ConfigurableSequenceMockClient) Delete(_ string) ([]byte, diag.Diagnostics) {
+	return nil, diag.Diagnostics{}
+}
+
+func (m *ConfigurableSequenceMockClient) GetWithStatus(path string) ([]byte, diag.Diagnostics, int) {
+	body, diags := m.Get(path)
+	return body, diags, 200
+}
+
+func (m *ConfigurableSequenceMockClient) UpdateWithStatus(_ string, _ io.Reader) ([]byte, diag.Diagnostics, int) {
+	return nil, diag.Diagnostics{}, 200
+}
+
+func (m *ConfigurableSequenceMockClient) DeleteWithStatus(_ string) ([]byte, diag.Diagnostics, int) {
+	return nil, diag.Diagnostics{}, 204
+}
+
+func (m *ConfigurableSequenceMockClient) doRequest(_ string, _ string, _ io.Reader) (*http.Response, []byte, error) {
+	return nil, nil, nil
+}
+
+func (m *ConfigurableSequenceMockClient) setApiEndpoint() diag.Diagnostics {
+	return diag.Diagnostics{}
+}
+
+func (m *ConfigurableSequenceMockClient) getApiEndpoint() string {
+	return "/api/v2"
+}
+
+// assertLogFieldEquals validates a specific field in the parsed log entry
+func assertLogFieldEquals(t *testing.T, logEntry map[string]interface{}, fieldName string, expectedValue interface{}) {
+	t.Helper()
+
+	// Check if field exists
+	actualValue, exists := logEntry[fieldName]
+	if !exists {
+		t.Errorf("Expected field '%s' not found in structured log", fieldName)
+		return
+	}
+
+	// Handle JSON number conversion (JSON numbers become float64)
+	if expectedInt, ok := expectedValue.(int); ok {
+		expectedValue = float64(expectedInt)
+	}
+
+	// Compare values
+	if actualValue != expectedValue {
+		t.Errorf("Field '%s': expected '%v', got '%v'", fieldName, expectedValue, actualValue)
+	}
+}
+
+// TestRetryUntilAAPJobReachesAnyFinalState_LoggingBehavior ensures tflog.Debug is used
+// with expected structured fields instead of fmt.Printf
+func TestRetryUntilAAPJobReachesAnyFinalState_LoggingBehavior(t *testing.T) {
+	// Create a buffer to capture tflog output
+	var logBuffer strings.Builder
+
+	// Create a context with tflog writing to our buffer
+	ctx := tflogtest.RootLogger(context.Background(), &logBuffer)
+
+	// Create test model with known values for verification
+	model := &JobResourceModel{
+		TemplateID: types.Int64Value(0),                  // Mock doesn't include job_template here
+		URL:        types.StringValue("/api/v2/jobs/1/"), // This path exists in MockConfig
+		Status:     types.StringValue("pending"),         // Will be updated by ParseHttpResponse
+	}
+
+	// Create a custom mock response for this test (avoid modifying shared fixtures)
+	testJobResponse := map[string]string{
+		"status": "running",
+		"type":   "check",
+		"url":    "/api/v2/jobs/1/",
+	}
+
+	// Create a mock client with custom config for this test
+	mockClient := NewMockHTTPClient([]string{"GET"}, 200)
+
+	// Add our test response to the mock config temporarily
+	originalResponse := MockConfig["/api/v2/jobs/1/"]
+	MockConfig["/api/v2/jobs/1/"] = testJobResponse
+	defer func() {
+		MockConfig["/api/v2/jobs/1/"] = originalResponse
+	}()
+
+	// Execute the retry function once (should return retryable error since "running" is not final)
+	retryFunc := retryUntilAAPJobReachesAnyFinalState(ctx, mockClient, model)
+	err := retryFunc()
+
+	// Verify we get a retryable error since "running" is not a final state
+	if err == nil {
+		t.Error("Expected retryable error for non-final state, got nil")
+	}
+
+	// Debug: Check what the mock actually returned
+	responseBody, _ := mockClient.Get("/api/v2/jobs/1/")
+	t.Logf("Mock response: %s", string(responseBody))
+
+	// Verify the model was updated to "running" status from mock response
+	if model.Status.ValueString() != statusRunningConst {
+		t.Errorf("Expected model status to be updated to 'running', got '%s'", model.Status.ValueString())
+	}
+
+	// Check the captured tflog output
+	logOutput := logBuffer.String()
+	if len(logOutput) == 0 {
+		t.Fatal("No tflog output captured - tflog.Debug may not have been called")
+	}
+
+	// Parse the structured JSON log output once
+	var logEntry map[string]interface{}
+	parseErr := json.Unmarshal([]byte(strings.TrimSpace(logOutput)), &logEntry)
+	if parseErr != nil {
+		t.Fatalf("Failed to parse tflog output as JSON: %v\nOutput: %s", parseErr, logOutput)
+	}
+
+	// Validate structured log fields using helper function
+	assertLogFieldEquals(t, logEntry, "@level", "debug")
+	assertLogFieldEquals(t, logEntry, "@message", "Job status update")
+	assertLogFieldEquals(t, logEntry, "@module", "provider")
+	assertLogFieldEquals(t, logEntry, "job_template_id", 0)
+	assertLogFieldEquals(t, logEntry, "job_url", "/api/v2/jobs/1/")
+	assertLogFieldEquals(t, logEntry, "status", statusRunningConst)
 }
