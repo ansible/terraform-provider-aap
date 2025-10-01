@@ -1,0 +1,2 @@
+major_changes:
+  - New Data Source 'aap_eda_eventstream' supporting lookup of EDA Event Streams for use with 'aap_eda_eventstream_post' Action.
