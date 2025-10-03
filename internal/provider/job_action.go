@@ -131,44 +131,43 @@ func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, respon
 	}
 
 	// Extract job URL for polling if wait_for_completion is enabled
-	jobURL, ok := jobResponse["url"].(string)
-	if !ok {
-		response.Diagnostics.AddError("Error extracting job URL", "Could not extract job URL from response")
-		return
-	}
-
-	// Wait for completion if requested
 	if config.WaitForCompletion.ValueBool() {
-		for ctx.Err() == nil {
-			responseBody, diagnostics := a.client.Get(jobURL)
-			response.Diagnostics.Append(diagnostics...)
-			if response.Diagnostics.HasError() {
-				return
-			}
-
-			var statusResponse map[string]interface{}
-			err = json.Unmarshal(responseBody, &statusResponse)
-			if err != nil {
-				response.Diagnostics.AddError("Error parsing status response", err.Error())
-				return
-			}
-
-			status, ok := statusResponse["status"].(string)
-			if !ok {
-				response.Diagnostics.AddError("Error extracting job status", "Could not extract status from response")
-				return
-			}
-
-			if IsFinalStateAAPJob(status) {
-				break
-			}
-			time.Sleep(1 * time.Second)
-		}
-		if ctx.Err() != nil {
-			response.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", ctx.Err().Error()))
+		jobURL, ok := jobResponse["url"].(string)
+		if !ok {
+			response.Diagnostics.AddError("Error extracting job URL", "Could not extract job URL from response")
 			return
 		}
+		response.Diagnostics.Append(a.waitForCompletion(ctx, jobURL)...)
 	}
+}
+
+func (a *JobAction) waitForCompletion(ctx context.Context, jobURL string) diag.Diagnostics {
+	for ctx.Err() == nil {
+		responseBody, diagnostics := a.client.Get(jobURL)
+		if diagnostics.HasError() {
+			return diagnostics
+		}
+
+		var statusResponse map[string]interface{}
+		err := json.Unmarshal(responseBody, &statusResponse)
+		if err != nil {
+			return diag.Diagnostics{diag.NewErrorDiagnostic("Error parsing status response", err.Error())}
+		}
+
+		status, ok := statusResponse["status"].(string)
+		if !ok {
+			return diag.Diagnostics{diag.NewErrorDiagnostic("Error extracting job status", "Could not extract status from response")}
+		}
+
+		if IsFinalStateAAPJob(status) {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+	if ctx.Err() != nil {
+		return diag.Diagnostics{diag.NewErrorDiagnostic("error when waiting for AAP job to complete", ctx.Err().Error())}
+	}
+	return nil
 }
 
 // Configure configures the job action with the provider client
