@@ -184,7 +184,7 @@ func TestWorkflowJobResourceParseHttpResponse(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			resource := WorkflowJobResourceModel{}
-			diags := resource.ParseHttpResponse(test.input)
+			diags := resource.ParseHTTPResponse(test.input)
 			if !test.errors.Equal(diags) {
 				t.Errorf("Expected error diagnostics (%s), actual was (%s)", test.errors, diags)
 			}

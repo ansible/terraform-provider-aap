@@ -17,29 +17,29 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Group AAP API model
+// GroupAPIModel represents a Group AAP API model
 type GroupAPIModel struct {
-	InventoryId int64  `json:"inventory"`
+	InventoryID int64  `json:"inventory"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	URL         string `json:"url,omitempty"`
 	Variables   string `json:"variables,omitempty"`
-	Id          int64  `json:"id,omitempty"`
+	ID          int64  `json:"id,omitempty"`
 }
 
 // GroupResourceModel maps the group resource schema to a Go struct
 type GroupResourceModel struct {
-	InventoryId types.Int64                      `tfsdk:"inventory_id"`
+	InventoryID types.Int64                      `tfsdk:"inventory_id"`
 	Name        types.String                     `tfsdk:"name"`
 	Description types.String                     `tfsdk:"description"`
 	URL         types.String                     `tfsdk:"url"`
 	Variables   customtypes.AAPCustomStringValue `tfsdk:"variables"`
-	Id          types.Int64                      `tfsdk:"id"`
+	ID          types.Int64                      `tfsdk:"id"`
 }
 
 // GroupResource is the resource implementation.
 type GroupResource struct {
-	client ProviderHTTPClient
+	client HTTPClient
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -138,7 +138,7 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 	requestData := bytes.NewReader(createRequestBody)
 
 	// Create new group in AAP
-	groupsURL := path.Join(r.client.getApiEndpoint(), "groups")
+	groupsURL := path.Join(r.client.getAPIEndpoint(), "groups")
 	createResponseBody, diags := r.client.Create(groupsURL, requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -146,7 +146,7 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	// Save new group data into group resource model
-	diags = data.ParseHttpResponse(createResponseBody)
+	diags = data.ParseHTTPResponse(createResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -178,7 +178,7 @@ func (r *GroupResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	}
 
 	// Save latest group data into group resource model
-	diags = data.ParseHttpResponse(readResponseBody)
+	diags = data.ParseHTTPResponse(readResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -218,7 +218,7 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	// Save updated group data into group resource model
-	diags = data.ParseHttpResponse(updateResponseBody)
+	diags = data.ParseHTTPResponse(updateResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -254,7 +254,7 @@ func (r *GroupResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 func (r *GroupResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	// Convert group resource data to API data model
 	group := GroupAPIModel{
-		InventoryId: r.InventoryId.ValueInt64(),
+		InventoryID: r.InventoryID.ValueInt64(),
 		Name:        r.Name.ValueString(),
 		Description: r.Description.ValueString(),
 		Variables:   r.Variables.ValueString(),
@@ -274,25 +274,25 @@ func (r *GroupResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	return jsonBody, nil
 }
 
-// ParseHttpResponse updates the group resource data from an AAP API response
-func (r *GroupResourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
+// ParseHTTPResponse updates the group resource data from an AAP API response
+func (r *GroupResourceModel) ParseHTTPResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	// Unmarshal the JSON response
-	var resultApiGroup GroupAPIModel
-	err := json.Unmarshal(body, &resultApiGroup)
+	var resultAPIGroup GroupAPIModel
+	err := json.Unmarshal(body, &resultAPIGroup)
 	if err != nil {
 		diags.AddError("Error parsing JSON response from AAP", err.Error())
 		return diags
 	}
 
 	// Map response to the group resource schema and update attribute values
-	r.InventoryId = types.Int64Value(resultApiGroup.InventoryId)
-	r.URL = types.StringValue(resultApiGroup.URL)
-	r.Id = types.Int64Value(resultApiGroup.Id)
-	r.Name = types.StringValue(resultApiGroup.Name)
-	r.Description = ParseStringValue(resultApiGroup.Description)
-	r.Variables = ParseAAPCustomStringValue(resultApiGroup.Variables)
+	r.InventoryID = types.Int64Value(resultAPIGroup.InventoryID)
+	r.URL = types.StringValue(resultAPIGroup.URL)
+	r.ID = types.Int64Value(resultAPIGroup.ID)
+	r.Name = types.StringValue(resultAPIGroup.Name)
+	r.Description = ParseStringValue(resultAPIGroup.Description)
+	r.Variables = ParseAAPCustomStringValue(resultAPIGroup.Variables)
 
 	return diags
 }

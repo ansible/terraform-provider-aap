@@ -1,3 +1,5 @@
+version: 2
+
 linters-settings:
   goconst:
     min-len: 2
@@ -5,7 +7,7 @@ linters-settings:
   gocyclo:
     min-complexity: 15
   gosec:
-    excludes:
+    exclude-rules:
       - G402
   govet:
     settings:
@@ -35,39 +37,41 @@ linters:
   disable-all: true
   enable:
     - dogsled
-    # - dupl  Terraform framework uses similar patterns so this linter creates a lot of false positives
     - errcheck
-    - exportloopref
     - gocheckcompilerdirectives
     - gochecknoinits
     - goconst
     - gocritic
     - gocyclo
-    - gofmt
-    - goimports
-    - gomnd
     - goprintffuncname
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - lll
     - misspell
+    - mnd
     - nakedret
     - noctx
     - nolintlint
     - revive
     - staticcheck
-    - stylecheck
-    - typecheck
     - unconvert
     - unparam
     - unused
     - whitespace
+  settings:
+    lll:
+      line-length: 160
+formatters:
+  enable:
+    - gofmt
+    - goimports
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source
   exclude-rules: []
+
+
 
 run:
   timeout: 5m

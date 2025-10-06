@@ -162,7 +162,7 @@ resource "aap_job" "job" {
 
 ### Required
 
-- `job_template_id` (Number) Id of the job template.
+- `job_template_id` (Number) ID of the job template.
 
 ### Optional
 

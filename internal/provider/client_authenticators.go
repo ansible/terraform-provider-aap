@@ -7,16 +7,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 )
 
+// AAPClientAuthenticator defines the interface for AAP client authentication methods
 type AAPClientAuthenticator interface {
 	Configure(*http.Request)
 }
 
-// Basic authenticator supports username/password auth
+// AAPClientBasicAuthenticator supports username/password auth
 type AAPClientBasicAuthenticator struct {
 	username string
 	password string
 }
 
+// NewBasicAuthenticator creates a new basic authentication authenticator
 func NewBasicAuthenticator(username *string, password *string) (*AAPClientBasicAuthenticator, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	if username == nil {
@@ -38,16 +40,18 @@ func NewBasicAuthenticator(username *string, password *string) (*AAPClientBasicA
 	}, nil
 }
 
+// Configure configures the HTTP request with basic authentication
 func (a *AAPClientBasicAuthenticator) Configure(req *http.Request) {
 	// To configure basic auth, we can just use http.Request's SetBasicAuth
 	req.SetBasicAuth(a.username, a.password)
 }
 
-// Token authenticator supports Token auth
+// AAPClientTokenAuthenticator supports Token auth
 type AAPClientTokenAuthenticator struct {
 	token string // Required
 }
 
+// NewTokenAuthenticator creates a new token authentication authenticator
 func NewTokenAuthenticator(token *string) (*AAPClientTokenAuthenticator, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	if token == nil {
@@ -66,6 +70,7 @@ func NewTokenAuthenticator(token *string) (*AAPClientTokenAuthenticator, diag.Di
 	}, nil
 }
 
+// Configure configures the HTTP request with token authentication
 func (a *AAPClientTokenAuthenticator) Configure(req *http.Request) {
 	header := "Authorization"
 	prefix := "Bearer"

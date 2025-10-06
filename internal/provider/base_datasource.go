@@ -33,20 +33,20 @@ var (
 // Constructors
 // ---------------------------------------------------------------------------
 
-// Constructs a new BaseDataSource object provided with a client instance (usually
+// NewBaseDataSource constructs a new BaseDataSource object provided with a client instance (usually
 // initialized to nil, it will be later configured calling the Configure function)
 // and an apiEntitySlug string indicating the entity path name to consult the API.
-func NewBaseDataSource(client ProviderHTTPClient, stringDescriptions StringDescriptions) *BaseDataSource {
+func NewBaseDataSource(client HTTPClient, stringDescriptions StringDescriptions) *BaseDataSource {
 	return &BaseDataSource{
 		client:             client,
 		StringDescriptions: stringDescriptions,
 	}
 }
 
-// Constructs a new BaseDataSourceWithOrg object provided with a client instance (usually
+// NewBaseDataSourceWithOrg constructs a new BaseDataSourceWithOrg object provided with a client instance (usually
 // initialized to nil, it will be later configured calling the Configure function)
 // and an apiEntitySlug string indicating the entity path name to consult the API.
-func NewBaseDataSourceWithOrg(client ProviderHTTPClient, stringDescriptions StringDescriptions) *BaseDataSourceWithOrg {
+func NewBaseDataSourceWithOrg(client HTTPClient, stringDescriptions StringDescriptions) *BaseDataSourceWithOrg {
 	return &BaseDataSourceWithOrg{
 		BaseDataSource: BaseDataSource{
 			client:             client,
@@ -61,7 +61,8 @@ func NewBaseDataSourceWithOrg(client ProviderHTTPClient, stringDescriptions Stri
 
 // Metadata returns the data source type name composing it from the provider type name and the
 // entity slug string passed in the constructor.
-func (d *BaseDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+func (d *BaseDataSource) Metadata(_ context.Context, req datasource.MetadataRequest,
+	resp *datasource.MetadataResponse) {
 	resp.TypeName = fmt.Sprintf("%s_%s", req.ProviderTypeName, d.MetadataEntitySlug)
 }
 
@@ -79,11 +80,11 @@ func (d *BaseDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 			},
 			"url": schema.StringAttribute{
 				Computed:    true,
-				Description: fmt.Sprintf("Url of the %s", d.DescriptiveEntityName),
+				Description: fmt.Sprintf("URL of the %s", d.DescriptiveEntityName),
 			},
 			"named_url": schema.StringAttribute{
 				Computed:    true,
-				Description: fmt.Sprintf("The Named Url of the %s", d.DescriptiveEntityName),
+				Description: fmt.Sprintf("The Named URL of the %s", d.DescriptiveEntityName),
 			},
 			"name": schema.StringAttribute{
 				Optional:    true,
@@ -123,11 +124,11 @@ func (d *BaseDataSourceWithOrg) Schema(_ context.Context, _ datasource.SchemaReq
 			},
 			"url": schema.StringAttribute{
 				Computed:    true,
-				Description: fmt.Sprintf("Url of the %s", d.DescriptiveEntityName),
+				Description: fmt.Sprintf("URL of the %s", d.DescriptiveEntityName),
 			},
 			"named_url": schema.StringAttribute{
 				Computed:    true,
-				Description: fmt.Sprintf("The Named Url of the %s", d.DescriptiveEntityName),
+				Description: fmt.Sprintf("The Named URL of the %s", d.DescriptiveEntityName),
 			},
 			"name": schema.StringAttribute{
 				Optional:    true,
@@ -153,6 +154,7 @@ func (d *BaseDataSourceWithOrg) Schema(_ context.Context, _ datasource.SchemaReq
 // ConfigValidators
 // ---------------------------------------------------------------------------
 
+// ConfigValidators returns configuration validators for the BaseDataSource.
 func (d *BaseDataSource) ConfigValidators(_ context.Context) []datasource.ConfigValidator {
 	// You have at least an id
 	return []datasource.ConfigValidator{
@@ -163,6 +165,7 @@ func (d *BaseDataSource) ConfigValidators(_ context.Context) []datasource.Config
 	}
 }
 
+// ConfigValidators returns configuration validators for the BaseDataSourceWithOrg.
 func (d *BaseDataSourceWithOrg) ConfigValidators(_ context.Context) []datasource.ConfigValidator {
 	// You have at least an id or a name + organization_name pair
 	return []datasource.ConfigValidator{
@@ -180,6 +183,7 @@ func (d *BaseDataSourceWithOrg) ConfigValidators(_ context.Context) []datasource
 // ValidateConfig
 // ---------------------------------------------------------------------------
 
+// ValidateConfig validates the configuration for the BaseDataSource.
 func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, resp *datasource.ValidateConfigResponse) {
 	// Check that the response and diagnostics pointer is defined
 	if resp == nil {
@@ -188,7 +192,7 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("ValidateConfig", ctx, &resp.Diagnostics) {
+	if !IsContextActive(ctx, "ValidateConfig", &resp.Diagnostics) {
 		return
 	}
 
@@ -200,11 +204,11 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 		return
 	}
 
-	if IsValueProvidedOrPromised(data.Id) {
+	if IsValueProvidedOrPromised(data.ID) {
 		return
 	}
 
-	if !IsValueProvidedOrPromised(data.Id) {
+	if !IsValueProvidedOrPromised(data.ID) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Attribute Configuration",
@@ -213,6 +217,7 @@ func (d *BaseDataSource) ValidateConfig(ctx context.Context, req datasource.Vali
 	}
 }
 
+// ValidateConfig validates the configuration for the BaseDataSourceWithOrg.
 func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasource.ValidateConfigRequest, resp *datasource.ValidateConfigResponse) {
 	// Check that the response and diagnostics pointer is defined
 	if resp == nil {
@@ -221,7 +226,7 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("ValidateConfig", ctx, &resp.Diagnostics) {
+	if !IsContextActive(ctx, "ValidateConfig", &resp.Diagnostics) {
 		return
 	}
 
@@ -233,7 +238,7 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 		return
 	}
 
-	if IsValueProvidedOrPromised(data.Id) {
+	if IsValueProvidedOrPromised(data.ID) {
 		return
 	}
 
@@ -241,7 +246,7 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 		return
 	}
 
-	if !IsValueProvidedOrPromised(data.Id) && !IsValueProvidedOrPromised(data.Name) {
+	if !IsValueProvidedOrPromised(data.ID) && !IsValueProvidedOrPromised(data.Name) {
 		resp.Diagnostics.AddAttributeWarning(
 			tfpath.Root("id"),
 			"Missing Attribute Configuration",
@@ -271,7 +276,8 @@ func (d *BaseDataSourceWithOrg) ValidateConfig(ctx context.Context, req datasour
 // ---------------------------------------------------------------------------
 
 // Configure adds the provider configured client to the data source.
-func (d *BaseDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+func (d *BaseDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest,
+	resp *datasource.ConfigureResponse) {
 	// Check that the response and diagnostics pointer is defined
 	if resp == nil {
 		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
@@ -279,7 +285,7 @@ func (d *BaseDataSource) Configure(ctx context.Context, req datasource.Configure
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("Configure", ctx, &resp.Diagnostics) {
+	if !IsContextActive(ctx, "Configure", &resp.Diagnostics) {
 		return
 	}
 
@@ -316,9 +322,9 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
-	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
+	uri := path.Join(d.client.getAPIEndpoint(), d.APIEntitySlug)
 	resourceURL, err := state.CreateNamedURL(uri, &BaseDetailAPIModel{
-		Id:   state.Id.ValueInt64(),
+		ID:   state.ID.ValueInt64(),
 		Name: state.Name.ValueString(),
 	})
 	if err != nil {
@@ -332,7 +338,7 @@ func (d *BaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	diags = state.ParseHttpResponse(readResponseBody)
+	diags = state.ParseHTTPResponse(readResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -358,15 +364,15 @@ func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadReq
 
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
-	uri := path.Join(d.client.getApiEndpoint(), d.ApiEntitySlug)
+	uri := path.Join(d.client.getAPIEndpoint(), d.APIEntitySlug)
 	resourceURL, err := state.CreateNamedURL(uri, &BaseDetailAPIModelWithOrg{
 		BaseDetailAPIModel: BaseDetailAPIModel{
-			Id:   state.Id.ValueInt64(),
+			ID:   state.ID.ValueInt64(),
 			Name: state.Name.ValueString(),
 		},
 		SummaryFields: SummaryFieldsAPIModel{
 			Organization: SummaryField{
-				Id:   state.Organization.ValueInt64(),
+				ID:   state.Organization.ValueInt64(),
 				Name: state.OrganizationName.ValueString(),
 			},
 		},
@@ -382,7 +388,7 @@ func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 
-	diags = state.ParseHttpResponse(readResponseBody)
+	diags = state.ParseHTTPResponse(readResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -400,9 +406,9 @@ func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadReq
 // ParseHttpResponse
 // ---------------------------------------------------------------------------
 
-// This function allows us to parse the incoming data in HTTP requests from the API
+// ParseHTTPResponse allows us to parse the incoming data in HTTP requests from the API
 // into the BaseDetailSourceModel instances.
-func (d *BaseDetailSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
+func (d *BaseDetailSourceModel) ParseHTTPResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	// Unmarshal the JSON response
@@ -414,22 +420,22 @@ func (d *BaseDetailSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics 
 	}
 
 	// Map the response to the BaseDetailSourceModel datasource schema
-	d.Id = tftypes.Int64Value(apiModel.Id)
+	d.ID = tftypes.Int64Value(apiModel.ID)
 	d.URL = ParseStringValue(apiModel.URL)
 	d.Name = ParseStringValue(apiModel.Name)
 	d.Description = ParseStringValue(apiModel.Description)
 	d.Variables = ParseAAPCustomStringValue(apiModel.Variables)
 	// Parse the related fields
-	d.NamedUrl = ParseStringValue(apiModel.Related.NamedUrl)
+	d.NamedURL = ParseStringValue(apiModel.Related.NamedURL)
 
 	return diags
 }
 
-// This function allows us to parse the incoming data in HTTP requests from the API
+// ParseHTTPResponse allows us to parse the incoming data in HTTP requests from the API
 // into the BaseDetailSourceModelWithOrg instances.
-func (d *BaseDetailSourceModelWithOrg) ParseHttpResponse(body []byte) diag.Diagnostics {
+func (d *BaseDetailSourceModelWithOrg) ParseHTTPResponse(body []byte) diag.Diagnostics {
 	// Let my parent's ParseHttpResponse method handle the base fields
-	diags := d.BaseDetailSourceModel.ParseHttpResponse(body)
+	diags := d.BaseDetailSourceModel.ParseHTTPResponse(body)
 	if diags.HasError() {
 		return diags
 	}
@@ -448,7 +454,7 @@ func (d *BaseDetailSourceModelWithOrg) ParseHttpResponse(body []byte) diag.Diagn
 	d.Organization = tftypes.Int64Value(apiModel.Organization)
 	d.Variables = ParseAAPCustomStringValue(apiModel.Variables)
 	// Parse the related fields
-	d.NamedUrl = ParseStringValue(apiModel.Related.NamedUrl)
+	d.NamedURL = ParseStringValue(apiModel.Related.NamedURL)
 	// Parse the summary fields
 	d.OrganizationName = ParseStringValue(apiModel.SummaryFields.Organization.Name)
 

@@ -37,6 +37,7 @@ type RetryConfig struct {
 	ctx                context.Context
 }
 
+// RetryResult contains the result of a retry operation
 type RetryResult struct {
 	Body  []byte
 	Diags diag.Diagnostics
@@ -44,22 +45,28 @@ type RetryResult struct {
 }
 
 const (
-	// Default Retry Times
-	DefaultRetryTimeout      = 1800 // Overall timeout for retry (seconds) Default: 30min
-	DefaultRetryDelay        = 5    // Time to wait between retries (seconds)
-	DefaultRetryInitialDelay = 2    // Initial delay before first retry (seconds)
+	// DefaultRetryTimeout is the overall timeout for retry operations (seconds) Default: 30min
+	DefaultRetryTimeout = 1800
 
-	// Retry States
-	RetryStateError    = "error"
+	// DefaultRetryDelay is the time to wait between retries (seconds)
+	DefaultRetryDelay = 5
+
+	// DefaultRetryInitialDelay is the initial delay before first retry (seconds)
+	DefaultRetryInitialDelay = 2
+
+	// RetryStateError represents an error state in retry operations
+	RetryStateError = "error"
+	// RetryStateRetrying represents a retrying state in retry operations
 	RetryStateRetrying = "retrying"
-	RetryStateSuccess  = "success"
+	// RetryStateSuccess represents a success state in retry operations
+	RetryStateSuccess = "success"
 )
 
 var (
-	// Success status codes for retry operations
+	// DefaultRetrySuccessStatusCodes contains success status codes for retry operations
 	DefaultRetrySuccessStatusCodes = []int{http.StatusAccepted, http.StatusNoContent}
 
-	// Retryable status codes for retry operations
+	// DefaultRetryableStatusCodes contains retryable status codes for retry operations
 	// Common retryable scenarios based on RFC 7231 and industry standards:
 	// - HTTP 409: Resource conflict (host in use by running jobs)
 	// - HTTP 408: Request timeout
@@ -185,7 +192,7 @@ func RetryWithConfig(retryConfig *RetryConfig) (*RetryResult, error) {
 	if retryConfig.ctx == nil {
 		return nil, fmt.Errorf("retry operation '%s': context cannot be nil", retryConfig.operationName)
 	}
-	if !IsContextActive(retryConfig.operationName, retryConfig.ctx, nil) {
+	if !IsContextActive(retryConfig.ctx, retryConfig.operationName, nil) {
 		return nil, fmt.Errorf("retry operation '%s': context is not active", retryConfig.operationName)
 	}
 

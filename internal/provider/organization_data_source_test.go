@@ -41,7 +41,7 @@ func TestOrganizationDataSourceValidateConfig(t *testing.T) {
 
 	var testTable = []struct {
 		name               string
-		hasId              bool
+		hasID              bool
 		hasName            bool
 		expectedWarnings   int
 		expectedErrors     int
@@ -49,28 +49,28 @@ func TestOrganizationDataSourceValidateConfig(t *testing.T) {
 	}{
 		{
 			name:             "valid config with id",
-			hasId:            true,
+			hasID:            true,
 			hasName:          false,
 			expectedWarnings: 0,
 			expectedErrors:   0,
 		},
 		{
 			name:             "valid config with name",
-			hasId:            false,
+			hasID:            false,
 			hasName:          true,
 			expectedWarnings: 0,
 			expectedErrors:   0,
 		},
 		{
 			name:             "valid config with both id and name",
-			hasId:            true,
+			hasID:            true,
 			hasName:          true,
 			expectedWarnings: 0,
 			expectedErrors:   0,
 		},
 		{
 			name:               "invalid config with neither id nor name",
-			hasId:              false,
+			hasID:              false,
 			hasName:            false,
 			expectedWarnings:   1,
 			expectedErrors:     0,
@@ -96,10 +96,10 @@ func TestOrganizationDataSourceValidateConfig(t *testing.T) {
 
 			// Create test data model
 			var data OrganizationDataSourceModel
-			if test.hasId {
-				data.Id = types.Int64Value(1)
+			if test.hasID {
+				data.ID = types.Int64Value(1)
 			} else {
-				data.Id = types.Int64Null()
+				data.ID = types.Int64Null()
 			}
 
 			if test.hasName {
@@ -110,7 +110,7 @@ func TestOrganizationDataSourceValidateConfig(t *testing.T) {
 
 			// Create a simple config for testing
 			configMap := make(map[string]tftypes.Value)
-			if test.hasId {
+			if test.hasID {
 				configMap["id"] = tftypes.NewValue(tftypes.Number, int64(1))
 			} else {
 				configMap["id"] = tftypes.NewValue(tftypes.Number, nil)
@@ -194,9 +194,9 @@ func TestOrganizationDataSourceParseHttpResponse(t *testing.T) {
 			input: []byte(`{"id":1,"url":"/organizations/1/"}`),
 			expected: OrganizationDataSourceModel{
 				BaseDetailSourceModel: BaseDetailSourceModel{
-					Id:          types.Int64Value(1),
+					ID:          types.Int64Value(1),
 					URL:         types.StringValue("/organizations/1/"),
-					NamedUrl:    types.StringNull(),
+					NamedURL:    types.StringNull(),
 					Name:        types.StringNull(),
 					Description: types.StringNull(),
 				},
@@ -206,13 +206,13 @@ func TestOrganizationDataSourceParseHttpResponse(t *testing.T) {
 		{
 			name: "all values",
 			input: []byte(
-				`{"id":1,"url":"/organizations/1/","name":"my organization","description":"My Test Organization","related":{"named_url":"/api/controller/v2/organization/Default"}}`, //nolint:golint,lll
+				`{"id":1,"url":"/organizations/1/","name":"my organization","description":"My Test Organization","related":{"named_url":"/api/controller/v2/organization/Default"}}`, //nolint:lll
 			),
 			expected: OrganizationDataSourceModel{
 				BaseDetailSourceModel: BaseDetailSourceModel{
-					Id:          types.Int64Value(1),
+					ID:          types.Int64Value(1),
 					URL:         types.StringValue("/organizations/1/"),
-					NamedUrl:    types.StringValue("/api/controller/v2/organization/Default"),
+					NamedURL:    types.StringValue("/api/controller/v2/organization/Default"),
 					Name:        types.StringValue("my organization"),
 					Description: types.StringValue("My Test Organization"),
 				},
@@ -224,7 +224,7 @@ func TestOrganizationDataSourceParseHttpResponse(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			resource := OrganizationDataSourceModel{}
-			diags := resource.ParseHttpResponse(test.input)
+			diags := resource.ParseHTTPResponse(test.input)
 			if !test.errors.Equal(diags) {
 				t.Errorf("Expected error diagnostics (%s), Received (%s)", test.errors, diags)
 			}
@@ -251,7 +251,7 @@ func TestAccOrganizationDataSource(t *testing.T) {
 			},
 			// Read Default Organization by name
 			{
-				Config: createTestAccOrganizationDataSourceNamedUrlHCL("Default"),
+				Config: createTestAccOrganizationDataSourceNamedURLHCL("Default"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "id", "1"),
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "name", "Default"),
@@ -283,7 +283,7 @@ func TestAccOrganizationDataSourceWithIdAndName(t *testing.T) {
 		Steps: []resource.TestStep{
 			// ID Should take precedence
 			{
-				Config: testAccOrganizationDataSourceWithIdAndNameHCL("1", "SomeOtherOrganization"),
+				Config: testAccOrganizationDataSourceWithIDAndNameHCL("1", "SomeOtherOrganization"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "id", "1"),
 					resource.TestCheckResourceAttr("data.aap_organization.default_org", "name", "Default"),
@@ -305,7 +305,7 @@ func TestAccOrganizationDataSourceNonExistentValues(t *testing.T) {
 				ExpectError: regexp.MustCompile("got \\(404\\).*No\nOrganization matches the given query"),
 			},
 			{
-				Config:      createTestAccOrganizationDataSourceNamedUrlHCL("Does Not Exist"),
+				Config:      createTestAccOrganizationDataSourceNamedURLHCL("Does Not Exist"),
 				ExpectError: regexp.MustCompile("got \\(404\\).*No\nOrganization matches the given query"),
 			},
 		},
@@ -322,7 +322,7 @@ data "aap_organization" "default_org" {
 `, id)
 }
 
-func createTestAccOrganizationDataSourceNamedUrlHCL(name string) string {
+func createTestAccOrganizationDataSourceNamedURLHCL(name string) string {
 	return fmt.Sprintf(`
 data "aap_organization" "default_org" {
   name = "%s"
@@ -337,7 +337,7 @@ data "aap_organization" "bad_hcl" {
 `
 }
 
-func testAccOrganizationDataSourceWithIdAndNameHCL(id string, name string) string {
+func testAccOrganizationDataSourceWithIDAndNameHCL(id string, name string) string {
 	return fmt.Sprintf(`
 data "aap_organization" "default_org" {
   id   = %s

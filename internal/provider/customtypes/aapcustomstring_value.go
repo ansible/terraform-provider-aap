@@ -42,7 +42,7 @@ func NewAAPCustomStringValue(value string) AAPCustomStringValue {
 	}
 }
 
-// NewAAPCustomStringPointerValue creates a AAPCustomStringValue with a null value if
+// NewCustomStringPointerValue creates a AAPCustomStringValue with a null value if
 // nil or a known value.
 func NewCustomStringPointerValue(value *string) AAPCustomStringValue {
 	if value == nil {
@@ -73,14 +73,16 @@ func (v AAPCustomStringValue) String() string {
 
 // StringSemanticEquals checks if two AAPCustomStringValue objects have
 // equivalent values, even if they are not equal.
-func (v AAPCustomStringValue) StringSemanticEquals(_ context.Context, newValuable basetypes.StringValuable) (bool, diag.Diagnostics) {
+func (v AAPCustomStringValue) StringSemanticEquals(_ context.Context, newValuable basetypes.StringValuable) (
+	bool, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	newValue, ok := newValuable.(AAPCustomStringValue)
 	if !ok {
 		diags.AddError(
 			"Semantic Equality Check Error",
-			fmt.Sprintf("Expected value type %T but got value type %T. Please report this to the provider developers.", v, newValuable),
+			fmt.Sprintf("Expected value type %T but got value type %T. "+
+				"Please report this to the provider developers.", v, newValuable),
 		)
 
 		return false, diags
