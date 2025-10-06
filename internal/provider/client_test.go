@@ -10,6 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	apiEndpoint        = "/api/"
+	controllerEndpoint = "/api/controller/"
+	edaEndpoint        = "/api/eda/"
+)
+
 type MockAuthenticator struct {
 }
 
@@ -45,7 +51,7 @@ func TestComputeURLPath(t *testing.T) {
 
 func TestReadApiEndpoint(t *testing.T) {
 	server_24 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/" {
+		if r.URL.Path != apiEndpoint {
 			t.Errorf("Expected to request '/api/', got: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
@@ -55,13 +61,13 @@ func TestReadApiEndpoint(t *testing.T) {
 
 	server_25 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/":
+		case apiEndpoint:
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"apis":{"gateway": "/api/gateway/", "controller": "/api/controller/", "eda": "/api/eda/"}}`)) //nolint:errcheck
-		case "/api/controller/":
+		case controllerEndpoint:
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"current_version": "/api/controller/v2/"}`)) //nolint:errcheck
-		case "/api/eda/":
+		case edaEndpoint:
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"current_version": "http://localhost/api/eda/v1/"}`)) //nolint:errcheck
 		default:
@@ -70,12 +76,12 @@ func TestReadApiEndpoint(t *testing.T) {
 	}))
 	defer server_25.Close()
 
-	failingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	failingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer failingServer.Close()
 
-	badJsonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	badJsonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// Write back intentionally invalid JSON
 		w.Write([]byte(`{`)) //nolint:errcheck
 	}))
@@ -83,10 +89,10 @@ func TestReadApiEndpoint(t *testing.T) {
 
 	serverWithMissingControllerEndpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/":
+		case apiEndpoint:
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"apis":{"gateway": "/api/gateway/", "controller": "/api/controller/", "eda": "/api/eda/"}}`)) //nolint:errcheck
-		case "/api/controller/":
+		case controllerEndpoint:
 			w.WriteHeader(http.StatusNotFound)
 		default:
 			t.Errorf("Expected to request one of '/api/', '/api/controller/', '/api/eda/', got: %s", r.URL.Path)
@@ -96,10 +102,10 @@ func TestReadApiEndpoint(t *testing.T) {
 
 	serverWithBadControllerJSON := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/":
+		case apiEndpoint:
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"apis":{"gateway": "/api/gateway/", "controller": "/api/controller/", "eda": "/api/eda/"}}`)) //nolint:errcheck
-		case "/api/controller/":
+		case controllerEndpoint:
 			// Write back intentionally invalid JSON
 			w.Write([]byte(`{`)) //nolint:errcheck
 		default:
@@ -110,13 +116,13 @@ func TestReadApiEndpoint(t *testing.T) {
 
 	serverWithMissingEDAEndpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/":
+		case apiEndpoint:
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"apis":{"gateway": "/api/gateway/", "controller": "/api/controller/", "eda": "/api/eda/"}}`)) //nolint:errcheck
-		case "/api/controller/":
+		case controllerEndpoint:
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"current_version": "/api/controller/v2/"}`)) //nolint:errcheck
-		case "/api/eda/":
+		case edaEndpoint:
 			w.WriteHeader(http.StatusNotFound)
 		default:
 			t.Errorf("Expected to request one of '/api/', '/api/controller/', '/api/eda/', got: %s", r.URL.Path)
@@ -126,12 +132,12 @@ func TestReadApiEndpoint(t *testing.T) {
 
 	serverWithBadEDAJSON := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/":
+		case apiEndpoint:
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"apis":{"gateway": "/api/gateway/", "controller": "/api/controller/", "eda": "/api/eda/"}}`)) //nolint:errcheck
-		case "/api/controller/":
+		case controllerEndpoint:
 			w.Write([]byte(`{"current_version": "/api/controller/v2/"}`)) //nolint:errcheck
-		case "/api/eda/":
+		case edaEndpoint:
 			// Write back intentionally invalid JSON
 			w.Write([]byte(`{`)) //nolint:errcheck
 		default:
@@ -142,12 +148,12 @@ func TestReadApiEndpoint(t *testing.T) {
 
 	serverWithInvalidEDAURL := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/":
+		case apiEndpoint:
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"apis":{"gateway": "/api/gateway/", "controller": "/api/controller/", "eda": "/api/eda/"}}`)) //nolint:errcheck
-		case "/api/controller/":
+		case controllerEndpoint:
 			w.Write([]byte(`{"current_version": "/api/controller/v2/"}`)) //nolint:errcheck
-		case "/api/eda/":
+		case edaEndpoint:
 			// Write an invalid url
 			w.Write([]byte(`{"current_version": "://localhost/api/eda/v1/"}`)) //nolint:errcheck
 		default:
