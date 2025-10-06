@@ -135,7 +135,7 @@ func TestWorkflowJobResourceCreateRequestBody(t *testing.T) {
 	}
 }
 
-func TestWorkflowJobResourceParseHttpResponse(t *testing.T) {
+func TestWorkflowJobResourceParseHTTPResponse(t *testing.T) {
 	templateID := basetypes.NewInt64Value(1)
 	inventoryID := basetypes.NewInt64Value(2)
 	extraVars := customtypes.NewAAPCustomStringNull()

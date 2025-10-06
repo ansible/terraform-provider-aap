@@ -173,7 +173,7 @@ func TestOrganizationDataSourceValidateConfig(t *testing.T) {
 	}
 }
 
-func TestOrganizationDataSourceParseHttpResponse(t *testing.T) {
+func TestOrganizationDataSourceParseHTTPResponse(t *testing.T) {
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 

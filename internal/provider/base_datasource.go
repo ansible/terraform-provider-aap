@@ -403,7 +403,7 @@ func (d *BaseDataSourceWithOrg) Read(ctx context.Context, req datasource.ReadReq
 }
 
 // ---------------------------------------------------------------------------
-// ParseHttpResponse
+// ParseHTTPResponse
 // ---------------------------------------------------------------------------
 
 // ParseHTTPResponse allows us to parse the incoming data in HTTP requests from the API
@@ -434,7 +434,7 @@ func (d *BaseDetailSourceModel) ParseHTTPResponse(body []byte) diag.Diagnostics 
 // ParseHTTPResponse allows us to parse the incoming data in HTTP requests from the API
 // into the BaseDetailSourceModelWithOrg instances.
 func (d *BaseDetailSourceModelWithOrg) ParseHTTPResponse(body []byte) diag.Diagnostics {
-	// Let my parent's ParseHttpResponse method handle the base fields
+	// Let my parent's ParseHTTPResponse method handle the base fields
 	diags := d.BaseDetailSourceModel.ParseHTTPResponse(body)
 	if diags.HasError() {
 		return diags

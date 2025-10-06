@@ -35,7 +35,7 @@ func TestInventoryDataSourceSchema(t *testing.T) {
 	}
 }
 
-func TestInventoryDataSourceParseHttpResponse(t *testing.T) {
+func TestInventoryDataSourceParseHTTPResponse(t *testing.T) {
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
