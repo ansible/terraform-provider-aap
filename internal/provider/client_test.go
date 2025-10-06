@@ -19,6 +19,14 @@ const (
 type MockAuthenticator struct {
 }
 
+type readApiEndpointTestCase struct {
+	name                   string
+	url                    string
+	expectedControllerPath string
+	expectedEDAPath        string
+	diagsShouldHaveErr     bool
+}
+
 func (m *MockAuthenticator) Configure(_ *http.Request) {
 	// Do nothing
 }
@@ -87,6 +95,44 @@ func TestReadApiEndpoint(t *testing.T) {
 	}))
 	badJsonServer.Close()
 
+	testTable := []readApiEndpointTestCase{
+		{
+			name:                   "AAP 2.4",
+			url:                    server_24.URL,
+			expectedControllerPath: "/api/v2/",
+			expectedEDAPath:        "",
+			diagsShouldHaveErr:     false,
+		},
+		{
+			name:                   "AAP 2.5+",
+			url:                    server_25.URL,
+			expectedControllerPath: "/api/controller/v2/",
+			expectedEDAPath:        "/api/eda/v1/",
+			diagsShouldHaveErr:     false,
+		},
+		{
+			name:                   "Failing api endpoint",
+			url:                    failingServer.URL,
+			expectedControllerPath: "",
+			expectedEDAPath:        "",
+			diagsShouldHaveErr:     true,
+		},
+		{
+			name:                   "Bad JSON",
+			url:                    badJsonServer.URL,
+			expectedControllerPath: "",
+			expectedEDAPath:        "",
+			diagsShouldHaveErr:     true,
+		},
+	}
+	for _, tc := range testTable {
+		t.Run(tc.name, func(t *testing.T) {
+			executeReadApiEndpointTestCase(t, tc)
+		})
+	}
+}
+
+func TestReadApiEndpointForController(t *testing.T) {
 	serverWithMissingControllerEndpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case apiEndpoint:
@@ -114,6 +160,30 @@ func TestReadApiEndpoint(t *testing.T) {
 	}))
 	defer serverWithBadControllerJSON.Close()
 
+	testTable := []readApiEndpointTestCase{
+		{
+			name:                   "Bad Controller Endpoint",
+			url:                    serverWithMissingControllerEndpoint.URL,
+			expectedControllerPath: "",
+			expectedEDAPath:        "",
+			diagsShouldHaveErr:     true,
+		},
+		{
+			name:                   "Bad Controller JSON",
+			url:                    serverWithBadControllerJSON.URL,
+			expectedControllerPath: "",
+			expectedEDAPath:        "",
+			diagsShouldHaveErr:     true,
+		},
+	}
+	for _, tc := range testTable {
+		t.Run(tc.name, func(t *testing.T) {
+			executeReadApiEndpointTestCase(t, tc)
+		})
+	}
+}
+
+func TestReadApiEndpointForEDA(t *testing.T) {
 	serverWithMissingEDAEndpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case apiEndpoint:
@@ -162,92 +232,50 @@ func TestReadApiEndpoint(t *testing.T) {
 	}))
 	defer serverWithInvalidEDAURL.Close()
 
-	testTable := []struct {
-		Name                   string
-		URL                    string
-		expectedControllerPath string
-		expectedEDAPath        string
-		diagsShouldHaveErr     bool
-	}{
+	testTable := []readApiEndpointTestCase{
 		{
-			Name:                   "AAP 2.4",
-			URL:                    server_24.URL,
-			expectedControllerPath: "/api/v2/",
-			expectedEDAPath:        "",
-			diagsShouldHaveErr:     false,
-		},
-		{
-			Name:                   "AAP 2.5+",
-			URL:                    server_25.URL,
-			expectedControllerPath: "/api/controller/v2/",
-			expectedEDAPath:        "/api/eda/v1/",
-			diagsShouldHaveErr:     false,
-		},
-		{
-			Name:                   "Failing api endpoint",
-			URL:                    failingServer.URL,
+			name:                   "Bad EDA Endpoint",
+			url:                    serverWithMissingEDAEndpoint.URL,
 			expectedControllerPath: "",
 			expectedEDAPath:        "",
 			diagsShouldHaveErr:     true,
 		},
 		{
-			Name:                   "Bad JSON",
-			URL:                    badJsonServer.URL,
+			name:                   "Bad EDA JSON",
+			url:                    serverWithBadEDAJSON.URL,
 			expectedControllerPath: "",
 			expectedEDAPath:        "",
 			diagsShouldHaveErr:     true,
 		},
 		{
-			Name:                   "Bad Controller Endpoint",
-			URL:                    serverWithMissingControllerEndpoint.URL,
-			expectedControllerPath: "",
-			expectedEDAPath:        "",
-			diagsShouldHaveErr:     true,
-		},
-		{
-			Name:                   "Bad Controller JSON",
-			URL:                    serverWithBadControllerJSON.URL,
-			expectedControllerPath: "",
-			expectedEDAPath:        "",
-			diagsShouldHaveErr:     true,
-		},
-		{
-			Name:                   "Bad EDA Endpoint",
-			URL:                    serverWithMissingEDAEndpoint.URL,
-			expectedControllerPath: "",
-			expectedEDAPath:        "",
-			diagsShouldHaveErr:     true,
-		},
-		{
-			Name:                   "Bad EDA JSON",
-			URL:                    serverWithBadEDAJSON.URL,
-			expectedControllerPath: "",
-			expectedEDAPath:        "",
-			diagsShouldHaveErr:     true,
-		},
-		{
-			Name:                   "Invalid EDA URL",
-			URL:                    serverWithInvalidEDAURL.URL,
+			name:                   "Invalid EDA URL",
+			url:                    serverWithInvalidEDAURL.URL,
 			expectedControllerPath: "",
 			expectedEDAPath:        "",
 			diagsShouldHaveErr:     true,
 		},
 	}
 	for _, tc := range testTable {
-		t.Run(tc.Name, func(t *testing.T) {
-			client, diags := NewClient(tc.URL, &MockAuthenticator{}, true, 0) // readApiEndpoint() is called when creating client
-			assert.Equal(
-				t,
-				tc.diagsShouldHaveErr,
-				diags.HasError(),
-				fmt.Sprintf("readApiEndpoint() diagnostic error check failed. Expected: "+
-					"%t, got %t. diags was (%v)",
-					tc.diagsShouldHaveErr, diags.HasError(), diags,
-				),
-			)
-			assert.Equal(t, tc.expectedControllerPath, client.getApiEndpoint())
-			assert.Equal(t, tc.expectedEDAPath, client.getEdaApiEndpoint())
+		t.Run(tc.name, func(t *testing.T) {
+			executeReadApiEndpointTestCase(t, tc)
 		})
+	}
+}
+
+func executeReadApiEndpointTestCase(t *testing.T, tc readApiEndpointTestCase) {
+	// readApiEndpoint() is called when creating client
+	client, diags := NewClient(tc.url, &MockAuthenticator{}, true, 0)
+
+	assert.Equal(t, tc.expectedControllerPath, client.getApiEndpoint())
+	assert.Equal(t, tc.expectedEDAPath, client.getEdaApiEndpoint())
+
+	if tc.diagsShouldHaveErr != diags.HasError() {
+		t.Errorf(
+			"readApiEndpoint() diagnostic error check failed. Expected: %t, got %t. diags was (%v)",
+			tc.diagsShouldHaveErr,
+			diags.HasError(),
+			diags,
+		)
 	}
 }
 
