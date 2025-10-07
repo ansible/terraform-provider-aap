@@ -262,7 +262,8 @@ func TestReadApiEndpointForEDA(t *testing.T) {
 	}
 }
 
-func executeReadApiEndpointTestCase(t *testing.T, tc readApiEndpointTestCase) {
+func executeReadApiEndpointTestCase(t testing.TB, tc readApiEndpointTestCase) {
+	t.Helper()
 	// readApiEndpoint() is called when creating client
 	client, diags := NewClient(tc.url, &MockAuthenticator{}, true, 0)
 
