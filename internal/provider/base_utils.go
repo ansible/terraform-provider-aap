@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
-// IsContextActive checks if the provided context is still active and adds diagnostics if cancelled.
+// IsContextActive checks if the provided context is still active and adds diagnostics if canceled.
 func IsContextActive(ctx context.Context, operationName string, diagnostics *diag.Diagnostics) bool {
 	if ctx.Err() != nil {
 		if diagnostics != nil {
