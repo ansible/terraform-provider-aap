@@ -89,7 +89,7 @@ func NewClient(host string, authenticator AAPClientAuthenticator, insecureSkipVe
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify}, //nolint:gosec // User configurable option
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify}, // User configurable option
 	}
 	client.httpClient = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
 
