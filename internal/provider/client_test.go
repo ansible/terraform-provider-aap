@@ -12,8 +12,8 @@ import (
 
 const (
 	apiEndpoint        = "/api/"
-	controllerEndpoint = "/api/controller/"
-	edaEndpoint        = "/api/eda/"
+	controllerEndpoint = "/api/controller/"  // Base API endpoint for Controller in AAP >= 2.5
+	edaEndpoint        = "/api/eda/"  // Base API endpoint for EDA in AAP >= 2.5
 )
 
 type MockAuthenticator struct {
