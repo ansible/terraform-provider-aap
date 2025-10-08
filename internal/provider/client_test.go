@@ -12,8 +12,8 @@ import (
 
 const (
 	apiEndpoint        = "/api/"
-	controllerEndpoint = "/api/controller/"  // Base API endpoint for Controller in AAP >= 2.5
-	edaEndpoint        = "/api/eda/"  // Base API endpoint for EDA in AAP >= 2.5
+	controllerEndpoint = "/api/controller/" // Base API endpoint for Controller in AAP >= 2.5
+	edaEndpoint        = "/api/eda/"        // Base API endpoint for EDA in AAP >= 2.5
 )
 
 type MockAuthenticator struct {
@@ -54,6 +54,24 @@ func TestComputeURLPath(t *testing.T) {
 			result := client.computeURLPath(tc.path)
 			assert.Equal(t, expected, result, fmt.Sprintf("expected (%s), got (%s)", expected, result))
 		})
+	}
+}
+
+func executeReadApiEndpointTestCase(t testing.TB, tc readApiEndpointTestCase) {
+	t.Helper()
+	// readApiEndpoint() is called when creating client
+	client, diags := NewClient(tc.url, &MockAuthenticator{}, true, 0)
+
+	assert.Equal(t, tc.expectedControllerPath, client.getApiEndpoint())
+	assert.Equal(t, tc.expectedEDAPath, client.getEdaApiEndpoint())
+
+	if tc.diagsShouldHaveErr != diags.HasError() {
+		t.Errorf(
+			"readApiEndpoint() diagnostic error check failed. Expected: %t, got %t. diags was (%v)",
+			tc.diagsShouldHaveErr,
+			diags.HasError(),
+			diags,
+		)
 	}
 }
 
@@ -259,24 +277,6 @@ func TestReadApiEndpointForEDA(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			executeReadApiEndpointTestCase(t, tc)
 		})
-	}
-}
-
-func executeReadApiEndpointTestCase(t testing.TB, tc readApiEndpointTestCase) {
-	t.Helper()
-	// readApiEndpoint() is called when creating client
-	client, diags := NewClient(tc.url, &MockAuthenticator{}, true, 0)
-
-	assert.Equal(t, tc.expectedControllerPath, client.getApiEndpoint())
-	assert.Equal(t, tc.expectedEDAPath, client.getEdaApiEndpoint())
-
-	if tc.diagsShouldHaveErr != diags.HasError() {
-		t.Errorf(
-			"readApiEndpoint() diagnostic error check failed. Expected: %t, got %t. diags was (%v)",
-			tc.diagsShouldHaveErr,
-			diags.HasError(),
-			diags,
-		)
 	}
 }
 
