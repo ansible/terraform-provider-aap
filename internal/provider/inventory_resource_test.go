@@ -107,7 +107,7 @@ func TestInventoryResourceGenerateRequestBody(t *testing.T) {
 	}
 }
 
-func TestInventoryResourceParseHttpResponse(t *testing.T) {
+func TestInventoryResourceParseHTTPResponse(t *testing.T) {
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 

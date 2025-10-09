@@ -176,7 +176,7 @@ func TestJobResourceCreateRequestBody(t *testing.T) {
 	}
 }
 
-func TestJobResourceParseHttpResponse(t *testing.T) {
+func TestJobResourceParseHTTPResponse(t *testing.T) {
 	templateID := basetypes.NewInt64Value(1)
 	inventoryID := basetypes.NewInt64Value(2)
 	extraVars := customtypes.NewAAPCustomStringNull()
@@ -806,7 +806,7 @@ func TestRetryUntilAAPJobReachesAnyFinalState_LoggingBehavior(t *testing.T) {
 	model := &JobResourceModel{
 		TemplateID: types.Int64Value(0),                  // Mock doesn't include job_template here
 		URL:        types.StringValue("/api/v2/jobs/1/"), // This path exists in MockConfig
-		Status:     types.StringValue("pending"),         // Will be updated by ParseHttpResponse
+		Status:     types.StringValue("pending"),         // Will be updated by ParseHTTPResponse
 	}
 
 	// Create a custom mock response for this test (avoid modifying shared fixtures)

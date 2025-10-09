@@ -22,6 +22,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
+const (
+	baseResourceNameWorkflowJob = "aap_workflow_job"
+)
+
 func TestWorkflowJobResourceSchema(t *testing.T) {
 	t.Parallel()
 
@@ -131,7 +135,7 @@ func TestWorkflowJobResourceCreateRequestBody(t *testing.T) {
 	}
 }
 
-func TestWorkflowJobResourceParseHttpResponse(t *testing.T) {
+func TestWorkflowJobResourceParseHTTPResponse(t *testing.T) {
 	templateID := basetypes.NewInt64Value(1)
 	inventoryID := basetypes.NewInt64Value(2)
 	extraVars := customtypes.NewAAPCustomStringNull()
@@ -195,11 +199,75 @@ func TestWorkflowJobResourceParseHttpResponse(t *testing.T) {
 	}
 }
 
-// Acceptance tests
+func TestWorkflowJobResourceMetadata(t *testing.T) {
+	resource := NewWorkflowJobResource()
+	req := fwresource.MetadataRequest{
+		ProviderTypeName: "aap",
+	}
+	resp := &fwresource.MetadataResponse{}
 
+	resource.Metadata(context.Background(), req, resp)
+
+	expectedTypeName := baseResourceNameWorkflowJob
+	if resp.TypeName != expectedTypeName {
+		t.Errorf("expected TypeName to be %q, got %q", expectedTypeName, resp.TypeName)
+	}
+}
+
+func TestWorkflowJobResourceConfigure(t *testing.T) {
+	t.Parallel()
+
+	mockClient := &AAPClient{}
+
+	testCases := []struct {
+		name          string
+		providerData  interface{}
+		expectClient  interface{}
+		expectDiagErr bool
+	}{
+		{
+			name:          "ProviderData is nil",
+			providerData:  nil,
+			expectClient:  nil,
+			expectDiagErr: false,
+		},
+		{
+			name:          "ProviderData is wrong type",
+			providerData:  "not-a-client",
+			expectClient:  nil,
+			expectDiagErr: true,
+		},
+		{
+			name:          "ProviderData is correct type",
+			providerData:  mockClient,
+			expectClient:  mockClient,
+			expectDiagErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resource := &WorkflowJobResource{}
+			req := fwresource.ConfigureRequest{
+				ProviderData: tc.providerData,
+			}
+			resp := &fwresource.ConfigureResponse{}
+			resource.Configure(context.Background(), req, resp)
+
+			if resource.client != tc.expectClient {
+				t.Errorf("expected client to be %v, got %v", tc.expectClient, resource.client)
+			}
+			if resp.Diagnostics.HasError() != tc.expectDiagErr {
+				t.Errorf("expected diagnostics error: %v, got: %v", tc.expectDiagErr, resp.Diagnostics.HasError())
+			}
+		})
+	}
+}
+
+// Acceptance tests
 func getWorkflowJobResourceFromStateFile(s *terraform.State) (map[string]interface{}, error) {
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "aap_workflow_job" {
+		if rs.Type != baseResourceNameWorkflowJob {
 			continue
 		}
 		jobURL := rs.Primary.Attributes["url"]
@@ -224,7 +292,7 @@ func testAccCheckWorkflowJobUpdate(urlBefore *string, shouldDiffer bool) func(s 
 	return func(s *terraform.State) error {
 		var jobURL string
 		for _, rs := range s.RootModule().Resources {
-			if rs.Type != "aap_workflow_job" {
+			if rs.Type != baseResourceNameWorkflowJob {
 				continue
 			}
 			jobURL = rs.Primary.Attributes["url"]
@@ -444,21 +512,21 @@ func testAccCheckWorkflowJobPause(ctx context.Context, name string) resource.Tes
 
 func testAccBasicWorkflowJob(jobTemplateID string) string {
 	return fmt.Sprintf(`
-resource "aap_workflow_job" "test" {
+resource "%s" "test" {
 	workflow_job_template_id   = %s
 }
-`, jobTemplateID)
+`, baseResourceNameWorkflowJob, jobTemplateID)
 }
 
 func testAccWorkflowJobWithNoInventoryID(workflowJobTemplateID string) string {
 	return fmt.Sprintf(`
-resource "aap_workflow_job" "wf_job" {
+resource "%s" "wf_job" {
 	workflow_job_template_id = %s
 	extra_vars = jsonencode({
     "foo": "bar"
 	})
 }
-	`, workflowJobTemplateID)
+	`, baseResourceNameWorkflowJob, workflowJobTemplateID)
 }
 
 func testAccUpdateWorkflowJobWithInventoryID(inventoryName, jobTemplateID string) string {
@@ -467,21 +535,69 @@ resource "aap_inventory" "test" {
   name = "%s"
 }
 
-resource "aap_workflow_job" "test" {
+resource "%s" "test" {
 	workflow_job_template_id   = %s
 	inventory_id = aap_inventory.test.id
 }
-`, inventoryName, jobTemplateID)
+`, inventoryName, baseResourceNameWorkflowJob, jobTemplateID)
 }
 
 func testAccUpdateWorkflowJobWithTrigger(jobTemplateID string) string {
 	return fmt.Sprintf(`
-resource "aap_workflow_job" "test" {
+resource "%s" "test" {
 	workflow_job_template_id   = %s
 	triggers = {
 		"key1" = "value1"
 		"key2" = "value2"
 	}
 }
-`, jobTemplateID)
+`, baseResourceNameWorkflowJob, jobTemplateID)
+}
+
+func TestAccAAPWorkflowJobDisappears(t *testing.T) {
+	var workflowJobUrl string
+
+	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID")
+	ctx := context.Background()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Apply a basic terraform plan that creates an AAP workflow job and records it to state with a URL.
+			{
+				Config: testAccBasicWorkflowJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicWorkflowJobAttributes(t, resourceNameWorkflowJob, reJobStatus),
+					testAccCheckWorkflowJobUpdate(&workflowJobUrl, false),
+				),
+			},
+			// Wait for the workflow job to finish.
+			{
+				Config: testAccBasicWorkflowJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicWorkflowJobAttributes(t, resourceNameWorkflowJob, reJobStatus),
+					// Wait for the workflow job to finish so the inventory can be deleted
+					testAccCheckWorkflowJobPause(ctx, resourceNameWorkflowJob),
+				),
+			},
+			// Confirm the workflow job is finished (fewer options in status), then delete directly via API, outside of terraform.
+			{
+				Config: testAccBasicWorkflowJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicWorkflowJobAttributes(t, resourceNameWorkflowJob, reJobStatusFinal),
+					testAccDeleteJob(&workflowJobUrl),
+				),
+				ExpectNonEmptyPlan: true,
+			},
+			// Apply the plan again and confirm the workflow job is re-created with a different URL.
+			{
+				Config: testAccBasicWorkflowJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicWorkflowJobAttributes(t, resourceNameWorkflowJob, reJobStatus),
+					testAccCheckWorkflowJobUpdate(&workflowJobUrl, true),
+				),
+			},
+		},
+	})
 }

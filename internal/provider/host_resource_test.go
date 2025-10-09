@@ -192,7 +192,7 @@ func TestHostResourceCreateRequestBody(t *testing.T) {
 	}
 }
 
-func TestHostResourceParseHttpResponse(t *testing.T) {
+func TestHostResourceParseHTTPResponse(t *testing.T) {
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 

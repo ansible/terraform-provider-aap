@@ -35,7 +35,7 @@ func TestJobTemplateDataSourceSchema(t *testing.T) {
 	}
 }
 
-func TestJobTemplateDataSourceParseHttpResponse(t *testing.T) {
+func TestJobTemplateDataSourceParseHTTPResponse(t *testing.T) {
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
