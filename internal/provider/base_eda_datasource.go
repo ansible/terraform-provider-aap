@@ -31,7 +31,6 @@ func NewBaseEdaDataSource(client ProviderHTTPClient, stringDescriptions StringDe
 // entity slug string passed in the constructor.
 func (d *BaseEdaDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = fmt.Sprintf("%s_%s", req.ProviderTypeName, d.MetadataEntitySlug)
-	fmt.Println(resp.TypeName)
 }
 
 // GetBaseAttributes returns the base set of attributes for an EDA data source. This
