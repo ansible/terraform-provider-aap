@@ -43,6 +43,9 @@ func (d *BaseEdaDataSource) GetBaseAttributes() map[string]schema.Attribute {
 		"name": schema.StringAttribute{
 			Required: true,
 		},
+		"url": schema.StringAttribute{
+			Computed: true,
+		},
 	}
 }
 

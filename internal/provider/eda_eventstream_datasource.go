@@ -1,12 +1,7 @@
 package provider
 
 import (
-	"context"
-	"fmt"
-	"maps"
-
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 )
 
 // Ensure the implementation satisfies the desired interfaces.
@@ -26,7 +21,7 @@ func NewEDAEventStreamDataSource() datasource.DataSource {
 	}
 }
 
-func (d *EDAEventStreamDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+/* func (d *EDAEventStreamDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	baseAttrs := d.GetBaseAttributes()
 	newAttrs := map[string]schema.Attribute{
 		"url": schema.StringAttribute{
@@ -40,4 +35,4 @@ func (d *EDAEventStreamDataSource) Schema(_ context.Context, _ datasource.Schema
 		Attributes:  newAttrs,
 		Description: fmt.Sprintf("Creates a %s.", d.DescriptiveEntityName),
 	}
-}
+} */
