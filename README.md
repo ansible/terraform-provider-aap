@@ -89,6 +89,27 @@ The [examples](./examples/) subdirectory contains usage examples for this provid
 
 See the [generated changelog](https://github.com/ansible/terraform-provider-aap/tree/main/CHANGELOG.rst).
 
+## Branching model
+
+- One single branch main
+- Long-lived features that are not ready to be released are developed in the repository (not on forks) following the feature/name-of-the-feature format.
+
+## Versioning
+
+- Semantic versioning is followed (https://semver.org/)
+- X is bumped whenever there is a change that would force users to change their terraform files
+- Y is bumped whenever there is a change that adds a feature or extends the provider without modifying any user facing interface.
+- Z is bumped whenever there is a change that fixes a bug without modifying any user facing interface.
+
+All commits on the `main` branch a Release is published from, will be tagged following the convention above.
+
+If a major version needs to be made available via a preview, tag feature branches. Example:
+
+- `main` is released as `1.4.0`.
+- Due to the breaking changes of a feature branch, it is made available as `2.0.0-beta` before merging into `main`.
+
+Minor versions that need to be gated should be merged to main and gated via feature flags.
+
 ## Releasing
 
 To release a new version of the provider:
