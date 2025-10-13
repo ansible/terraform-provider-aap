@@ -70,6 +70,35 @@
         playbook: "sleep.yml"
         inventory: "Demo Inventory"
       register: job_template_sleep
+    # The tests for datasource.eda_eventstream test that the provider can retrieve the
+    # Event Stream's post url. So an EDA Controller Credential and Event Stream needs to exist.
+    - name: Create an EDA Credential
+      block:
+      - name: Create the credential
+        ansible.eda.credential:
+          name: "Test Credential"
+          credential_type_name: "Basic Event Stream"
+          organization_name: "Default"
+          inputs:
+            username: "eda-user"
+            password: "super-secret-shh"
+          state: present
+      rescue:
+      - name: Cannot create credential
+        debug:
+          msg: "EDA API access is only available in AAP 2.5+"
+    - name: Create an EDA Event Stream
+      block:
+      - name: Create the Event Stream
+        ansible.eda.event_stream:
+          name: "Test Event Stream"
+          credential_name: "Test Credential"
+          organization_name: "Default"
+          state: present
+      rescue:
+      - name: Cannot create the Event Stream
+        debug:
+          msg: "EDA API access is only available in AAP 2.5+"
     # Generate a token to support provider's token authentication
     - name: Create a token for provider to use for testing
       block:
