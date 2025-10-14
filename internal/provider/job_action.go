@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/action/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
 
@@ -91,6 +92,16 @@ func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, respon
 		response.Diagnostics.AddError("Error parsing JSON response from AAP", err.Error())
 		return
 	}
+
+	tflog.Debug(ctx, "job launched", map[string]interface{}{
+		"url":            jobResponse.URL,
+		"status":         jobResponse.Status,
+		"type":           jobResponse.Type,
+		"template_id":    jobResponse.TemplateID,
+		"inventory_id":   jobResponse.Inventory,
+		"extra_vars":     jobResponse.ExtraVars,
+		"ignored_fields": jobResponse.IgnoredFields,
+	})
 
 	// Extract job URL for polling if wait_for_completion is enabled
 	if config.WaitForCompletion.ValueBool() {
