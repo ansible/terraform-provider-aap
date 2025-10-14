@@ -33,7 +33,7 @@ const (
 func TestJobResourceSchema(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	schemaRequest := fwresource.SchemaRequest{}
 	schemaResponse := &fwresource.SchemaResponse{}
 
@@ -365,7 +365,7 @@ func TestAccAAPJob_UpdateWithNewInventoryIdPromptOnLaunch(t *testing.T) {
 
 	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
-	ctx := context.Background()
+	ctx := t.Context()
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
@@ -535,7 +535,7 @@ func TestAccAAPJob_disappears(t *testing.T) {
 	var jobUrl string
 
 	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
-	ctx := context.Background()
+	ctx := t.Context()
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
@@ -598,7 +598,7 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 	t.Run("handles diagnostics errors", func(t *testing.T) {
 		mockClient := NewMockHTTPClient([]string{"GET"}, 500) // Server error
 		var status string = statusPendingConst
-		retryFunc := retryUntilAAPJobReachesAnyFinalState(context.Background(), mockClient, "/api/v2/jobs/999/", &status)
+		retryFunc := retryUntilAAPJobReachesAnyFinalState(t.Context(), mockClient, "/api/v2/jobs/999/", &status)
 		err := retryFunc()
 
 		// Should return a retryable error due to 500 status
@@ -621,7 +621,7 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 	t.Run("returns retryable error for non-final state", func(t *testing.T) {
 		mockClient := NewMockHTTPClient([]string{"GET"}, 200)
 		var status string
-		retryFunc := retryUntilAAPJobReachesAnyFinalState(context.Background(), mockClient, "/api/v2/jobs/1/", &status)
+		retryFunc := retryUntilAAPJobReachesAnyFinalState(t.Context(), mockClient, "/api/v2/jobs/1/", &status)
 		err := retryFunc()
 
 		// Should return retryable error since "running" is not a final state
@@ -654,7 +654,7 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 		}
 		mockClient := NewConfigurableSequenceMockClient(responses)
 		var status string
-		retryFunc := retryUntilAAPJobReachesAnyFinalState(context.Background(), mockClient, "/api/v2/jobs/123/", &status)
+		retryFunc := retryUntilAAPJobReachesAnyFinalState(t.Context(), mockClient, "/api/v2/jobs/123/", &status)
 
 		// First call - job should be running (returns retryable error)
 		err1 := retryFunc()
@@ -793,7 +793,7 @@ func TestRetryUntilAAPJobReachesAnyFinalState_LoggingBehavior(t *testing.T) {
 	var logBuffer strings.Builder
 
 	// Create a context with tflog writing to our buffer
-	ctx := tflogtest.RootLogger(context.Background(), &logBuffer)
+	ctx := tflogtest.RootLogger(t.Context(), &logBuffer)
 
 	// Create test model with known values for verification
 	model := &JobResourceModel{JobModel: JobModel{
