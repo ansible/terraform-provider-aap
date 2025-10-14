@@ -596,19 +596,9 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 
 	// Test diagnostics error handling (500 server error)
 	t.Run("handles diagnostics errors", func(t *testing.T) {
-		model := &JobResourceModel{
-			URL:    types.StringValue("/api/v2/jobs/999/"), // Path not in MockConfig
-			Status: types.StringValue("pending"),
-		}
-
-		// Verify initial state
-		if model.Status.ValueString() != statusPendingConst {
-			t.Errorf("expected initial status 'pending', got '%s'", model.Status.ValueString())
-		}
-
 		mockClient := NewMockHTTPClient([]string{"GET"}, 500) // Server error
-		var status string
-		retryFunc := retryUntilAAPJobReachesAnyFinalState(context.Background(), mockClient, model.URL.ValueString(), &status)
+		var status string = statusPendingConst
+		retryFunc := retryUntilAAPJobReachesAnyFinalState(context.Background(), mockClient, "/api/v2/jobs/999/", &status)
 		err := retryFunc()
 
 		// Should return a retryable error due to 500 status
