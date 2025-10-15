@@ -70,6 +70,14 @@
         playbook: "sleep.yml"
         inventory: "Demo Inventory"
       register: job_template_sleep
+    - name: Create a job template with the fail playbook
+      ansible.controller.job_template:
+        name: "Test Job Template - fail.yml"
+        organization: "Default"
+        project: "Test Playbooks"
+        playbook: "fail.yml"
+        inventory: "Demo Inventory"
+      register: job_template_fail
     # Generate a token to support provider's token authentication
     - name: Create a token for provider to use for testing
       block:
