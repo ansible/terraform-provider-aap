@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -66,6 +67,39 @@ func TestAccAAPJobAction_basic(t *testing.T) {
 	}
 }
 
+func TestAccAAPJobAction_fail(t *testing.T) {
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_FAIL_ID")
+	randNum, _ := rand.Int(rand.Reader, big.NewInt(50000000))
+	inventoryName := fmt.Sprintf("%s-%d", "tf-acc", randNum.Int64())
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccBasicJobAction(inventoryName, jobTemplateID),
+				ExpectError: regexp.MustCompile(".*AAP job failed.*"),
+			},
+		},
+	})
+}
+
+func TestAccAAPJobAction_failIgnore(t *testing.T) {
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_FAIL_ID")
+	randNum, _ := rand.Int(rand.Reader, big.NewInt(50000000))
+	inventoryName := fmt.Sprintf("%s-%d", "tf-acc", randNum.Int64())
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBasicJobActionIgnoreFail(inventoryName, jobTemplateID),
+			},
+		},
+	})
+}
+
 func testAccBasicJobAction(inventoryName, jobTemplateID string) string {
 	return fmt.Sprintf(`
 resource "aap_inventory" "test" {
@@ -82,6 +116,28 @@ action "aap_job" "test" {
 	config {
 		job_template_id 	= %s
 		wait_for_completion = true
+	}
+}
+`, inventoryName, jobTemplateID)
+}
+
+func testAccBasicJobActionIgnoreFail(inventoryName, jobTemplateID string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+	name = "%s"
+	lifecycle {
+		action_trigger {
+			events = [after_create]
+			actions = [action.aap_job.test]
+		}
+	}
+}
+
+action "aap_job" "test" {
+	config {
+		job_template_id 	= %s
+		wait_for_completion = true
+		ignore_job_results  = true
 	}
 }
 `, inventoryName, jobTemplateID)
