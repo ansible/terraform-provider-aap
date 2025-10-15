@@ -110,11 +110,17 @@ func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, respon
 		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, a.client, jobResponse.URL, &status))
 		if err != nil {
 			response.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
-		}
-		if response.Diagnostics.HasError() {
 			return
 		}
 		jobResponse.Status = status
+		if status != "successful" {
+			response.Diagnostics.Append(
+				diag.NewErrorDiagnostic(
+					fmt.Sprintf("AAP job %s", status),
+					fmt.Sprintf("API Path: %s", jobResponse.URL),
+				),
+			)
+		}
 	}
 }
 
