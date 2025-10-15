@@ -63,7 +63,7 @@ func (a *JobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *acti
 			},
 			"ignore_job_results": schema.BoolAttribute{
 				Optional:    true,
-				Description: "When this is set to `true`, and wait_for_completion is `true`, Terraform will ignore the job results and proceed with the following resource operation",
+				Description: "When this is set to `true`, and wait_for_completion is `true`, ignore the job status.",
 			},
 		},
 		MarkdownDescription: "Launches an AAP job.\n\n" +
@@ -114,6 +114,9 @@ func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, respon
 
 	// Extract job URL for polling if wait_for_completion is enabled
 	if config.WaitForCompletion.ValueBool() {
+		if config.WaitForCompletionTimeout.IsNull() {
+			config.WaitForCompletionTimeout = types.Int64Value(waitForCompletionTimeoutDefault)
+		}
 		timeout := time.Duration(config.WaitForCompletionTimeout.ValueInt64()) * time.Second
 		var status string
 		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, a.client, jobResponse.URL, &status))
