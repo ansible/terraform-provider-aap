@@ -61,7 +61,7 @@ resource "terraform_data" "trigger" {
 ### Optional
 
 - `extra_vars` (String) Extra Variables. Must be provided as either a JSON or YAML string.
-- `ignore_job_results` (Boolean) When this is set to `true`, and wait_for_completion is `true`, ignore the job status
+- `ignore_job_results` (Boolean) When this is set to `true`, and wait_for_completion is `true`, ignore the job status.
 - `inventory_id` (Number) Identifier for the inventory where job should be created in. If not provided, the job will be created in the default inventory.
 - `wait_for_completion` (Boolean) When this is set to `true`, Terraform will wait until this aap_job resource is created, reaches any final status and then, proceeds with the following resource operation
 - `wait_for_completion_timeout_seconds` (Number) Sets the maximum amount of seconds Terraform will wait before timing out the updates, and the job creation will fail. Default value of `120`

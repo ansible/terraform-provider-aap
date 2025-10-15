@@ -62,8 +62,8 @@ func (a *JobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *acti
 					"and the job creation will fail. Default value of `120`",
 			},
 			"ignore_job_results": schema.BoolAttribute{
-				Optional:    true,
-				Description: "When this is set to `true`, and wait_for_completion is `true`, ignore the job status.",
+				Optional:            true,
+				MarkdownDescription: "When this is set to `true`, and wait_for_completion is `true`, ignore the job status.",
 			},
 		},
 		MarkdownDescription: "Launches an AAP job.\n\n" +
