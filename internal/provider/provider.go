@@ -176,6 +176,7 @@ func (p *aapProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	// type Configure methods.
 	resp.DataSourceData = client
 	resp.ResourceData = client
+	resp.ActionData = client
 }
 
 // DataSources defines the data sources implemented in the provider.
@@ -204,6 +205,7 @@ func (p *aapProvider) Resources(_ context.Context) []func() resource.Resource {
 func (p *aapProvider) Actions(_ context.Context) []func() action.Action {
 	return []func() action.Action{
 		NewEDAEventStreamPostAction,
+		NewJobAction,
 	}
 }
 
