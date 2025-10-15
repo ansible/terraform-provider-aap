@@ -28,6 +28,11 @@ var (
 	_ action.Action = (*JobAction)(nil)
 )
 
+type JobActionModel struct {
+	JobModel
+	IgnoreJobResults types.Bool `tfsdk:"ignore_job_results"`
+}
+
 // Schema defines the schema for the job action
 func (a *JobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
@@ -56,6 +61,10 @@ func (a *JobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *acti
 				Description: "Sets the maximum amount of seconds Terraform will wait before timing out the updates, " +
 					"and the job creation will fail. Default value of `120`",
 			},
+			"ignore_job_results": schema.BoolAttribute{
+				Optional:    true,
+				Description: "When this is set to `true`, and wait_for_completion is `true`, Terraform will ignore the job results and proceed with the following resource operation",
+			},
 		},
 		MarkdownDescription: "Launches an AAP job.\n\n" +
 			"This actions always creates a new job in AAP. \n" +
@@ -67,7 +76,7 @@ func (a *JobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *acti
 
 // Invoke executes the job action.
 func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, response *action.InvokeResponse) {
-	var config JobModel
+	var config JobActionModel
 
 	response.Diagnostics.Append(req.Config.Get(ctx, &config)...)
 	if response.Diagnostics.HasError() {
@@ -114,12 +123,21 @@ func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, respon
 		}
 		jobResponse.Status = status
 		if status != "successful" {
-			response.Diagnostics.Append(
-				diag.NewErrorDiagnostic(
-					fmt.Sprintf("AAP job %s", status),
-					fmt.Sprintf("API Path: %s", jobResponse.URL),
-				),
-			)
+			if config.IgnoreJobResults.ValueBool() {
+				response.Diagnostics.Append(
+					diag.NewWarningDiagnostic(
+						fmt.Sprintf("AAP job %s", status),
+						fmt.Sprintf("API Path: %s", jobResponse.URL),
+					),
+				)
+			} else {
+				response.Diagnostics.Append(
+					diag.NewErrorDiagnostic(
+						fmt.Sprintf("AAP job %s", status),
+						fmt.Sprintf("API Path: %s", jobResponse.URL),
+					),
+				)
+			}
 		}
 	}
 }
