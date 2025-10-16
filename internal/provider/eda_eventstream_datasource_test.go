@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -43,7 +42,7 @@ func TestAccEDAEventStreamDataSourceRetrievesPostURL(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() {
 			testAccPreCheck(t)
-			aapVersionPreCheck(t)
+			skipTestWithoutEDAPreCheck(t)
 		},
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -55,9 +54,9 @@ func TestAccEDAEventStreamDataSourceRetrievesPostURL(t *testing.T) {
 	})
 }
 
-// aapVersionPreCheck determines the AAP version before an acceptance test is executed. The test is skipped
+// skipTestWithoutEDAPreCheck determines the AAP version before an acceptance test is executed. The test is skipped
 // if the version is prior to AAP 2.5.
-func aapVersionPreCheck(t testing.TB) {
+func skipTestWithoutEDAPreCheck(t testing.TB) {
 	t.Helper()
 
 	body, err := testMethodResource("GET", "/api/")
@@ -65,23 +64,15 @@ func aapVersionPreCheck(t testing.TB) {
 		t.Errorf("error fetching /api/ endpoint: %v", err)
 	}
 
-	var apiEndpointResp struct {
-		Description string `json:"description"`
-	}
-	err = json.Unmarshal(body, &apiEndpointResp)
+	var response AAPApiEndpointResponse
+
+	err = json.Unmarshal(body, &response)
 	if err != nil {
 		t.Errorf("error unmarshalling response body during AAP version pre-check: %v", err)
 	}
 
-	if apiEndpointResp.Description == "" {
-		t.Error("empty API description during AAP version check")
-	}
-
-	// AAP 2.4's description does not mention "gateway"
-	// AAP 2.4 -> AWX REST API
-	// AAP 2.5 -> AAP gateway REST API
-	if !strings.Contains(apiEndpointResp.Description, "gateway") {
-		t.Skip("EDA is not supported prior to AAP 2.5")
+	if response.Apis.EDA == "" {
+		t.Skip("EDA API endpoint not found: skipping test")
 	}
 }
 
