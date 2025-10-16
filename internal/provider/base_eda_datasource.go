@@ -145,7 +145,7 @@ func (d *BaseEdaSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	}
 
 	if len(apiModelList.Results) != 1 {
-		diags.AddError("Unable to fetch event_stream from AAP", fmt.Sprintf("Expected 1 object in JSON response, found %d", len(apiModelList.Results)))
+		diags.AddError("No event streams found in AAP", fmt.Sprintf("Expected 1 object in JSON response, found %d", len(apiModelList.Results)))
 		return diags
 	}
 

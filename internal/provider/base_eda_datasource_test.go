@@ -345,7 +345,7 @@ func TestBaseEdaSourceModelParseHttpResponse(t *testing.T) {
 				"results": []
 			}`),
 			expectError:         true,
-			expectedDiagSummary: "Unable to fetch event_stream from AAP", //NOSONAR
+			expectedDiagSummary: "No event streams found in AAP", //NOSONAR
 			expectedDiagDetail:  "Expected 1 object in JSON response, found 0",
 		},
 		{
