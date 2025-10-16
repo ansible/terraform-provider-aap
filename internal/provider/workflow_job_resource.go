@@ -173,7 +173,7 @@ func (r *WorkflowJobResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(ctx, r.client)...)
+	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(r.client)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -256,7 +256,7 @@ func (r *WorkflowJobResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	// Create new Workflow Job from workflow job template
-	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(ctx, r.client)...)
+	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(r.client)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -382,7 +382,7 @@ func (r *WorkflowJobModel) LaunchWorkflowJob(client ProviderHTTPClient) ([]byte,
 	return body, diags
 }
 
-func (r *WorkflowJobResourceModel) LaunchWorkflowJobWithResponse(ctx context.Context, client ProviderHTTPClient) diag.Diagnostics {
+func (r *WorkflowJobResourceModel) LaunchWorkflowJobWithResponse(client ProviderHTTPClient) diag.Diagnostics {
 	body, diags := r.LaunchWorkflowJob(client)
 	if diags.HasError() {
 		return diags

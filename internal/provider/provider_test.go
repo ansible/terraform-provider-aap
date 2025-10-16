@@ -608,7 +608,7 @@ func TestActions(t *testing.T) {
 		version: "test",
 	}
 	actions := p.Actions(t.Context())
-	expected := 2
+	expected := 3
 	actual := len(actions)
 	if expected != actual {
 		t.Errorf("Expected provider.Actions to return %v actions, found %v", expected, actual)
