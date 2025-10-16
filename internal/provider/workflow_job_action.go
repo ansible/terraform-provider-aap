@@ -15,36 +15,36 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
 
-// JobAction represents a job action that can be executed in AAP.
-type JobAction struct {
+// WorkflowJobAction represents a workflow job action that can be executed in AAP.
+type WorkflowJobAction struct {
 	client ProviderHTTPClient
 }
 
-func NewJobAction() action.Action {
-	return &JobAction{}
+func NewWorkflowJobAction() action.Action {
+	return &WorkflowJobAction{}
 }
 
 var (
-	_ action.Action = (*JobAction)(nil)
+	_ action.Action = (*WorkflowJobAction)(nil)
 )
 
-type JobActionModel struct {
-	JobModel
+type WorkflowJobActionModel struct {
+	WorkflowJobModel
 	IgnoreJobResults types.Bool `tfsdk:"ignore_job_results"`
 }
 
 // Schema defines the schema for the job action
-func (a *JobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
+func (a *WorkflowJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"job_template_id": schema.Int64Attribute{
-				Required:    true,
-				Description: "ID of the job template.",
-			},
 			"inventory_id": schema.Int64Attribute{
 				Optional: true,
 				Description: "Identifier for the inventory where job should be created in. " +
 					"If not provided, the job will be created in the default inventory.",
+			},
+			"workflow_job_template_id": schema.Int64Attribute{
+				Required:    true,
+				Description: "Id of the workflow job template.",
 			},
 			"extra_vars": schema.StringAttribute{
 				Description: "Extra Variables. Must be provided as either a JSON or YAML string.",
@@ -66,8 +66,7 @@ func (a *JobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *acti
 				MarkdownDescription: "When this is set to `true`, and wait_for_completion is `true`, ignore the job status.",
 			},
 		},
-		MarkdownDescription: "Launches an AAP job.\n\n" +
-			"This actions always creates a new job in AAP. \n" +
+		MarkdownDescription: "Launches an AAP workflow job.\n\n" +
 			"Moreover, you can set `wait_for_completion` to true, then Terraform will " +
 			"wait until this job is created and reaches any final state before continuing. " +
 			"You can also tweak `wait_for_completion_timeout_seconds` to control the timeout limit.",
@@ -75,8 +74,8 @@ func (a *JobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *acti
 }
 
 // Invoke executes the job action.
-func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, response *action.InvokeResponse) {
-	var config JobActionModel
+func (a *WorkflowJobAction) Invoke(ctx context.Context, req action.InvokeRequest, response *action.InvokeResponse) {
+	var config WorkflowJobActionModel
 
 	response.Diagnostics.Append(req.Config.Get(ctx, &config)...)
 	if response.Diagnostics.HasError() {
@@ -88,14 +87,14 @@ func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, respon
 		config.WaitForCompletionTimeout = types.Int64Value(waitForCompletionTimeoutDefault)
 	}
 
-	body, diags := config.LaunchJob(a.client)
+	body, diags := config.LaunchWorkflowJob(a.client)
 	if diags.HasError() {
 		response.Diagnostics.Append(diags...)
 		return
 	}
 
 	// Parse response to get job details
-	var jobResponse JobAPIModel
+	var jobResponse WorkflowJobAPIModel
 	err := json.Unmarshal(body, &jobResponse)
 	if err != nil {
 		response.Diagnostics.AddError("Error parsing JSON response from AAP", err.Error())
@@ -103,13 +102,12 @@ func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, respon
 	}
 
 	response.SendProgress(action.InvokeProgressEvent{
-		Message: fmt.Sprintf("Job launched, URL: %s, Template ID: %d, Inventory ID: %d", jobResponse.URL, jobResponse.TemplateID, jobResponse.Inventory),
+		Message: fmt.Sprintf("Workflow job launched, URL: %s, Template ID: %d, Inventory ID: %d", jobResponse.URL, jobResponse.TemplateID, jobResponse.Inventory),
 	})
 
-	tflog.Debug(ctx, "job launched", map[string]interface{}{
+	tflog.Debug(ctx, "workflow job launched", map[string]interface{}{
 		"url":            jobResponse.URL,
 		"status":         jobResponse.Status,
-		"type":           jobResponse.Type,
 		"template_id":    jobResponse.TemplateID,
 		"inventory_id":   jobResponse.Inventory,
 		"extra_vars":     jobResponse.ExtraVars,
@@ -123,17 +121,12 @@ func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, respon
 		}
 		timeout := time.Duration(config.WaitForCompletionTimeout.ValueInt64()) * time.Second
 		var status string
-
 		retryProgressFunc := func(status string) {
 			response.SendProgress(action.InvokeProgressEvent{
-				Message: fmt.Sprintf("Job at: %s is in status: %s", jobResponse.URL, status),
+				Message: fmt.Sprintf("Workflow job at: %s is in status: %s", jobResponse.URL, status),
 			})
 		}
-		err := retry.RetryContext(
-			ctx,
-			timeout,
-			retryUntilAAPJobReachesAnyFinalState(ctx, a.client, retryProgressFunc, jobResponse.URL, &status),
-		)
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, a.client, retryProgressFunc, jobResponse.URL, &status))
 		if err != nil {
 			response.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
 			return
@@ -143,14 +136,14 @@ func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, respon
 			if config.IgnoreJobResults.ValueBool() {
 				response.Diagnostics.Append(
 					diag.NewWarningDiagnostic(
-						fmt.Sprintf("AAP job %s", status),
+						fmt.Sprintf("AAP workflow job %s", status),
 						fmt.Sprintf("API Path: %s", jobResponse.URL),
 					),
 				)
 			} else {
 				response.Diagnostics.Append(
 					diag.NewErrorDiagnostic(
-						fmt.Sprintf("AAP job %s", status),
+						fmt.Sprintf("AAP workflow job %s", status),
 						fmt.Sprintf("API Path: %s", jobResponse.URL),
 					),
 				)
@@ -160,7 +153,7 @@ func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, respon
 }
 
 // Configure configures the job action with the provider client
-func (a *JobAction) Configure(_ context.Context, req action.ConfigureRequest, resp *action.ConfigureResponse) {
+func (a *WorkflowJobAction) Configure(_ context.Context, req action.ConfigureRequest, resp *action.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -178,6 +171,6 @@ func (a *JobAction) Configure(_ context.Context, req action.ConfigureRequest, re
 }
 
 // Metadata returns the action metadata
-func (a *JobAction) Metadata(_ context.Context, req action.MetadataRequest, resp *action.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_job"
+func (a *WorkflowJobAction) Metadata(_ context.Context, req action.MetadataRequest, resp *action.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_workflow_job"
 }
