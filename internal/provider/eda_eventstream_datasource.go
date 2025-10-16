@@ -20,19 +20,3 @@ func NewEDAEventStreamDataSource() datasource.DataSource {
 		}),
 	}
 }
-
-/* func (d *EDAEventStreamDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	baseAttrs := d.GetBaseAttributes()
-	newAttrs := map[string]schema.Attribute{
-		"url": schema.StringAttribute{
-			Computed: true,
-		},
-	}
-
-	maps.Copy(newAttrs, baseAttrs)
-
-	resp.Schema = schema.Schema{
-		Attributes:  newAttrs,
-		Description: fmt.Sprintf("Creates a %s.", d.DescriptiveEntityName),
-	}
-} */

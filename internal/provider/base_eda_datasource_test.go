@@ -73,7 +73,7 @@ func TestBaseEdaDataSourceSchema(t *testing.T) {
 func TestBaseEdaDataSourceConfigure(t *testing.T) {
 	t.Parallel()
 
-	cancelledContext, cancelFunc := context.WithCancel(t.Context()))
+	cancelledContext, cancelFunc := context.WithCancel(t.Context())
 	cancelFunc()
 
 	testCases := []struct {

@@ -1,18 +1,11 @@
 package provider
 
 import (
-	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
@@ -48,7 +41,10 @@ func TestAccEDAEventStreamDataSourceRetrievesPostURL(t *testing.T) {
 	eventStreamName := "Test Event Stream"
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { aapVersionPreCheck(t) },
+		PreCheck:                 func() {
+			testAccPreCheck(t)
+			aapVersionPreCheck(t)
+		},
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -64,40 +60,9 @@ func TestAccEDAEventStreamDataSourceRetrievesPostURL(t *testing.T) {
 func aapVersionPreCheck(t testing.TB) {
 	t.Helper()
 
-	timeoutSec := int64(3)
-	httpTransport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	httpClient := &http.Client{Transport: httpTransport, Timeout: time.Duration(timeoutSec) * time.Second}
-
-	hostname := os.Getenv("AAP_HOSTNAME")
-	if hostname == "" {
-		t.Error("AAP_HOSTNAME environment variable was empty during AAP version pre-check")
-	}
-
-	url, err := url.JoinPath(hostname, "/api/")
+	body, err := testMethodResource("GET", "/api/")
 	if err != nil {
-		t.Errorf("error constructing URL during AAP version pre-check: %v", err)
-	}
-
-	ctx := t.Context()
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		t.Errorf("error creating request during AAP version pre-check: %v", err)
-	}
-
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		t.Errorf("error in response during AAP version pre-check: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Errorf("error reading response body during AAP version pre-check: %v", err)
+		t.Errorf("error fetching /api/ endpoint: %v", err)
 	}
 
 	var apiEndpointResp struct {
