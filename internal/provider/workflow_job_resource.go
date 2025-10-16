@@ -29,16 +29,20 @@ type WorkflowJobAPIModel struct {
 	IgnoredFields map[string]interface{} `json:"ignored_fields,omitempty"`
 }
 
+type WorkflowJobModel struct {
+	TemplateID  types.Int64                      `tfsdk:"workflow_job_template_id"`
+	InventoryID types.Int64                      `tfsdk:"inventory_id"`
+	ExtraVars   customtypes.AAPCustomStringValue `tfsdk:"extra_vars"`
+}
+
 // WorkflowJobResourceModel maps the resource schema data.
 type WorkflowJobResourceModel struct {
-	TemplateID    types.Int64                      `tfsdk:"workflow_job_template_id"`
-	InventoryID   types.Int64                      `tfsdk:"inventory_id"`
-	Type          types.String                     `tfsdk:"job_type"`
-	URL           types.String                     `tfsdk:"url"`
-	Status        types.String                     `tfsdk:"status"`
-	ExtraVars     customtypes.AAPCustomStringValue `tfsdk:"extra_vars"`
-	IgnoredFields types.List                       `tfsdk:"ignored_fields"`
-	Triggers      types.Map                        `tfsdk:"triggers"`
+	WorkflowJobModel
+	Type          types.String `tfsdk:"job_type"`
+	URL           types.String `tfsdk:"url"`
+	Status        types.String `tfsdk:"status"`
+	IgnoredFields types.List   `tfsdk:"ignored_fields"`
+	Triggers      types.Map    `tfsdk:"triggers"`
 }
 
 // WorkflowJobResource is the resource implementation.
@@ -148,7 +152,7 @@ func (r *WorkflowJobResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	resp.Diagnostics.Append(r.LaunchWorkflowJob(&data)...)
+	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(r.client)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -212,7 +216,7 @@ func (r *WorkflowJobResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	// Create new Workflow Job from workflow job template
-	resp.Diagnostics.Append(r.LaunchWorkflowJob(&data)...)
+	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(r.client)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -230,7 +234,7 @@ func (r WorkflowJobResource) Delete(_ context.Context, _ resource.DeleteRequest,
 }
 
 // CreateRequestBody creates a JSON encoded request body from the workflow job resource data
-func (r *WorkflowJobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
+func (r *WorkflowJobModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	// Convert workflow job resource data to API data model
@@ -297,36 +301,32 @@ func (r *WorkflowJobResourceModel) ParseIgnoredFields(ignoredFields map[string]i
 	return diags
 }
 
-// LaunchWorkflowJob launches a workflow job using the provided resource data.
-func (r *WorkflowJobResource) LaunchWorkflowJob(data *WorkflowJobResourceModel) diag.Diagnostics {
+func (r *WorkflowJobModel) LaunchWorkflowJob(client ProviderHTTPClient) ([]byte, diag.Diagnostics) {
 	// Create new Workflow Job from workflow job template
 	var diags diag.Diagnostics
 
 	// Create request body from workflow job data
-	requestBody, diagCreateReq := data.CreateRequestBody()
+	requestBody, diagCreateReq := r.CreateRequestBody()
 	diags.Append(diagCreateReq...)
 	if diags.HasError() {
-		return diags
+		return nil, diags
 	}
 
 	requestData := bytes.NewReader(requestBody)
-	var postURL = path.Join(r.client.getAPIEndpoint(), "workflow_job_templates", data.GetTemplateID(), "launch")
-	resp, body, err := r.client.doRequest(http.MethodPost, postURL, nil, requestData)
+	var postURL = path.Join(client.getAPIEndpoint(), "workflow_job_templates", r.TemplateID.String(), "launch")
+	resp, body, err := client.doRequest(http.MethodPost, postURL, nil, requestData)
 	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
 	if diags.HasError() {
-		return diags
+		return nil, diags
 	}
 
-	// Save new workflow job data into workflow job resource model
-	diags.Append(data.ParseHTTPResponse(body)...)
+	return body, diags
+}
+
+func (r *WorkflowJobResourceModel) LaunchWorkflowJobWithResponse(client ProviderHTTPClient) diag.Diagnostics {
+	body, diags := r.LaunchWorkflowJob(client)
 	if diags.HasError() {
 		return diags
 	}
-
-	return diags
-}
-
-// GetTemplateID returns the workflow job template ID as a string.
-func (r *WorkflowJobResourceModel) GetTemplateID() string {
-	return r.TemplateID.String()
+	return r.ParseHTTPResponse(body)
 }
