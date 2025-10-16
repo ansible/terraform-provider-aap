@@ -23,8 +23,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
 
-// Default value for the wait_for_completion timeout, so the linter doesn't complain.
-const waitForCompletionTimeoutDefault int64 = 120
+const (
+	// Default value for the wait_for_completion timeout, so the linter doesn't complain.
+	waitForCompletionTimeoutDefault int64  = 120
+	statusSuccesfulConst            string = "successful"
+)
 
 // JobAPIModel represents the AAP API model.
 type JobAPIModel struct {
@@ -80,14 +83,14 @@ func NewJobResource() resource.Resource {
 // if such state is final and cannot transition further; a.k.a, the job is completed.
 func IsFinalStateAAPJob(state string) bool {
 	finalStates := map[string]bool{
-		"new":        false,
-		"pending":    false,
-		"waiting":    false,
-		"running":    false,
-		"successful": true,
-		"failed":     true,
-		"error":      true,
-		"canceled":   true,
+		"new":                false,
+		"pending":            false,
+		"waiting":            false,
+		"running":            false,
+		statusSuccesfulConst: true,
+		"failed":             true,
+		"error":              true,
+		"canceled":           true,
 	}
 	result, isPresent := finalStates[state]
 	return isPresent && result
@@ -95,7 +98,13 @@ func IsFinalStateAAPJob(state string) bool {
 
 type RetryProgressFunc func(status string)
 
-func retryUntilAAPJobReachesAnyFinalState(ctx context.Context, client ProviderHTTPClient, retryProgressFunc RetryProgressFunc, url string, status *string) retry.RetryFunc {
+func retryUntilAAPJobReachesAnyFinalState(
+	ctx context.Context,
+	client ProviderHTTPClient,
+	retryProgressFunc RetryProgressFunc,
+	url string,
+	status *string,
+) retry.RetryFunc {
 	return func() *retry.RetryError {
 		responseBody, diagnostics := client.Get(url)
 		if diagnostics.HasError() {
