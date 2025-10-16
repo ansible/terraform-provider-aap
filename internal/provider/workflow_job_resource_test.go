@@ -458,10 +458,30 @@ func testAccCheckWorkflowJobPause(ctx context.Context, name string) resource.Tes
 	}
 }
 
+func TestAccAAPWorkflowJob_waitForCompletionWithFailure(t *testing.T) {
+	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_FAIL_TEMPLATE_ID")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBasicWorkflowJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr("aap_workflow_job.test", "status", regexp.MustCompile("^failed$")),
+					resource.TestMatchResourceAttr("aap_workflow_job.test", "url", regexp.MustCompile("^/api(/controller)?/v2/workflow_jobs/[0-9]*/$")),
+					testAccCheckWorkflowJobExists,
+				),
+			},
+		},
+	})
+}
+
 func testAccBasicWorkflowJob(jobTemplateID string) string {
 	return fmt.Sprintf(`
 resource "aap_workflow_job" "test" {
-	workflow_job_template_id   = %s
+	workflow_job_template_id  = %s
+	wait_for_completion       = true
 }
 `, jobTemplateID)
 }

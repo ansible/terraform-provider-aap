@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
 
-// WorkflowJobAction represents a job action that can be executed in AAP.
+// WorkflowJobAction represents a workflow job action that can be executed in AAP.
 type WorkflowJobAction struct {
 	client ProviderHTTPClient
 }
@@ -30,9 +30,7 @@ var (
 
 type WorkflowJobActionModel struct {
 	WorkflowJobModel
-	WaitForCompletion        types.Bool  `tfsdk:"wait_for_completion"`
-	WaitForCompletionTimeout types.Int64 `tfsdk:"wait_for_completion_timeout_seconds"`
-	IgnoreJobResults         types.Bool  `tfsdk:"ignore_job_results"`
+	IgnoreJobResults types.Bool `tfsdk:"ignore_job_results"`
 }
 
 // Schema defines the schema for the job action
@@ -138,14 +136,14 @@ func (a *WorkflowJobAction) Invoke(ctx context.Context, req action.InvokeRequest
 			if config.IgnoreJobResults.ValueBool() {
 				response.Diagnostics.Append(
 					diag.NewWarningDiagnostic(
-						fmt.Sprintf("AAP job %s", status),
+						fmt.Sprintf("AAP workflow job %s", status),
 						fmt.Sprintf("API Path: %s", jobResponse.URL),
 					),
 				)
 			} else {
 				response.Diagnostics.Append(
 					diag.NewErrorDiagnostic(
-						fmt.Sprintf("AAP job %s", status),
+						fmt.Sprintf("AAP workflow job %s", status),
 						fmt.Sprintf("API Path: %s", jobResponse.URL),
 					),
 				)
