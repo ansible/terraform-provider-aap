@@ -129,13 +129,17 @@ func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, respon
 				Message: fmt.Sprintf("Job at: %s is in status: %s", jobResponse.URL, status),
 			})
 		}
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, a.client, retryProgressFunc, jobResponse.URL, &status))
+		err := retry.RetryContext(
+			ctx,
+			timeout,
+			retryUntilAAPJobReachesAnyFinalState(ctx, a.client, retryProgressFunc, jobResponse.URL, &status),
+		)
 		if err != nil {
 			response.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
 			return
 		}
 		jobResponse.Status = status
-		if status != "successful" {
+		if status != statusSuccesfulConst {
 			if config.IgnoreJobResults.ValueBool() {
 				response.Diagnostics.Append(
 					diag.NewWarningDiagnostic(
