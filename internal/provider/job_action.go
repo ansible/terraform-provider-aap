@@ -102,6 +102,10 @@ func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, respon
 		return
 	}
 
+	response.SendProgress(action.InvokeProgressEvent{
+		Message: fmt.Sprintf("Job launched, URL: %s, Template ID: %d, Inventory ID: %d", jobResponse.URL, jobResponse.TemplateID, jobResponse.Inventory),
+	})
+
 	tflog.Debug(ctx, "job launched", map[string]interface{}{
 		"url":            jobResponse.URL,
 		"status":         jobResponse.Status,
@@ -119,7 +123,13 @@ func (a *JobAction) Invoke(ctx context.Context, req action.InvokeRequest, respon
 		}
 		timeout := time.Duration(config.WaitForCompletionTimeout.ValueInt64()) * time.Second
 		var status string
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, a.client, jobResponse.URL, &status))
+
+		retryProgressFunc := func(status string) {
+			response.SendProgress(action.InvokeProgressEvent{
+				Message: fmt.Sprintf("Job at: %s is in status: %s", jobResponse.URL, status),
+			})
+		}
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, a.client, retryProgressFunc, jobResponse.URL, &status))
 		if err != nil {
 			response.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
 			return
