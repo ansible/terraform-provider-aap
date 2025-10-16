@@ -81,7 +81,7 @@
           organization_name: "Default"
           inputs:
             username: "eda-user"
-            password: "super-secret-shh"
+            password: "{{ lookup('ansible.builtin.password', '/dev/null' )}}"
           state: present
       rescue:
       - name: Cannot create credential
