@@ -79,7 +79,7 @@ func TestAccAAPWorkflowJobAction_fail(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccBasicWorkflowJobAction(inventoryName, jobTemplateID),
-				ExpectError: regexp.MustCompile(".*AAP job failed.*"),
+				ExpectError: regexp.MustCompile(".*AAP workflow job failed.*"),
 			},
 		},
 	})

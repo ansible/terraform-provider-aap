@@ -7,15 +7,20 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"time"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
 
 // WorkflowJobAPIModel represents the AAP API model for workflow jobs.
@@ -30,9 +35,11 @@ type WorkflowJobAPIModel struct {
 }
 
 type WorkflowJobModel struct {
-	TemplateID  types.Int64                      `tfsdk:"workflow_job_template_id"`
-	InventoryID types.Int64                      `tfsdk:"inventory_id"`
-	ExtraVars   customtypes.AAPCustomStringValue `tfsdk:"extra_vars"`
+	TemplateID               types.Int64                      `tfsdk:"workflow_job_template_id"`
+	InventoryID              types.Int64                      `tfsdk:"inventory_id"`
+	ExtraVars                customtypes.AAPCustomStringValue `tfsdk:"extra_vars"`
+	WaitForCompletion        types.Bool                       `tfsdk:"wait_for_completion"`
+	WaitForCompletionTimeout types.Int64                      `tfsdk:"wait_for_completion_timeout_seconds"`
 }
 
 // WorkflowJobResourceModel maps the resource schema data.
@@ -131,6 +138,20 @@ func (r *WorkflowJobResource) Schema(_ context.Context, _ resource.SchemaRequest
 				Computed:    true,
 				Description: "The list of properties set by the user but ignored on server side.",
 			},
+			"wait_for_completion": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
+				Description: "When this is set to `true`, Terraform will wait until this aap_job resource is created, reaches " +
+					"any final status and then, proceeds with the following resource operation",
+			},
+			"wait_for_completion_timeout_seconds": schema.Int64Attribute{
+				Optional: true,
+				Computed: true,
+				Default:  int64default.StaticInt64(waitForCompletionTimeoutDefault),
+				Description: "Sets the maximum amount of seconds Terraform will wait before timing out the updates, " +
+					"and the job creation will fail. Default value of `120`",
+			},
 		},
 		MarkdownDescription: "Launches an AAP workflow job.\n\n" +
 			"A workflow job is launched only when the resource is first created or when the " +
@@ -152,9 +173,28 @@ func (r *WorkflowJobResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(r.client)...)
+	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(ctx, r.client)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// If the job was configured to wait for completion, start polling the job status
+	// and wait for it to complete before marking the resource as created
+	if data.WaitForCompletion.ValueBool() {
+		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
+		var status string
+		retryProgressFunc := func(status string) {
+			tflog.Debug(ctx, "Job status update", map[string]interface{}{
+				"status": status,
+				"url":    data.URL.ValueString(),
+			})
+		}
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, retryProgressFunc, data.URL.ValueString(), &status))
+		if err != nil {
+			resp.Diagnostics.AddError("error when waiting for AAP Workflow job to complete", err.Error())
+			return
+		}
+		data.Status = types.StringValue(status)
 	}
 
 	// Save updated data into Terraform state
@@ -216,9 +256,28 @@ func (r *WorkflowJobResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	// Create new Workflow Job from workflow job template
-	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(r.client)...)
+	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(ctx, r.client)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// If the job was configured to wait for completion, start polling the job status
+	// and wait for it to complete before marking the resource as created
+	if data.WaitForCompletion.ValueBool() {
+		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
+		var status string
+		retryProgressFunc := func(status string) {
+			tflog.Debug(ctx, "Job status update", map[string]interface{}{
+				"status": status,
+				"url":    data.URL.ValueString(),
+			})
+		}
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, retryProgressFunc, data.URL.ValueString(), &status))
+		if err != nil {
+			resp.Diagnostics.AddError("error when waiting for AAP Workflow job to complete", err.Error())
+			return
+		}
+		data.Status = types.StringValue(status)
 	}
 
 	// Save updated data into Terraform state
@@ -323,7 +382,7 @@ func (r *WorkflowJobModel) LaunchWorkflowJob(client ProviderHTTPClient) ([]byte,
 	return body, diags
 }
 
-func (r *WorkflowJobResourceModel) LaunchWorkflowJobWithResponse(client ProviderHTTPClient) diag.Diagnostics {
+func (r *WorkflowJobResourceModel) LaunchWorkflowJobWithResponse(ctx context.Context, client ProviderHTTPClient) diag.Diagnostics {
 	body, diags := r.LaunchWorkflowJob(client)
 	if diags.HasError() {
 		return diags
