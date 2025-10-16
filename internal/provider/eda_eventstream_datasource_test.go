@@ -80,7 +80,7 @@ func aapVersionPreCheck(t testing.TB) {
 		t.Errorf("error constructing URL during AAP version pre-check: %v", err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		t.Errorf("error creating request during AAP version pre-check: %v", err)

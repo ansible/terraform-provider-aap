@@ -28,7 +28,7 @@ func TestBaseEdaDataSourceMetadata(t *testing.T) {
 		MetadataEntitySlug:    "datasourceMetadataSlug",
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	metadataRequest := datasource.MetadataRequest{
 		ProviderTypeName: "provider",
 	}
@@ -52,7 +52,7 @@ func TestBaseEdaDataSourceSchema(t *testing.T) {
 		MetadataEntitySlug:    "datasourceMetadataSlug",
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	schemaRequest := datasource.SchemaRequest{}
 	schemaResponse := datasource.SchemaResponse{}
 
@@ -73,7 +73,7 @@ func TestBaseEdaDataSourceSchema(t *testing.T) {
 func TestBaseEdaDataSourceConfigure(t *testing.T) {
 	t.Parallel()
 
-	cancelledContext, cancelFunc := context.WithCancel(context.Background())
+	cancelledContext, cancelFunc := context.WithCancel(t.Context()))
 	cancelFunc()
 
 	testCases := []struct {
@@ -90,7 +90,7 @@ func TestBaseEdaDataSourceConfigure(t *testing.T) {
 	}{
 		{
 			name:                "Success scenario",
-			ctx:                 context.Background(),
+			ctx:                 t.Context(),
 			expectErrorLog:      false,
 			expectDiagnosticErr: false,
 			request: datasource.ConfigureRequest{
@@ -101,7 +101,7 @@ func TestBaseEdaDataSourceConfigure(t *testing.T) {
 		},
 		{
 			name:                "Response object is nil",
-			ctx:                 context.Background(),
+			ctx:                 t.Context(),
 			expectErrorLog:      true,
 			expectedLogMessage:  "Response not defined, we cannot continue with the execution",
 			expectDiagnosticErr: false,
@@ -122,7 +122,7 @@ func TestBaseEdaDataSourceConfigure(t *testing.T) {
 		},
 		{
 			name:                "ProviderData is nil",
-			ctx:                 context.Background(),
+			ctx:                 t.Context(),
 			expectErrorLog:      false,
 			expectDiagnosticErr: false,
 			request:             datasource.ConfigureRequest{ProviderData: nil},
@@ -131,7 +131,7 @@ func TestBaseEdaDataSourceConfigure(t *testing.T) {
 		},
 		{
 			name:                "Wrong ProviderData type",
-			ctx:                 context.Background(),
+			ctx:                 t.Context(),
 			expectErrorLog:      false,
 			expectDiagnosticErr: true,
 			expectedDiagSummary: "Unexpected Data Source Configure Type",
@@ -205,7 +205,7 @@ func TestBaseEdaDataSourceRead(t *testing.T) {
 	}{
 		{
 			name:                "Success scenario",
-			ctx:                 context.Background(),
+			ctx:                 t.Context(),
 			edaEndpoint:         "/api/eda/v1",
 			expectedID:          123,
 			expectErrorLog:      false,
@@ -213,19 +213,19 @@ func TestBaseEdaDataSourceRead(t *testing.T) {
 			request: datasource.ReadRequest{
 				Config: tfsdk.Config{
 					Schema: baseEdaDataSourceSchema,
-					Raw:    createTerraformValue(baseEdaDataSourceSchema, eventStreamName),
+					Raw:    createTerraformValue(t.Context(), baseEdaDataSourceSchema, eventStreamName),
 				},
 			},
 			response: &datasource.ReadResponse{
 				State: tfsdk.State{
 					Schema: baseEdaDataSourceSchema,
-					Raw:    createTerraformValue(baseEdaDataSourceSchema, eventStreamName),
+					Raw:    createTerraformValue(t.Context(), baseEdaDataSourceSchema, eventStreamName),
 				},
 			},
 		},
 		{
 			name:                "Invalid EDA endpoint",
-			ctx:                 context.Background(),
+			ctx:                 t.Context(),
 			edaEndpoint:         "",
 			expectDiagnosticErr: true,
 			expectedDiagSummary: "EDA API Endpoint is empty",
@@ -233,13 +233,13 @@ func TestBaseEdaDataSourceRead(t *testing.T) {
 			request: datasource.ReadRequest{
 				Config: tfsdk.Config{
 					Schema: baseEdaDataSourceSchema,
-					Raw:    createTerraformValue(baseEdaDataSourceSchema, eventStreamName),
+					Raw:    createTerraformValue(t.Context(), baseEdaDataSourceSchema, eventStreamName),
 				},
 			},
 			response: &datasource.ReadResponse{
 				State: tfsdk.State{
 					Schema: baseEdaDataSourceSchema,
-					Raw:    createTerraformValue(baseEdaDataSourceSchema, eventStreamName),
+					Raw:    createTerraformValue(t.Context(), baseEdaDataSourceSchema, eventStreamName),
 				},
 			},
 		},
@@ -510,9 +510,9 @@ func getDiags[T *datasource.ConfigureResponse | *datasource.ReadResponse](respon
 }
 
 // createTerraformValue creates a `tftypes.Value` to be used in contructing Terraform requests and responses.
-func createTerraformValue(schema schema.Schema, nameValue string) tftypes.Value {
+func createTerraformValue(ctx context.Context, schema schema.Schema, nameValue string) tftypes.Value {
 	return tftypes.NewValue(
-		schema.Type().TerraformType(context.Background()),
+		schema.Type().TerraformType(ctx),
 		map[string]tftypes.Value{
 			"name": tftypes.NewValue(tftypes.String, nameValue),
 			"id":   tftypes.NewValue(tftypes.Number, nil),
