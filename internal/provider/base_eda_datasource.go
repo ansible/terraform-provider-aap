@@ -38,15 +38,15 @@ func (d *BaseEdaDataSource) Metadata(_ context.Context, req datasource.MetadataR
 func (d *BaseEdaDataSource) GetBaseAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"id": schema.Int64Attribute{
-			Computed: true,
+			Computed:    true,
 			Description: fmt.Sprintf("%s id", d.DescriptiveEntityName),
 		},
 		"name": schema.StringAttribute{
-			Required: true,
+			Required:    true,
 			Description: fmt.Sprintf("Name of the %s", d.DescriptiveEntityName),
 		},
 		"url": schema.StringAttribute{
-			Computed: true,
+			Computed:    true,
 			Description: fmt.Sprintf("URL of the %s", d.DescriptiveEntityName),
 		},
 	}
