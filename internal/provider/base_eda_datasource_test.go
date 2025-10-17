@@ -509,7 +509,7 @@ func getDiags[T *datasource.ConfigureResponse | *datasource.ReadResponse](respon
 	return &diag.Diagnostics{}
 }
 
-// createTerraformValue creates a `tftypes.Value` to be used in contructing Terraform requests and responses.
+// createTerraformValue creates a `tftypes.Value` to be used in constructing Terraform requests and responses.
 func createTerraformValue(ctx context.Context, schema schema.Schema, nameValue string) tftypes.Value { //nolint:unparam
 	return tftypes.NewValue(
 		schema.Type().TerraformType(ctx),

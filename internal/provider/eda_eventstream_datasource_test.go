@@ -54,8 +54,6 @@ func TestAccEDAEventStreamDataSourceRetrievesPostURL(t *testing.T) {
 	})
 }
 
-// skipTestWithoutEDAPreCheck determines the AAP version before an acceptance test is executed. The test is skipped
-// if the version is prior to AAP 2.5.
 func skipTestWithoutEDAPreCheck(t testing.TB) {
 	t.Helper()
 
