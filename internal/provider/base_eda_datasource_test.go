@@ -336,7 +336,7 @@ func TestBaseEdaSourceModelParseHttpResponse(t *testing.T) {
 			name:                "Invalid JSON response",
 			responseBody:        []byte(`{"invalid": json}`),
 			expectError:         true,
-			expectedDiagSummary: "Error parsing JSON response from AAP", //NOSONAR
+			expectedDiagSummary: "Error parsing JSON response from AAP", // NOSONAR
 			expectedDiagDetail:  "invalid character 'j' looking for beginning of value",
 		},
 		{
@@ -345,7 +345,7 @@ func TestBaseEdaSourceModelParseHttpResponse(t *testing.T) {
 				"results": []
 			}`),
 			expectError:         true,
-			expectedDiagSummary: "No event streams found in AAP", //NOSONAR
+			expectedDiagSummary: "No event streams found in AAP", // NOSONAR
 			expectedDiagDetail:  "Expected 1 object in JSON response, found 0",
 		},
 		{
@@ -510,7 +510,7 @@ func getDiags[T *datasource.ConfigureResponse | *datasource.ReadResponse](respon
 }
 
 // createTerraformValue creates a `tftypes.Value` to be used in contructing Terraform requests and responses.
-func createTerraformValue(ctx context.Context, schema schema.Schema, nameValue string) tftypes.Value {
+func createTerraformValue(ctx context.Context, schema schema.Schema, nameValue string) tftypes.Value { //nolint:unparam
 	return tftypes.NewValue(
 		schema.Type().TerraformType(ctx),
 		map[string]tftypes.Value{

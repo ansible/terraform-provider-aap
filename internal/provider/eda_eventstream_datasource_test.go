@@ -40,7 +40,7 @@ func TestAccEDAEventStreamDataSourceRetrievesPostURL(t *testing.T) {
 	eventStreamName := "Test Event Stream"
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() {
+		PreCheck: func() {
 			testAccPreCheck(t)
 			skipTestWithoutEDAPreCheck(t)
 		},
