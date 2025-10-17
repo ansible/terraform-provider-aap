@@ -31,7 +31,6 @@ func NewBaseEdaDataSource(client ProviderHTTPClient, stringDescriptions StringDe
 // entity slug string passed in the constructor.
 func (d *BaseEdaDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = fmt.Sprintf("%s_%s", req.ProviderTypeName, d.MetadataEntitySlug)
-	fmt.Println(resp.TypeName)
 }
 
 // GetBaseAttributes returns the base set of attributes for an EDA data source. This
@@ -39,10 +38,16 @@ func (d *BaseEdaDataSource) Metadata(_ context.Context, req datasource.MetadataR
 func (d *BaseEdaDataSource) GetBaseAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"id": schema.Int64Attribute{
-			Computed: true,
+			Computed:    true,
+			Description: fmt.Sprintf("%s id", d.DescriptiveEntityName),
 		},
 		"name": schema.StringAttribute{
-			Required: true,
+			Required:    true,
+			Description: fmt.Sprintf("Name of the %s", d.DescriptiveEntityName),
+		},
+		"url": schema.StringAttribute{
+			Computed:    true,
+			Description: fmt.Sprintf("URL of the %s", d.DescriptiveEntityName),
 		},
 	}
 }
@@ -51,7 +56,7 @@ func (d *BaseEdaDataSource) GetBaseAttributes() map[string]schema.Attribute {
 func (d *BaseEdaDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes:  d.GetBaseAttributes(),
-		Description: fmt.Sprintf("Creates a %s.", d.DescriptiveEntityName),
+		Description: fmt.Sprintf("Gets an existing %s.", d.DescriptiveEntityName),
 	}
 }
 
@@ -143,7 +148,7 @@ func (d *BaseEdaSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	}
 
 	if len(apiModelList.Results) != 1 {
-		diags.AddError("Unable to fetch event_stream from AAP", fmt.Sprintf("Expected 1 object in JSON response, found %d", len(apiModelList.Results)))
+		diags.AddError("No event streams found in AAP", fmt.Sprintf("Expected 1 object in JSON response, found %d", len(apiModelList.Results)))
 		return diags
 	}
 
