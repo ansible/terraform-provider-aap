@@ -31,7 +31,6 @@ func NewBaseEdaDataSource(client ProviderHTTPClient, stringDescriptions StringDe
 // entity slug string passed in the constructor.
 func (d *BaseEdaDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = fmt.Sprintf("%s_%s", req.ProviderTypeName, d.MetadataEntitySlug)
-	fmt.Println(resp.TypeName)
 }
 
 // GetBaseAttributes returns the base set of attributes for an EDA data source. This
@@ -43,6 +42,9 @@ func (d *BaseEdaDataSource) GetBaseAttributes() map[string]schema.Attribute {
 		},
 		"name": schema.StringAttribute{
 			Required: true,
+		},
+		"url": schema.StringAttribute{
+			Computed: true,
 		},
 	}
 }
@@ -143,7 +145,7 @@ func (d *BaseEdaSourceModel) ParseHttpResponse(body []byte) diag.Diagnostics {
 	}
 
 	if len(apiModelList.Results) != 1 {
-		diags.AddError("Unable to fetch event_stream from AAP", fmt.Sprintf("Expected 1 object in JSON response, found %d", len(apiModelList.Results)))
+		diags.AddError("No event streams found in AAP", fmt.Sprintf("Expected 1 object in JSON response, found %d", len(apiModelList.Results)))
 		return diags
 	}
 
