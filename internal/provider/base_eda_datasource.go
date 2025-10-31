@@ -49,6 +49,9 @@ func (d *BaseEdaDataSource) GetBaseAttributes() map[string]schema.Attribute {
 			Computed:    true,
 			Description: fmt.Sprintf("URL of the %s", d.DescriptiveEntityName),
 		},
+		"url": schema.StringAttribute{
+			Computed: true,
+		},
 	}
 }
 
