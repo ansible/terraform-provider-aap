@@ -165,5 +165,5 @@ func (a *JobAction) Configure(_ context.Context, req action.ConfigureRequest, re
 
 // Metadata returns the action metadata
 func (a *JobAction) Metadata(_ context.Context, req action.MetadataRequest, resp *action.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_job"
+	resp.TypeName = req.ProviderTypeName + "_job_launch"
 }
