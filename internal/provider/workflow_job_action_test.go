@@ -108,12 +108,12 @@ resource "aap_inventory" "test" {
 	lifecycle {
 		action_trigger {
 			events = [after_create]
-			actions = [action.aap_workflow_job.test]
+			actions = [action.aap_workflow_job_launch.test]
 		}
 	}
 }
 
-action "aap_workflow_job" "test" {
+action "aap_workflow_job_launch" "test" {
 	config {
 		workflow_job_template_id = %s
 		wait_for_completion 	 = true
@@ -129,12 +129,12 @@ resource "aap_inventory" "test" {
 	lifecycle {
 		action_trigger {
 			events = [after_create]
-			actions = [action.aap_workflow_job.test]
+			actions = [action.aap_workflow_job_launch.test]
 		}
 	}
 }
 
-action "aap_workflow_job" "test" {
+action "aap_workflow_job_launch" "test" {
 	config {
 		workflow_job_template_id = %s
 		wait_for_completion 	 = true

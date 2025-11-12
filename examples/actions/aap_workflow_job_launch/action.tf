@@ -12,7 +12,7 @@ provider "aap" {
 }
 
 # Define an action to send a payload to AAP API.
-action "aap_workflow_job" "test" {
+action "aap_workflow_job_launch" "test" {
   config {
     job_template_id     = 1234
     wait_for_completion = true
@@ -25,7 +25,7 @@ resource "terraform_data" "trigger" {
   lifecycle {
     action_trigger {
       events  = [after_create]
-      actions = [action.aap_workflow_job.test]
+      actions = [action.aap_workflow_job_launch.test]
     }
   }
 }
