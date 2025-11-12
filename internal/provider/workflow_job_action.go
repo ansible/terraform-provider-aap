@@ -172,5 +172,5 @@ func (a *WorkflowJobAction) Configure(_ context.Context, req action.ConfigureReq
 
 // Metadata returns the action metadata
 func (a *WorkflowJobAction) Metadata(_ context.Context, req action.MetadataRequest, resp *action.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_workflow_job"
+	resp.TypeName = req.ProviderTypeName + "_workflow_job_launch"
 }
