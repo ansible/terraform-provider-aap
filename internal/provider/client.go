@@ -24,9 +24,9 @@ type ProviderHTTPClient interface {
 	UpdateWithStatus(path string, data io.Reader) ([]byte, diag.Diagnostics, int)
 	Delete(path string) ([]byte, diag.Diagnostics)
 	DeleteWithStatus(path string) ([]byte, diag.Diagnostics, int)
-	setApiEndpoint() diag.Diagnostics
-	getApiEndpoint() string
-	getEdaApiEndpoint() string
+	setAPIEndpoint() diag.Diagnostics
+	getAPIEndpoint() string
+	getEdaAPIEndpoint() string
 }
 
 // AAPClient provides functionality for interacting with the AAP API.
@@ -34,8 +34,8 @@ type AAPClient struct {
 	HostURL        string
 	Authenticator  AAPClientAuthenticator
 	httpClient     *http.Client
-	ApiEndpoint    string
-	EdaApiEndpoint string
+	APIEndpoint    string
+	EDAAPIEndpoint string
 }
 
 // AAPAPIEndpointResponse represents a response from an AAP API endpoint.
@@ -52,7 +52,7 @@ type aapDiscoveredEndpoints struct {
 	edaEndpoint        string
 }
 
-func readApiEndpoint(client ProviderHTTPClient) (aapDiscoveredEndpoints, diag.Diagnostics) {
+func readAPIEndpoint(client ProviderHTTPClient) (aapDiscoveredEndpoints, diag.Diagnostics) {
 	discoveredEndpoints := aapDiscoveredEndpoints{}
 	body, diags := client.Get("/api/")
 	if diags.HasError() {
@@ -68,8 +68,8 @@ func readApiEndpoint(client ProviderHTTPClient) (aapDiscoveredEndpoints, diag.Di
 		return discoveredEndpoints, diags
 	}
 
-	if len(response.Apis.Controller) > 0 {
-		body, diags = client.Get(response.Apis.Controller)
+	if len(response.APIs.Controller) > 0 {
+		body, diags = client.Get(response.APIs.Controller)
 		if diags.HasError() {
 			return discoveredEndpoints, diags
 		}
@@ -91,8 +91,8 @@ func readApiEndpoint(client ProviderHTTPClient) (aapDiscoveredEndpoints, diag.Di
 		discoveredEndpoints.controllerEndpoint = response.CurrentVersion
 	}
 
-	if len(response.Apis.EDA) > 0 {
-		body, diags = client.Get(response.Apis.EDA)
+	if len(response.APIs.EDA) > 0 {
+		body, diags = client.Get(response.APIs.EDA)
 		if diags.HasError() {
 			return discoveredEndpoints, diags
 		}
@@ -141,13 +141,13 @@ func NewClient(host string, authenticator AAPClientAuthenticator, insecureSkipVe
 	return &client, diags
 }
 
-func (c *AAPClient) setApiEndpoint() diag.Diagnostics {
-	discoveredEndpoints, diags := readApiEndpoint(c)
+func (c *AAPClient) setAPIEndpoint() diag.Diagnostics {
+	discoveredEndpoints, diags := readAPIEndpoint(c)
 	if diags.HasError() {
 		return diags
 	}
-	c.ApiEndpoint = discoveredEndpoints.controllerEndpoint
-	c.EdaApiEndpoint = discoveredEndpoints.edaEndpoint
+	c.APIEndpoint = discoveredEndpoints.controllerEndpoint
+	c.EDAAPIEndpoint = discoveredEndpoints.edaEndpoint
 	return diags
 }
 
@@ -155,8 +155,8 @@ func (c *AAPClient) getAPIEndpoint() string {
 	return c.APIEndpoint
 }
 
-func (c *AAPClient) getEdaApiEndpoint() string {
-	return c.EdaApiEndpoint
+func (c *AAPClient) getEdaAPIEndpoint() string {
+	return c.EDAAPIEndpoint
 }
 
 func (c *AAPClient) computeURLPath(path string) string {

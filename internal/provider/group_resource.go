@@ -39,7 +39,7 @@ type GroupResourceModel struct {
 
 // GroupResource is the resource implementation.
 type GroupResource struct {
-	client HTTPClient
+	client ProviderHTTPClient
 }
 
 // Ensure the implementation satisfies the expected interfaces.

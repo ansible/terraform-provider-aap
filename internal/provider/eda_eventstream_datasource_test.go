@@ -16,12 +16,12 @@ func TestNewEDAEventStreamDataSource(t *testing.T) {
 
 	expectedMetadataEntitySlug := "eda_eventstream"
 	expectedDescriptiveEntityName := "EDA Event Stream"
-	expectedApiEntitySlug := "event-streams"
+	expectedAPIEntitySlug := "event-streams"
 
 	switch v := testDataSource.(type) {
 	case *EDAEventStreamDataSource:
-		if v.ApiEntitySlug != expectedApiEntitySlug {
-			t.Errorf("Incorrect ApiEntitySlug. Got: %s, wanted: %s", v.ApiEntitySlug, expectedApiEntitySlug)
+		if v.APIEntitySlug != expectedAPIEntitySlug {
+			t.Errorf("Incorrect APIEntitySlug. Got: %s, wanted: %s", v.APIEntitySlug, expectedAPIEntitySlug)
 		}
 		if v.DescriptiveEntityName != expectedDescriptiveEntityName {
 			t.Errorf("Incorrect DescriptiveEntityName. Got: %s, wanted: %s", v.DescriptiveEntityName, expectedDescriptiveEntityName)
@@ -62,14 +62,14 @@ func skipTestWithoutEDAPreCheck(t testing.TB) {
 		t.Errorf("error fetching /api/ endpoint: %v", err)
 	}
 
-	var response AAPApiEndpointResponse
+	var response AAPAPIEndpointResponse
 
 	err = json.Unmarshal(body, &response)
 	if err != nil {
 		t.Errorf("error unmarshalling response body during AAP version pre-check: %v", err)
 	}
 
-	if response.Apis.EDA == "" {
+	if response.APIs.EDA == "" {
 		t.Skip("EDA API endpoint not found: skipping test")
 	}
 }

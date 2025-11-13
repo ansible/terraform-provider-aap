@@ -16,7 +16,7 @@ func NewEDAEventStreamDataSource() datasource.DataSource {
 		BaseEdaDataSource: *NewBaseEdaDataSource(nil, StringDescriptions{
 			MetadataEntitySlug:    "eda_eventstream",
 			DescriptiveEntityName: "EDA Event Stream",
-			ApiEntitySlug:         "event-streams",
+			APIEntitySlug:         "event-streams",
 		}),
 	}
 }
