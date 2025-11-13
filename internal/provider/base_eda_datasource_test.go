@@ -23,7 +23,7 @@ func TestBaseEdaDataSourceMetadata(t *testing.T) {
 	t.Parallel()
 
 	testDataSource := NewBaseEdaDataSource(nil, StringDescriptions{
-		ApiEntitySlug:         "datasourceApiSlug",
+		APIEntitySlug:         "datasourceAPIEntitySlug",
 		DescriptiveEntityName: "datasourceDescriptiveName",
 		MetadataEntitySlug:    "datasourceMetadataSlug",
 	})
@@ -47,7 +47,7 @@ func TestBaseEdaDataSourceSchema(t *testing.T) {
 	t.Parallel()
 
 	testDataSource := NewBaseEdaDataSource(nil, StringDescriptions{
-		ApiEntitySlug:         "datasourceApiSlug",
+		APIEntitySlug:         "datasourceAPIEntitySlug",
 		DescriptiveEntityName: "datasourceDescriptiveName",
 		MetadataEntitySlug:    "datasourceMetadataSlug",
 	})
@@ -155,7 +155,7 @@ func TestBaseEdaDataSourceConfigure(t *testing.T) {
 			}
 
 			testDataSource := NewBaseEdaDataSource(nil, StringDescriptions{
-				ApiEntitySlug:         "datasource",
+				APIEntitySlug:         "datasourceAPIEntitySlug",
 				DescriptiveEntityName: "datasource",
 				MetadataEntitySlug:    "datasource",
 			})
@@ -253,7 +253,7 @@ func TestBaseEdaDataSourceRead(t *testing.T) {
 			defer ctrl.Finish()
 
 			client := NewMockProviderHTTPClient(ctrl)
-			client.EXPECT().getEdaApiEndpoint().Times(1).Return(tc.edaEndpoint)
+			client.EXPECT().getEdaAPIEndpoint().Times(1).Return(tc.edaEndpoint)
 
 			// Mock the HTTP GET call with expected parameters
 			expectedParams := map[string]string{
@@ -274,7 +274,7 @@ func TestBaseEdaDataSourceRead(t *testing.T) {
 			client.EXPECT().GetWithParams(gomock.Any(), expectedParams).AnyTimes().Return([]byte(mockResponse), diag.Diagnostics{})
 
 			testDataSource := NewBaseEdaDataSource(client, StringDescriptions{
-				ApiEntitySlug:         "event-streams", // This gets appended to the EDA endpoint
+				APIEntitySlug:         "event-streams", // This gets appended to the EDA endpoint
 				DescriptiveEntityName: "Event Stream",
 				MetadataEntitySlug:    "eventstream",
 			})

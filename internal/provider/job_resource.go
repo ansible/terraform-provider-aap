@@ -58,7 +58,7 @@ type JobResourceModel struct {
 
 // JobResource is the resource implementation.
 type JobResource struct {
-	client HTTPClient
+	client ProviderHTTPClient
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -420,7 +420,7 @@ func (r *JobModel) LaunchJob(client ProviderHTTPClient) (body []byte, diags diag
 	}
 
 	requestData := bytes.NewReader(requestBody)
-	var postURL = path.Join(client.getApiEndpoint(), "job_templates", r.TemplateID.String(), "launch")
+	var postURL = path.Join(client.getAPIEndpoint(), "job_templates", r.TemplateID.String(), "launch")
 	resp, body, err := client.doRequest(http.MethodPost, postURL, nil, requestData)
 	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
 	if diags.HasError() {
@@ -435,5 +435,5 @@ func (r *JobResourceModel) LaunchJobWithResponse(client ProviderHTTPClient) diag
 	if diags.HasError() {
 		return diags
 	}
-	return r.ParseHttpResponse(body)
+	return r.ParseHTTPResponse(body)
 }

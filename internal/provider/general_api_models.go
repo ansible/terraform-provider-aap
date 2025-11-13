@@ -85,7 +85,7 @@ type StringDescriptions struct {
 // BaseDataSource represents a base DataSource object with a client and the slug name of
 // the API entity.
 type BaseDataSource struct {
-	client HTTPClient
+	client ProviderHTTPClient
 	StringDescriptions
 }
 
@@ -102,7 +102,7 @@ type BaseEdaDataSource struct {
 // BaseResource describes infrastructure objects, such as Jobs, Hosts, or Groups.
 // See https://developer.hashicorp.com/terraform/language/resources
 type BaseResource struct {
-	client HTTPClient
+	client ProviderHTTPClient
 	StringDescriptions
 }
 

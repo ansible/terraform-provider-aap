@@ -69,7 +69,7 @@ func (d *BaseEdaDataSource) Configure(ctx context.Context, req datasource.Config
 	}
 
 	// Check that the current context is active
-	if !IsContextActive("Configure", ctx, &resp.Diagnostics) {
+	if !IsContextActive(ctx, "Configure", &resp.Diagnostics) {
 		return
 	}
 
@@ -104,7 +104,7 @@ func (d *BaseEdaDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 
 	// Create the EDA path with query parameters
-	edaEndpoint := d.client.getEdaApiEndpoint()
+	edaEndpoint := d.client.getEdaAPIEndpoint()
 	if edaEndpoint == "" {
 		resp.Diagnostics.AddError(
 			"EDA API Endpoint is empty",
@@ -112,7 +112,7 @@ func (d *BaseEdaDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		)
 		return
 	}
-	resourceURL := path.Join(edaEndpoint, d.ApiEntitySlug)
+	resourceURL := path.Join(edaEndpoint, d.APIEntitySlug)
 	params := map[string]string{
 		"name": state.Name.ValueString(),
 	}

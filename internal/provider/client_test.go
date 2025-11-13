@@ -19,7 +19,7 @@ const (
 type MockAuthenticator struct {
 }
 
-type readApiEndpointTestCase struct {
+type readAPIEndpointTestCase struct {
 	name                   string
 	url                    string
 	expectedControllerPath string
@@ -57,17 +57,17 @@ func TestComputeURLPath(t *testing.T) {
 	}
 }
 
-func executeReadApiEndpointTestCase(t testing.TB, tc readApiEndpointTestCase) {
+func executeReadAPIEndpointTestCase(t testing.TB, tc readAPIEndpointTestCase) {
 	t.Helper()
-	// readApiEndpoint() is called when creating client
+	// readAPIEndpoint() is called when creating client
 	client, diags := NewClient(tc.url, &MockAuthenticator{}, true, 0)
 
-	assert.Equal(t, tc.expectedControllerPath, client.getApiEndpoint())
-	assert.Equal(t, tc.expectedEDAPath, client.getEdaApiEndpoint())
+	assert.Equal(t, tc.expectedControllerPath, client.getAPIEndpoint())
+	assert.Equal(t, tc.expectedEDAPath, client.getEdaAPIEndpoint())
 
 	if tc.diagsShouldHaveErr != diags.HasError() {
 		t.Errorf(
-			"readApiEndpoint() diagnostic error check failed. Expected: %t, got %t. diags was (%v)",
+			"readAPIEndpoint() diagnostic error check failed. Expected: %t, got %t. diags was (%v)",
 			tc.diagsShouldHaveErr,
 			diags.HasError(),
 			diags,
@@ -75,8 +75,8 @@ func executeReadApiEndpointTestCase(t testing.TB, tc readApiEndpointTestCase) {
 	}
 }
 
-func TestReadApiEndpoint(t *testing.T) {
-	server_24 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestReadAPIEndpoint(t *testing.T) {
+	server24 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != apiEndpoint {
 			t.Errorf("Expected to request '/api/', got: %s", r.URL.Path)
 		}
@@ -113,17 +113,17 @@ func TestReadApiEndpoint(t *testing.T) {
 	}))
 	badJsonServer.Close()
 
-	testTable := []readApiEndpointTestCase{
+	testTable := []readAPIEndpointTestCase{
 		{
 			name:                   "AAP 2.4",
-			url:                    server_24.URL,
+			url:                    server24.URL,
 			expectedControllerPath: "/api/v2/",
 			expectedEDAPath:        "",
 			diagsShouldHaveErr:     false,
 		},
 		{
 			name:                   "AAP 2.5+",
-			url:                    server_25.URL,
+			url:                    server25.URL,
 			expectedControllerPath: "/api/controller/v2/",
 			expectedEDAPath:        "/api/eda/v1/",
 			diagsShouldHaveErr:     false,
@@ -145,12 +145,12 @@ func TestReadApiEndpoint(t *testing.T) {
 	}
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
-			executeReadApiEndpointTestCase(t, tc)
+			executeReadAPIEndpointTestCase(t, tc)
 		})
 	}
 }
 
-func TestReadApiEndpointForController(t *testing.T) {
+func TestReadAPIEndpointForController(t *testing.T) {
 	serverWithMissingControllerEndpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case apiEndpoint:
@@ -178,7 +178,7 @@ func TestReadApiEndpointForController(t *testing.T) {
 	}))
 	defer serverWithBadControllerJSON.Close()
 
-	testTable := []readApiEndpointTestCase{
+	testTable := []readAPIEndpointTestCase{
 		{
 			name:                   "Bad Controller Endpoint",
 			url:                    serverWithMissingControllerEndpoint.URL,
@@ -196,12 +196,12 @@ func TestReadApiEndpointForController(t *testing.T) {
 	}
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
-			executeReadApiEndpointTestCase(t, tc)
+			executeReadAPIEndpointTestCase(t, tc)
 		})
 	}
 }
 
-func TestReadApiEndpointForEDA(t *testing.T) {
+func TestReadAPIEndpointForEDA(t *testing.T) {
 	serverWithMissingEDAEndpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case apiEndpoint:
@@ -250,7 +250,7 @@ func TestReadApiEndpointForEDA(t *testing.T) {
 	}))
 	defer serverWithInvalidEDAURL.Close()
 
-	testTable := []readApiEndpointTestCase{
+	testTable := []readAPIEndpointTestCase{
 		{
 			name:                   "Bad EDA Endpoint",
 			url:                    serverWithMissingEDAEndpoint.URL,
@@ -275,7 +275,7 @@ func TestReadApiEndpointForEDA(t *testing.T) {
 	}
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
-			executeReadApiEndpointTestCase(t, tc)
+			executeReadAPIEndpointTestCase(t, tc)
 		})
 	}
 }

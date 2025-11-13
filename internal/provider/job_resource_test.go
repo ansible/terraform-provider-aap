@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"reflect"
 	"strings"
@@ -23,6 +21,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
+	"go.uber.org/mock/gomock"
 )
 
 const (
@@ -596,8 +595,15 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 
 	// Test diagnostics error handling (500 server error)
 	t.Run("handles diagnostics errors", func(t *testing.T) {
-		mockClient := NewMockHTTPClient([]string{"GET"}, 500) // Server error
-		var status string = statusPendingConst
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockClient := NewMockProviderHTTPClient(ctrl)
+		errorDiags := diag.Diagnostics{}
+		errorDiags.AddError("Server Error", "Internal server error")
+		mockClient.EXPECT().Get("/api/v2/jobs/999/").Return(nil, errorDiags)
+
+		var status = statusPendingConst
 		retryFunc := retryUntilAAPJobReachesAnyFinalState(t.Context(), mockClient, "/api/v2/jobs/999/", &status)
 		err := retryFunc()
 
@@ -619,7 +625,13 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 
 	// Test that non-final state returns retryable error
 	t.Run("returns retryable error for non-final state", func(t *testing.T) {
-		mockClient := NewMockHTTPClient([]string{"GET"}, 200)
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockClient := NewMockProviderHTTPClient(ctrl)
+		mockResponse := []byte(`{"status": "running", "url": "/api/v2/jobs/1/", "type": "run"}`)
+		mockClient.EXPECT().Get("/api/v2/jobs/1/").Return(mockResponse, diag.Diagnostics{})
+
 		var status string
 		retryFunc := retryUntilAAPJobReachesAnyFinalState(t.Context(), mockClient, "/api/v2/jobs/1/", &status)
 		err := retryFunc()
@@ -641,18 +653,16 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 
 	// Test job state transition from running to successful
 	t.Run("handles job state transition from running to successful", func(t *testing.T) {
-		// Configure mock responses: first call returns "running", subsequent calls return "successful"
-		responses := []MockResponse{
-			{
-				Data:        []byte(`{"status": "running", "url": "/api/v2/jobs/123/", "type": "run"}`),
-				Diagnostics: diag.Diagnostics{},
-			},
-			{
-				Data:        []byte(`{"status": "successful", "url": "/api/v2/jobs/123/", "type": "run"}`),
-				Diagnostics: diag.Diagnostics{},
-			},
-		}
-		mockClient := NewConfigurableSequenceMockClient(responses)
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockClient := NewMockProviderHTTPClient(ctrl)
+		// Configure mock responses: first call returns "running", second call returns "successful"
+		runningResponse := []byte(`{"status": "running", "url": "/api/v2/jobs/123/", "type": "run"}`)
+		successfulResponse := []byte(`{"status": "successful", "url": "/api/v2/jobs/123/", "type": "run"}`)
+		mockClient.EXPECT().Get("/api/v2/jobs/123/").Return(runningResponse, diag.Diagnostics{}).Times(1)
+		mockClient.EXPECT().Get("/api/v2/jobs/123/").Return(successfulResponse, diag.Diagnostics{}).Times(1)
+
 		var status string
 		retryFunc := retryUntilAAPJobReachesAnyFinalState(t.Context(), mockClient, "/api/v2/jobs/123/", &status)
 
@@ -674,94 +684,6 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 			t.Errorf("expected status 'successful' after second call, got '%s'", status)
 		}
 	})
-}
-
-// MockResponse represents a single response in a sequence
-type MockResponse struct {
-	Data        []byte
-	Diagnostics diag.Diagnostics
-}
-
-// ConfigurableSequenceMockClient allows configuring a sequence of responses for multi-call scenarios
-// This is useful for testing retry logic, state transitions, and other multi-step operations
-type ConfigurableSequenceMockClient struct {
-	callCount *int
-	responses []MockResponse
-}
-
-// NewConfigurableSequenceMockClient creates a new mock client with a predefined sequence of responses
-func NewConfigurableSequenceMockClient(responses []MockResponse) *ConfigurableSequenceMockClient {
-	callCount := 0
-	return &ConfigurableSequenceMockClient{
-		callCount: &callCount,
-		responses: responses,
-	}
-}
-
-func (m *ConfigurableSequenceMockClient) Get(_ string) ([]byte, diag.Diagnostics) {
-	*m.callCount++
-
-	// Return the response for this call number (1-indexed)
-	if *m.callCount <= len(m.responses) {
-		response := m.responses[*m.callCount-1]
-		return response.Data, response.Diagnostics
-	}
-
-	// If we've run out of configured responses, return the last one
-	// This handles cases where retry logic might make more calls than expected
-	if len(m.responses) > 0 {
-		lastResponse := m.responses[len(m.responses)-1]
-		return lastResponse.Data, lastResponse.Diagnostics
-	}
-
-	// Fallback: return empty response
-	return []byte(`{}`), diag.Diagnostics{}
-}
-
-func (m *ConfigurableSequenceMockClient) GetWithParams(path string, _ map[string]string) ([]byte, diag.Diagnostics) {
-	return m.Get(path)
-}
-
-// Stub implementations for the remaining interface methods
-func (m *ConfigurableSequenceMockClient) Create(_ string, _ io.Reader) ([]byte, diag.Diagnostics) {
-	return nil, diag.Diagnostics{}
-}
-
-func (m *ConfigurableSequenceMockClient) Update(_ string, _ io.Reader) ([]byte, diag.Diagnostics) {
-	return nil, diag.Diagnostics{}
-}
-
-func (m *ConfigurableSequenceMockClient) Delete(_ string) ([]byte, diag.Diagnostics) {
-	return nil, diag.Diagnostics{}
-}
-
-func (m *ConfigurableSequenceMockClient) GetWithStatus(path string, _ map[string]string) ([]byte, diag.Diagnostics, int) {
-	body, diags := m.Get(path)
-	return body, diags, 200
-}
-
-func (m *ConfigurableSequenceMockClient) UpdateWithStatus(_ string, _ io.Reader) ([]byte, diag.Diagnostics, int) {
-	return nil, diag.Diagnostics{}, 200
-}
-
-func (m *ConfigurableSequenceMockClient) DeleteWithStatus(_ string) ([]byte, diag.Diagnostics, int) {
-	return nil, diag.Diagnostics{}, 204
-}
-
-func (m *ConfigurableSequenceMockClient) doRequest(_ string, _ string, _ map[string]string, _ io.Reader) (*http.Response, []byte, error) {
-	return nil, nil, nil
-}
-
-func (m *ConfigurableSequenceMockClient) setAPIEndpoint() diag.Diagnostics {
-	return diag.Diagnostics{}
-}
-
-func (m *ConfigurableSequenceMockClient) getAPIEndpoint() string {
-	return "/api/v2"
-}
-
-func (m *ConfigurableSequenceMockClient) getEdaApiEndpoint() string {
-	return "/api/eda/v1"
 }
 
 // assertLogFieldEquals validates a specific field in the parsed log entry
@@ -799,26 +721,17 @@ func TestRetryUntilAAPJobReachesAnyFinalState_LoggingBehavior(t *testing.T) {
 	model := &JobResourceModel{JobModel: JobModel{
 		TemplateID: types.Int64Value(0), // Mock doesn't include job_template here
 	},
-		URL:    types.StringValue("/api/v2/jobs/1/"), // This path exists in MockConfig
-		Status: types.StringValue("pending"),         // Will be updated by ParseHttpResponse
+		URL:    types.StringValue("/api/v2/jobs/1/"),
+		Status: types.StringValue("pending"), // Will be updated by ParseHttpResponse
 	}
 
-	// Create a custom mock response for this test (avoid modifying shared fixtures)
-	testJobResponse := map[string]string{
-		"status": "running",
-		"type":   "check",
-		"url":    "/api/v2/jobs/1/",
-	}
+	// Create a mock client with gomock
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	// Create a mock client with custom config for this test
-	mockClient := NewMockHTTPClient([]string{"GET"}, 200)
-
-	// Add our test response to the mock config temporarily
-	originalResponse := MockConfig["/api/v2/jobs/1/"]
-	MockConfig["/api/v2/jobs/1/"] = testJobResponse
-	defer func() {
-		MockConfig["/api/v2/jobs/1/"] = originalResponse
-	}()
+	mockClient := NewMockProviderHTTPClient(ctrl)
+	mockResponse := []byte(`{"status": "running", "type": "check", "url": "/api/v2/jobs/1/"}`)
+	mockClient.EXPECT().Get("/api/v2/jobs/1/").Return(mockResponse, diag.Diagnostics{})
 
 	// Execute the retry function once (should return retryable error since "running" is not final)
 	var status string

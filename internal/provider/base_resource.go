@@ -12,7 +12,7 @@ import (
 )
 
 // NewBaseResource creates a new instance of BaseResource.
-func NewBaseResource(client HTTPClient, stringDescriptions StringDescriptions) *BaseResource {
+func NewBaseResource(client ProviderHTTPClient, stringDescriptions StringDescriptions) *BaseResource {
 	return &BaseResource{
 		client:             client,
 		StringDescriptions: stringDescriptions,
