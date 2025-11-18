@@ -1,0 +1,5 @@
+major_changes:
+  - New Action 'aap_workflow_job_launch' enabling action-based AAP workflow job launch.
+minor_changes:
+  - Add wait_for_completion and wait_for_completion_timeout_seconds to aap_workflow_job resource.
+  - Add progress response to aap_job_launch action.
