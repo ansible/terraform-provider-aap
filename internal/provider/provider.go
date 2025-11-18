@@ -206,6 +206,7 @@ func (p *aapProvider) Actions(_ context.Context) []func() action.Action {
 	return []func() action.Action{
 		NewEDAEventStreamPostAction,
 		NewJobAction,
+		NewWorkflowJobAction,
 	}
 }
 

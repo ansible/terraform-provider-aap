@@ -23,8 +23,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
 
-// Default value for the wait_for_completion timeout, so the linter doesn't complain.
-const waitForCompletionTimeoutDefault int64 = 120
+const (
+	// Default value for the wait_for_completion timeout, so the linter doesn't complain.
+	waitForCompletionTimeoutDefault int64  = 120
+	statusSuccesfulConst            string = "successful"
+)
 
 // JobAPIModel represents the AAP API model.
 type JobAPIModel struct {
@@ -80,20 +83,28 @@ func NewJobResource() resource.Resource {
 // if such state is final and cannot transition further; a.k.a, the job is completed.
 func IsFinalStateAAPJob(state string) bool {
 	finalStates := map[string]bool{
-		"new":        false,
-		"pending":    false,
-		"waiting":    false,
-		"running":    false,
-		"successful": true,
-		"failed":     true,
-		"error":      true,
-		"canceled":   true,
+		"new":                false,
+		"pending":            false,
+		"waiting":            false,
+		"running":            false,
+		statusSuccesfulConst: true,
+		"failed":             true,
+		"error":              true,
+		"canceled":           true,
 	}
 	result, isPresent := finalStates[state]
 	return isPresent && result
 }
 
-func retryUntilAAPJobReachesAnyFinalState(ctx context.Context, client ProviderHTTPClient, url string, status *string) retry.RetryFunc {
+type RetryProgressFunc func(status string)
+
+func retryUntilAAPJobReachesAnyFinalState(
+	ctx context.Context,
+	client ProviderHTTPClient,
+	retryProgressFunc RetryProgressFunc,
+	url string,
+	status *string,
+) retry.RetryFunc {
 	return func() *retry.RetryError {
 		responseBody, diagnostics := client.Get(url)
 		if diagnostics.HasError() {
@@ -112,6 +123,8 @@ func retryUntilAAPJobReachesAnyFinalState(ctx context.Context, client ProviderHT
 		}
 		*status = s
 		tflog.Debug(ctx, "Job status update", statusResponse)
+
+		retryProgressFunc(s)
 
 		if !IsFinalStateAAPJob(s) {
 			return retry.RetryableError(fmt.Errorf("job at: %s hasn't yet reached a final state. Current state: %s", url, s))
@@ -240,7 +253,13 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	if data.WaitForCompletion.ValueBool() {
 		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
 		var status string
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, data.URL.ValueString(), &status))
+		retryProgressFunc := func(status string) {
+			tflog.Debug(ctx, "Job status update", map[string]interface{}{
+				"status": status,
+				"url":    data.URL.ValueString(),
+			})
+		}
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, retryProgressFunc, data.URL.ValueString(), &status))
 		if err != nil {
 			resp.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
 		}
@@ -319,7 +338,13 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	if data.WaitForCompletion.ValueBool() {
 		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
 		var status string
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, data.URL.ValueString(), &status))
+		retryProgressFunc := func(status string) {
+			tflog.Debug(ctx, "Job status update", map[string]interface{}{
+				"status": status,
+				"url":    data.URL.ValueString(),
+			})
+		}
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, retryProgressFunc, data.URL.ValueString(), &status))
 		if err != nil {
 			resp.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
 		}

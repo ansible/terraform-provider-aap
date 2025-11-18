@@ -57,50 +57,62 @@ func TestWorkflowJobResourceCreateRequestBody(t *testing.T) {
 		{
 			name: "unknown values",
 			input: WorkflowJobResourceModel{
-				ExtraVars:   customtypes.NewAAPCustomStringUnknown(),
-				InventoryID: basetypes.NewInt64Unknown(),
-				TemplateID:  types.Int64Value(1),
+				WorkflowJobModel: WorkflowJobModel{
+					ExtraVars:   customtypes.NewAAPCustomStringUnknown(),
+					InventoryID: basetypes.NewInt64Unknown(),
+					TemplateID:  types.Int64Value(1),
+				},
 			},
 			expected: []byte(`{}`),
 		},
 		{
 			name: "null values",
 			input: WorkflowJobResourceModel{
-				ExtraVars:   customtypes.NewAAPCustomStringNull(),
-				InventoryID: basetypes.NewInt64Null(),
-				TemplateID:  types.Int64Value(1),
+				WorkflowJobModel: WorkflowJobModel{
+					ExtraVars:   customtypes.NewAAPCustomStringNull(),
+					InventoryID: basetypes.NewInt64Null(),
+					TemplateID:  types.Int64Value(1),
+				},
 			},
 			expected: []byte(`{}`),
 		},
 		{
 			name: "extra vars only",
 			input: WorkflowJobResourceModel{
-				ExtraVars:   customtypes.NewAAPCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
-				InventoryID: basetypes.NewInt64Null(),
+				WorkflowJobModel: WorkflowJobModel{
+					ExtraVars:   customtypes.NewAAPCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
+					InventoryID: basetypes.NewInt64Null(),
+				},
 			},
 			expected: []byte(`{"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
 		},
 		{
 			name: "inventory vars only",
 			input: WorkflowJobResourceModel{
-				ExtraVars:   customtypes.NewAAPCustomStringNull(),
-				InventoryID: basetypes.NewInt64Value(201),
+				WorkflowJobModel: WorkflowJobModel{
+					ExtraVars:   customtypes.NewAAPCustomStringNull(),
+					InventoryID: basetypes.NewInt64Value(201),
+				},
 			},
 			expected: []byte(`{"inventory": 201}`),
 		},
 		{
 			name: "combined",
 			input: WorkflowJobResourceModel{
-				ExtraVars:   customtypes.NewAAPCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
-				InventoryID: basetypes.NewInt64Value(3),
+				WorkflowJobModel: WorkflowJobModel{
+					ExtraVars:   customtypes.NewAAPCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
+					InventoryID: basetypes.NewInt64Value(3),
+				},
 			},
 			expected: []byte(`{"inventory":3,"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
 		},
 		{
 			name: "manual_triggers",
 			input: WorkflowJobResourceModel{
-				Triggers:    types.MapNull(types.StringType),
-				InventoryID: basetypes.NewInt64Value(3),
+				WorkflowJobModel: WorkflowJobModel{
+					InventoryID: basetypes.NewInt64Value(3),
+				},
+				Triggers: types.MapNull(types.StringType),
 			},
 			expected: []byte(`{"inventory": 3}`),
 		},
@@ -158,12 +170,14 @@ func TestWorkflowJobResourceParseHTTPResponse(t *testing.T) {
 			name:  "no ignored fields",
 			input: []byte(`{"inventory":2,"workflow_job_template":1,"job_type": "run", "url": "/api/v2/workflow_jobs/14/", "status": "pending"}`),
 			expected: WorkflowJobResourceModel{
-				TemplateID:    templateID,
+				WorkflowJobModel: WorkflowJobModel{
+					TemplateID:  templateID,
+					InventoryID: inventoryID,
+					ExtraVars:   extraVars,
+				},
 				Type:          types.StringValue("run"),
 				URL:           types.StringValue("/api/v2/workflow_jobs/14/"),
 				Status:        types.StringValue("pending"),
-				InventoryID:   inventoryID,
-				ExtraVars:     extraVars,
 				IgnoredFields: types.ListNull(types.StringType),
 			},
 			errors: diag.Diagnostics{},
@@ -173,12 +187,14 @@ func TestWorkflowJobResourceParseHTTPResponse(t *testing.T) {
 			input: []byte(`{"inventory":2,"workflow_job_template":1,"job_type": "run", "url": "/api/v2/workflow_jobs/14/", "status":
 			"pending", "ignored_fields": {"extra_vars": "{\"bucket_state\":\"absent\"}"}}`),
 			expected: WorkflowJobResourceModel{
-				TemplateID:    templateID,
+				WorkflowJobModel: WorkflowJobModel{
+					TemplateID:  templateID,
+					InventoryID: inventoryID,
+					ExtraVars:   extraVars,
+				},
 				Type:          types.StringValue("run"),
 				URL:           types.StringValue("/api/v2/workflow_jobs/14/"),
 				Status:        types.StringValue("pending"),
-				InventoryID:   inventoryID,
-				ExtraVars:     extraVars,
 				IgnoredFields: basetypes.NewListValueMust(types.StringType, []attr.Value{types.StringValue("extra_vars")}),
 			},
 			errors: diag.Diagnostics{},
@@ -510,10 +526,30 @@ func testAccCheckWorkflowJobPause(ctx context.Context, name string) resource.Tes
 	}
 }
 
+func TestAccAAPWorkflowJob_waitForCompletionWithFailure(t *testing.T) {
+	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_FAIL_TEMPLATE_ID")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBasicWorkflowJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestMatchResourceAttr("aap_workflow_job.test", "status", regexp.MustCompile("^failed$")),
+					resource.TestMatchResourceAttr("aap_workflow_job.test", "url", regexp.MustCompile("^/api(/controller)?/v2/workflow_jobs/[0-9]*/$")),
+					testAccCheckWorkflowJobExists,
+				),
+			},
+		},
+	})
+}
+
 func testAccBasicWorkflowJob(jobTemplateID string) string {
 	return fmt.Sprintf(`
-resource "%s" "test" {
-	workflow_job_template_id   = %s
+resource %q "test" {
+	workflow_job_template_id  = %s
+	wait_for_completion       = true
 }
 `, baseResourceNameWorkflowJob, jobTemplateID)
 }

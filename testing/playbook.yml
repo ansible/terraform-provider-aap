@@ -31,6 +31,12 @@
         ask_inventory_on_launch: true
         organization: "Default"
       register: workflow_job_template
+    - name: Create Failure Workflow Job Template
+      ansible.controller.workflow_job_template:
+        name: "Demo FailureWorkflow Job Template"
+        ask_inventory_on_launch: true
+        organization: "Default"
+      register: workflow_job_template_failure
     # The tests for resource.aap_inventory create an inventory that is in a non-default
     # organization. So we need an organization that is not 'Default'
     - name: Create non-default organization
@@ -107,6 +113,11 @@
         playbook: "fail.yml"
         inventory: "Demo Inventory"
       register: job_template_fail
+    - name: Add fail.yml job template node to Failure Workflow
+      ansible.controller.workflow_job_template_node:
+        workflow_job_template: "{{ workflow_job_template_failure.id }}"
+        unified_job_template: "{{ job_template_fail.id }}"
+        identifier: "fail_node"
     # Generate a token to support provider's token authentication
     - name: Create a token for provider to use for testing
       block:
