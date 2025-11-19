@@ -1,4 +1,0 @@
-minor_changes:
-  - In addition to the AAP_HOST environment variable, the provider now reads AAP_HOSTNAME to be consistent with other Ansible content.
-trivial:
-  - Added playbook to automate configuration for acceptance tests (not user-facing)
