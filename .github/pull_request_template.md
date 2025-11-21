@@ -9,7 +9,12 @@ https://github.com/ansible/terraform-provider-aap/blob/main/CONTRIBUTING.md
 
 <!-- What does this PR do? What issue does it fix? -->
 
-**Related Issue:** <!-- Link to GitHub issue if applicable -->
+**Related Issue:** <!-- Required: Link to GitHub issue (e.g., Fixes #123) or Jira ticket (internal) -->
+
+<!-- 
+⚠️ PRs without prior issue discussion may not be merged.
+See CONTRIBUTING.md "Before You Start" section.
+-->
 
 ## Type of Change
 
@@ -59,6 +64,22 @@ $ make testacc
 - [ ] Documentation updated (if user-facing changes)
 - [ ] Examples updated (if applicable)
 - [ ] Docs regenerated (`make generatedocs`)
+
+## Testing Instructions
+
+<!-- 
+Provide step-by-step instructions for reviewers to test your changes.
+For code changes, include commands and expected outcomes.
+For documentation, explain what was changed and how to verify.
+-->
+
+**How to test this PR:**
+
+1.
+2.
+3.
+
+**Expected outcome:**
 
 ## Changelog
 
