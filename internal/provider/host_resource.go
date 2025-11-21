@@ -50,7 +50,7 @@ type HostResourceModel struct {
 
 // HostResource is the resource implementation.
 type HostResource struct {
-	client HTTPClient
+	client ProviderHTTPClient
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -552,7 +552,7 @@ func (r *HostResource) AssociateGroups(ctx context.Context, data []int64, url st
 			}
 			reqData := bytes.NewReader(jsonRaw)
 
-			resp, bodyreq, err := r.client.doRequest(http.MethodPost, url, reqData)
+			resp, bodyreq, err := r.client.doRequest(http.MethodPost, url, nil, reqData)
 			diags.Append(ValidateResponse(resp, bodyreq, err, []int{http.StatusNoContent})...)
 			if diags.HasError() {
 				cancel()

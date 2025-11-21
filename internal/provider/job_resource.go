@@ -37,23 +37,28 @@ type JobAPIModel struct {
 	IgnoredFields map[string]interface{} `json:"ignored_fields,omitempty"`
 }
 
-// JobResourceModel maps the resource schema data.
-type JobResourceModel struct {
+// JobModel are the attributes that are provided by the user and also used by the action.
+type JobModel struct {
 	TemplateID               types.Int64                      `tfsdk:"job_template_id"`
-	Type                     types.String                     `tfsdk:"job_type"`
-	URL                      types.String                     `tfsdk:"url"`
-	Status                   types.String                     `tfsdk:"status"`
 	InventoryID              types.Int64                      `tfsdk:"inventory_id"`
 	ExtraVars                customtypes.AAPCustomStringValue `tfsdk:"extra_vars"`
-	IgnoredFields            types.List                       `tfsdk:"ignored_fields"`
-	Triggers                 types.Map                        `tfsdk:"triggers"`
 	WaitForCompletion        types.Bool                       `tfsdk:"wait_for_completion"`
 	WaitForCompletionTimeout types.Int64                      `tfsdk:"wait_for_completion_timeout_seconds"`
 }
 
+// JobResourceModel maps the resource schema data.
+type JobResourceModel struct {
+	JobModel
+	Status        types.String `tfsdk:"status"`
+	Type          types.String `tfsdk:"job_type"`
+	URL           types.String `tfsdk:"url"`
+	IgnoredFields types.List   `tfsdk:"ignored_fields"`
+	Triggers      types.Map    `tfsdk:"triggers"`
+}
+
 // JobResource is the resource implementation.
 type JobResource struct {
-	client HTTPClient
+	client ProviderHTTPClient
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -88,28 +93,28 @@ func IsFinalStateAAPJob(state string) bool {
 	return isPresent && result
 }
 
-func retryUntilAAPJobReachesAnyFinalState(ctx context.Context, client HTTPClient,
-	model *JobResourceModel) retry.RetryFunc {
+func retryUntilAAPJobReachesAnyFinalState(ctx context.Context, client ProviderHTTPClient, url string, status *string) retry.RetryFunc {
 	return func() *retry.RetryError {
-		responseBody, diagnostics := client.Get(model.URL.ValueString())
+		responseBody, diagnostics := client.Get(url)
 		if diagnostics.HasError() {
 			return retry.RetryableError(fmt.Errorf("error fetching job status: %s", diagnostics.Errors()))
 		}
 
-		// Parse the response to update the model with current job status
-		parseDiags := model.ParseHTTPResponse(responseBody)
-		if parseDiags.HasError() {
-			return retry.RetryableError(fmt.Errorf("error parsing job status response: %s", parseDiags.Errors()))
+		var statusResponse map[string]interface{}
+		err := json.Unmarshal(responseBody, &statusResponse)
+		if err != nil {
+			return retry.RetryableError(fmt.Errorf("error fetching job status: %s", diagnostics.Errors()))
 		}
-		tflog.Debug(ctx, "Job status update", map[string]interface{}{
-			"job_template_id": model.TemplateID.ValueInt64(),
-			"job_url":         model.URL.ValueString(),
-			"status":          model.Status.ValueString(),
-		})
 
-		if !IsFinalStateAAPJob(model.Status.ValueString()) {
-			return retry.RetryableError(fmt.Errorf("job at: %s hasn't yet reached a final state. "+
-				"Current state: %s", model.URL, model.Status.ValueString()))
+		s, ok := statusResponse["status"].(string)
+		if !ok {
+			return retry.RetryableError(fmt.Errorf("error extracting job status: %s", "Could not extract status from response"))
+		}
+		*status = s
+		tflog.Debug(ctx, "Job status update", statusResponse)
+
+		if !IsFinalStateAAPJob(s) {
+			return retry.RetryableError(fmt.Errorf("job at: %s hasn't yet reached a final state. Current state: %s", url, s))
 		}
 		return nil
 	}
@@ -225,7 +230,7 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	resp.Diagnostics.Append(r.LaunchJob(&data)...)
+	resp.Diagnostics.Append(data.LaunchJobWithResponse(r.client)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -234,13 +239,15 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	// and wait for it to complete before marking the resource as created
 	if data.WaitForCompletion.ValueBool() {
 		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, &data))
+		var status string
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, data.URL.ValueString(), &status))
 		if err != nil {
 			resp.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
 		}
 		if resp.Diagnostics.HasError() {
 			return
 		}
+		data.Status = types.StringValue(status)
 	}
 
 	// Save updated data into Terraform state
@@ -261,7 +268,7 @@ func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	}
 
 	// Get latest job data from AAP
-	readResponseBody, diags, status := r.client.GetWithStatus(data.URL.ValueString())
+	readResponseBody, diags, status := r.client.GetWithStatus(data.URL.ValueString(), nil)
 
 	// Check if the response is 404, meaning the job does not exist and should be recreated
 	if status == http.StatusNotFound {
@@ -302,7 +309,7 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	}
 
 	// Create new Job from job template
-	resp.Diagnostics.Append(r.LaunchJob(&data)...)
+	resp.Diagnostics.Append(data.LaunchJobWithResponse(r.client)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -311,13 +318,15 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	// and wait for it to complete before marking the resource as created
 	if data.WaitForCompletion.ValueBool() {
 		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, &data))
+		var status string
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, data.URL.ValueString(), &status))
 		if err != nil {
 			resp.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
 		}
 		if resp.Diagnostics.HasError() {
 			return
 		}
+		data.Status = types.StringValue(status)
 	}
 
 	// Save updated data into Terraform state
@@ -333,7 +342,7 @@ func (r JobResource) Delete(_ context.Context, _ resource.DeleteRequest, _ *reso
 }
 
 // CreateRequestBody creates a JSON encoded request body from the job resource data
-func (r *JobResourceModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
+func (r *JobModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	var inventoryID int64
 
@@ -402,36 +411,29 @@ func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]interface
 	return diags
 }
 
-// LaunchJob launches a job using the provided resource data.
-func (r *JobResource) LaunchJob(data *JobResourceModel) diag.Diagnostics {
-	// Create new Job from job template
-	var diags diag.Diagnostics
-
+func (r *JobModel) LaunchJob(client ProviderHTTPClient) (body []byte, diags diag.Diagnostics) {
 	// Create request body from job data
-	requestBody, diagCreateReq := data.CreateRequestBody()
+	requestBody, diagCreateReq := r.CreateRequestBody()
 	diags.Append(diagCreateReq...)
 	if diags.HasError() {
-		return diags
+		return nil, diags
 	}
 
 	requestData := bytes.NewReader(requestBody)
-	var postURL = path.Join(r.client.getAPIEndpoint(), "job_templates", data.GetTemplateID(), "launch")
-	resp, body, err := r.client.doRequest(http.MethodPost, postURL, requestData)
+	var postURL = path.Join(client.getAPIEndpoint(), "job_templates", r.TemplateID.String(), "launch")
+	resp, body, err := client.doRequest(http.MethodPost, postURL, nil, requestData)
 	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
 	if diags.HasError() {
-		return diags
+		return nil, diags
 	}
 
-	// Save new job data into job resource model
-	diags.Append(data.ParseHTTPResponse(body)...)
+	return body, diags
+}
+
+func (r *JobResourceModel) LaunchJobWithResponse(client ProviderHTTPClient) diag.Diagnostics {
+	body, diags := r.LaunchJob(client)
 	if diags.HasError() {
 		return diags
 	}
-
-	return diags
-}
-
-// GetTemplateID returns the job template ID as a string.
-func (r *JobResourceModel) GetTemplateID() string {
-	return r.TemplateID.String()
+	return r.ParseHTTPResponse(body)
 }

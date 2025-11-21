@@ -4,13 +4,14 @@ on:
   pull_request:
     branches:
       - main
+      - dev-preview
       - stable-*
 
 jobs:
   generate-docs:
     runs-on: ubuntu-latest
     env:
-        go_version: '1.23.9'
+        go_version: '1.24'
 
     steps:
       - name: Checkout Provider
@@ -34,7 +35,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.10.4"
+          terraform_version: "1.14.0"
 
       - name: Generate documentation
         run: make generatedocs

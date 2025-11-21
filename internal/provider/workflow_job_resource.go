@@ -43,7 +43,7 @@ type WorkflowJobResourceModel struct {
 
 // WorkflowJobResource is the resource implementation.
 type WorkflowJobResource struct {
-	client HTTPClient
+	client ProviderHTTPClient
 }
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -171,7 +171,7 @@ func (r *WorkflowJobResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 
 	// Get latest workflow job data from AAP
-	readResponseBody, diags, status := r.client.GetWithStatus(data.URL.ValueString())
+	readResponseBody, diags, status := r.client.GetWithStatus(data.URL.ValueString(), nil)
 
 	// Check if the response is 404, meaning the job does not exist and should be recreated
 	if status == http.StatusNotFound {
@@ -311,7 +311,7 @@ func (r *WorkflowJobResource) LaunchWorkflowJob(data *WorkflowJobResourceModel) 
 
 	requestData := bytes.NewReader(requestBody)
 	var postURL = path.Join(r.client.getAPIEndpoint(), "workflow_job_templates", data.GetTemplateID(), "launch")
-	resp, body, err := r.client.doRequest(http.MethodPost, postURL, requestData)
+	resp, body, err := r.client.doRequest(http.MethodPost, postURL, nil, requestData)
 	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
 	if diags.HasError() {
 		return diags
