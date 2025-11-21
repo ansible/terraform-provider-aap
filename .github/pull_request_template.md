@@ -84,13 +84,3 @@ For detailed attribution statements, use: https://aiattribution.github.io/
 
 **Assisted-by:** <!-- e.g., GitHub Copilot, Claude, ChatGPT, or "None" -->
 
-## Reviewer Checklist
-
-_For maintainers - do not edit this section_
-
-- [ ] Tests pass and cover new code
-- [ ] Linting passes (SonarQube enforces coverage automatically)
-- [ ] Documentation is clear and complete
-- [ ] Code follows existing patterns
-- [ ] PR scope is focused
-- [ ] Changelog entry (if needed)
