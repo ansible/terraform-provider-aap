@@ -100,6 +100,7 @@ For detailed local development setup including Terraform dev_overrides configura
 - [ ] Unit tests added/updated
 - [ ] Code coverage ≥80% for new code (`make testcov`)
 - [ ] Acceptance tests pass (include output in PR)
+- [ ] Testing instructions provided in PR description
 - [ ] Linting passes (`make lint`)
 - [ ] Documentation updated (if applicable)
 - [ ] Changelog entry added (if applicable)
@@ -237,6 +238,7 @@ minor_changes:
 ### What Reviewers Check
 
 - [ ] Tests pass and cover new code
+- [ ] Testing instructions provided (for code changes)
 - [ ] Linting passes (coverage enforced by SonarQube)
 - [ ] Documentation is clear and complete
 - [ ] Code follows existing patterns
