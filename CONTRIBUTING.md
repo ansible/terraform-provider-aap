@@ -94,6 +94,7 @@ For detailed local development setup including Terraform dev_overrides configura
 
 ### Pull Request Checklist
 
+- [ ] PR is focused on single feature/fix
 - [ ] Unit tests added/updated
 - [ ] Code coverage ≥80% for new code (`make testcov`)
 - [ ] Acceptance tests pass (include output in PR)
@@ -101,8 +102,7 @@ For detailed local development setup including Terraform dev_overrides configura
 - [ ] Documentation updated (if applicable)
 - [ ] Changelog entry added (if applicable)
 - [ ] Examples updated (if applicable)
-- [ ] AI attribution noted (if substantial AI assistance used)
-- [ ] PR is focused on single feature/fix
+- [ ] AI attribution noted (if applicable)
 
 ### Focused PRs
 
