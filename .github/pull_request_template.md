@@ -82,5 +82,4 @@ portions of this PR, please note it:
 For detailed attribution statements, use: https://aiattribution.github.io/
 -->
 
-**Assisted-by:** <!-- e.g., GitHub Copilot, Claude, ChatGPT, or "None" -->
-
+**Assisted-by:** (or **Co-Authored-By:**) <!-- e.g., GitHub Copilot, Claude, ChatGPT, or "None" -->
