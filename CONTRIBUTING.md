@@ -4,6 +4,19 @@ Thank you for contributing to the Ansible Automation Platform Terraform Provider
 
 These guidelines document the standards for contributions. Whether you're an internal team member or external contributor, following these guidelines ensures consistent, high-quality contributions.
 
+## Before You Start
+
+**⚠️ Open an issue first before investing time in a pull request.**
+
+We want to prevent wasted effort. Before writing code:
+
+1. **Open a GitHub issue** describing the bug fix or feature you want to contribute
+2. **Wait for maintainer feedback** to confirm the contribution would be accepted
+3. **Get agreement on the approach** before starting implementation
+4. **Then create your PR** referencing the issue
+
+**Important:** Pull requests submitted without prior discussion may not be merged, even if the code is high quality. This helps ensure your time is well spent on contributions we can accept.
+
 ## Quick Start
 
 | Step | Command | Purpose |
@@ -22,9 +35,9 @@ For branching strategy details, see the [README](README.md#branching-model).
 
 | Tool | Version | Installation Guide |
 |------|---------|-------------------|
-| Go | See [go.mod](go.mod) | <https://go.dev/doc/install> |
+| Go | 1.24 | <https://go.dev/doc/install> |
 | Terraform | 1.0+ | <https://developer.hashicorp.com/terraform/install> |
-| golangci-lint | See [.github/workflows](/.github/workflows) | <https://golangci-lint.run/usage/install/> |
+| golangci-lint | 2.5.0 | <https://golangci-lint.run/usage/install/> |
 | AAP/AWX instance | 2.4+ | <https://github.com/ansible/awx/blob/devel/INSTALL.md> |
 
 ## Development Setup
@@ -193,6 +206,8 @@ If you use AI code assistants, please follow these guidelines:
 | **Security** | Never input sensitive data (API keys, credentials, customer data) into AI tools |
 | **Code quality** | AI-generated code must meet the same standards (tests, coverage, linting) |
 | **License compliance** | Ensure AI suggestions don't introduce incompatible licenses |
+
+**Create attribution statements:** Use <https://aiattribution.github.io/> to generate detailed AI attribution.
 
 **Example commit message:**
 

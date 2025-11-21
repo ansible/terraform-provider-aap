@@ -79,8 +79,7 @@ portions of this PR, please note it:
 1. In your commit messages (add "Assisted-by: <tool>" to commit message body)
 2. Below in this PR description
 
-This helps maintainers understand the development context. For minor suggestions or no AI use, 
-leave blank or write "None".
+For detailed attribution statements, use: https://aiattribution.github.io/
 -->
 
 **Assisted-by:** <!-- e.g., GitHub Copilot, Claude, ChatGPT, or "None" -->
