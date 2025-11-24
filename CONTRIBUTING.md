@@ -229,21 +229,17 @@ minor_changes:
 
 ## Review Process
 
-| Stage | Timeline | Action |
-|-------|----------|--------|
-| PR opened | Within 2 business days | Initial review |
-| Changes requested | N/A | Address feedback |
-| Approved | Within 1 business day | Merge to main |
-
 ### What Reviewers Check
 
 - [ ] Tests pass and cover new code
 - [ ] Testing instructions provided (for code changes)
-- [ ] Linting passes (coverage enforced by SonarQube)
+- [ ] Linting passes
 - [ ] Documentation is clear and complete
 - [ ] Code follows existing patterns
 - [ ] PR scope is focused
 - [ ] Changelog entry (if needed)
+
+**Note:** Code coverage is automatically enforced by SonarQube; reviewers don't need to check it manually.
 
 ## AI Code Assistant Usage
 
