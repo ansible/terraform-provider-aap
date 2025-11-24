@@ -69,7 +69,7 @@ func TestAccAAPWorkflowJobAction_Basic(t *testing.T) {
 }
 
 func TestAccAAPWorkflowJobAction_fail(t *testing.T) {
-	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_FAIL_TEMPLATE_ID")
+	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_FAIL_ID")
 	randNum, _ := rand.Int(rand.Reader, big.NewInt(50000000))
 	inventoryName := fmt.Sprintf("%s-%d", "tf-acc", randNum.Int64())
 
@@ -86,7 +86,7 @@ func TestAccAAPWorkflowJobAction_fail(t *testing.T) {
 }
 
 func TestAccAAPWorkflowJobAction_failIgnore(t *testing.T) {
-	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_FAIL_TEMPLATE_ID")
+	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_FAIL_ID")
 	randNum, _ := rand.Int(rand.Reader, big.NewInt(50000000))
 	inventoryName := fmt.Sprintf("%s-%d", "tf-acc", randNum.Int64())
 
