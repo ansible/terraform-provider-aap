@@ -527,7 +527,7 @@ func testAccCheckWorkflowJobPause(ctx context.Context, name string) resource.Tes
 }
 
 func TestAccAAPWorkflowJob_waitForCompletionWithFailure(t *testing.T) {
-	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_FAIL_TEMPLATE_ID")
+	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_FAIL_ID")
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
