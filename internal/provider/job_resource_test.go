@@ -692,7 +692,7 @@ func TestRetryUntilAAPJobReachesAnyFinalState_ErrorHandling(t *testing.T) {
 		if err2 != nil {
 			t.Errorf("expected no error for successful job but got: %v", err2)
 		}
-		if status != statusSuccesfulConst {
+		if status != statusSuccessfulConst {
 			t.Errorf("expected status 'successful' after second call, got '%s'", status)
 		}
 	})
