@@ -82,11 +82,6 @@ func (a *WorkflowJobAction) Invoke(ctx context.Context, req action.InvokeRequest
 		return
 	}
 
-	// Set default timeout if not provided
-	if config.WaitForCompletionTimeout.IsNull() {
-		config.WaitForCompletionTimeout = types.Int64Value(waitForCompletionTimeoutDefault)
-	}
-
 	body, diags := config.LaunchWorkflowJob(a.client)
 	if diags.HasError() {
 		response.Diagnostics.Append(diags...)
