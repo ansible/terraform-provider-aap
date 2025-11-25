@@ -132,7 +132,7 @@ func (a *WorkflowJobAction) Invoke(ctx context.Context, req action.InvokeRequest
 			return
 		}
 		jobResponse.Status = status
-		if status != statusSuccesfulConst {
+		if status != statusSuccessfulConst {
 			if config.IgnoreJobResults.ValueBool() {
 				response.Diagnostics.Append(
 					diag.NewWarningDiagnostic(
