@@ -26,7 +26,7 @@ import (
 const (
 	// Default value for the wait_for_completion timeout, so the linter doesn't complain.
 	waitForCompletionTimeoutDefault int64  = 120
-	statusSuccesfulConst            string = "successful"
+	statusSuccessfulConst            string = "successful"
 )
 
 // JobAPIModel represents the AAP API model.
@@ -87,7 +87,7 @@ func IsFinalStateAAPJob(state string) bool {
 		"pending":            false,
 		"waiting":            false,
 		"running":            false,
-		statusSuccesfulConst: true,
+		statusSuccessfulConst: true,
 		"failed":             true,
 		"error":              true,
 		"canceled":           true,
