@@ -34,7 +34,6 @@ func TestJobLaunchActionSchema(t *testing.T) {
 		t.Fatalf("Schema method diagnostics: %+v", schemaResponse.Diagnostics)
 	}
 
-	// Validate the schema
 	diagnostics := schemaResponse.Schema.ValidateImplementation(ctx)
 
 	if diagnostics.HasError() {
@@ -114,10 +113,8 @@ func TestJobLaunchActionConfigure(t *testing.T) {
 						t.Errorf("Expected error message containing %q, got: %v", tc.expectedErrorMsg, configureResponse.Diagnostics.Errors())
 					}
 				}
-			} else {
-				if configureResponse.Diagnostics.HasError() {
-					t.Errorf("Unexpected error: %v", configureResponse.Diagnostics.Errors())
-				}
+			} else if configureResponse.Diagnostics.HasError() {
+				t.Errorf("Unexpected error: %v", configureResponse.Diagnostics.Errors())
 			}
 		})
 	}
@@ -154,21 +151,21 @@ func createJobActionConfig(overrides jobActionConfigOverrides) map[string]tftype
 }
 
 // mockSuccessfulJobLaunch mocks a successful job launch API call
-func mockSuccessfulJobLaunch(mock *MockProviderHTTPClient, jobURL string, templateID int64) {
+func mockSuccessfulJobLaunch(mock *MockProviderHTTPClient) {
 	mock.EXPECT().getAPIEndpoint().Return("/api/v2")
 	mock.EXPECT().doRequest(
 		http.MethodPost,
 		gomock.Any(),
 		gomock.Nil(),
 		gomock.Any(),
-	).Return(&http.Response{StatusCode: http.StatusCreated}, []byte(fmt.Sprintf(`{
-		"url": "%s",
+	).Return(&http.Response{StatusCode: http.StatusCreated}, []byte(`{
+		"url": "/api/v2/jobs/789/",
 		"status": "pending",
 		"type": "job",
-		"job_template": %d,
+		"job_template": 123,
 		"extra_vars": "{}",
 		"ignored_fields": {}
-	}`, jobURL, templateID)), nil)
+	}`), nil)
 }
 
 // mockFailedJobLaunch mocks a failed job launch API call
@@ -248,7 +245,7 @@ func TestJobLaunchActionInvoke(t *testing.T) {
 				WaitForCompletion: &waitFalse,
 			},
 			setupMock: func(mock *MockProviderHTTPClient) {
-				mockSuccessfulJobLaunch(mock, "/api/v2/jobs/789/", 123)
+				mockSuccessfulJobLaunch(mock)
 			},
 			expectError: false,
 		},
@@ -284,7 +281,7 @@ func TestJobLaunchActionInvoke(t *testing.T) {
 				WaitForCompletionTimeout: &timeout,
 			},
 			setupMock: func(mock *MockProviderHTTPClient) {
-				mockSuccessfulJobLaunch(mock, "/api/v2/jobs/789/", 123)
+				mockSuccessfulJobLaunch(mock)
 				mock.EXPECT().Get("/api/v2/jobs/789/").Return([]byte(`{"status": "successful"}`), nil)
 			},
 			expectError: false,
@@ -298,7 +295,7 @@ func TestJobLaunchActionInvoke(t *testing.T) {
 				IgnoreJobResults:         &ignoreFalse,
 			},
 			setupMock: func(mock *MockProviderHTTPClient) {
-				mockSuccessfulJobLaunch(mock, "/api/v2/jobs/789/", 123)
+				mockSuccessfulJobLaunch(mock)
 				mock.EXPECT().Get("/api/v2/jobs/789/").Return([]byte(`{"status": "failed"}`), nil)
 			},
 			expectError:      true,
@@ -313,7 +310,7 @@ func TestJobLaunchActionInvoke(t *testing.T) {
 				IgnoreJobResults:         &ignoreTrue,
 			},
 			setupMock: func(mock *MockProviderHTTPClient) {
-				mockSuccessfulJobLaunch(mock, "/api/v2/jobs/789/", 123)
+				mockSuccessfulJobLaunch(mock)
 				mock.EXPECT().Get("/api/v2/jobs/789/").Return([]byte(`{"status": "failed"}`), nil)
 			},
 			expectError:   false,
@@ -327,7 +324,7 @@ func TestJobLaunchActionInvoke(t *testing.T) {
 				WaitForCompletionTimeout: &timeout,
 			},
 			setupMock: func(mock *MockProviderHTTPClient) {
-				mockSuccessfulJobLaunch(mock, "/api/v2/jobs/789/", 123)
+				mockSuccessfulJobLaunch(mock)
 				mock.EXPECT().Get("/api/v2/jobs/789/").Return([]byte(`{"status": "canceled"}`), nil)
 			},
 			expectError:      true,
@@ -340,7 +337,7 @@ func TestJobLaunchActionInvoke(t *testing.T) {
 				WaitForCompletion: &waitTrue,
 			},
 			setupMock: func(mock *MockProviderHTTPClient) {
-				mockSuccessfulJobLaunch(mock, "/api/v2/jobs/789/", 123)
+				mockSuccessfulJobLaunch(mock)
 				mock.EXPECT().Get("/api/v2/jobs/789/").Return([]byte(`{"status": "successful"}`), nil)
 			},
 			expectError: false,
