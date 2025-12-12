@@ -21,6 +21,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+// TestJobLaunchActionSchema tests the Schema function
 func TestJobLaunchActionSchema(t *testing.T) {
 	t.Parallel()
 
@@ -41,6 +42,7 @@ func TestJobLaunchActionSchema(t *testing.T) {
 	}
 }
 
+// TestJobLaunchActionMetadata tests the Metadata function
 func TestJobLaunchActionMetadata(t *testing.T) {
 	t.Parallel()
 
@@ -59,6 +61,7 @@ func TestJobLaunchActionMetadata(t *testing.T) {
 	}
 }
 
+// TestJobLaunchActionConfigure tests the Configure function
 func TestJobLaunchActionConfigure(t *testing.T) {
 	t.Parallel()
 
@@ -219,7 +222,7 @@ func createMockInvokeResponse(t *testing.T) *fwaction.InvokeResponse {
 	}
 }
 
-// TestJobLaunchActionInvoke tests the full Invoke method
+// TestJobLaunchActionInvoke tests the full Invoke function
 func TestJobLaunchActionInvoke(t *testing.T) {
 	t.Parallel()
 
