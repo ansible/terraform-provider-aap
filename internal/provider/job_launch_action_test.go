@@ -2,7 +2,6 @@ package provider
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -25,7 +24,7 @@ import (
 func TestJobLaunchActionSchema(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	schemaRequest := fwaction.SchemaRequest{}
 	schemaResponse := fwaction.SchemaResponse{}
 
@@ -46,7 +45,7 @@ func TestJobLaunchActionSchema(t *testing.T) {
 func TestJobLaunchActionMetadata(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	metadataRequest := fwaction.MetadataRequest{
 		ProviderTypeName: "aap",
 	}
@@ -91,7 +90,7 @@ func TestJobLaunchActionConfigure(t *testing.T) {
 
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			act := &JobAction{}
 			configureRequest := fwaction.ConfigureRequest{
 				ProviderData: tc.providerData,
@@ -186,7 +185,7 @@ func mockFailedJobLaunch(mock *MockProviderHTTPClient, statusCode int, responseB
 func createInvokeRequest(t *testing.T, action *JobAction, configValues map[string]tftypes.Value) fwaction.InvokeRequest {
 	t.Helper()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	schemaReq := fwaction.SchemaRequest{}
 	schemaResp := fwaction.SchemaResponse{}
 	action.Schema(ctx, schemaReq, &schemaResp)
@@ -364,7 +363,7 @@ func TestJobLaunchActionInvoke(t *testing.T) {
 			req := createInvokeRequest(t, action, configValues)
 			resp := createMockInvokeResponse(t)
 
-			ctx := context.Background()
+			ctx := t.Context()
 			action.Invoke(ctx, req, resp)
 
 			hasError := resp.Diagnostics.HasError()
