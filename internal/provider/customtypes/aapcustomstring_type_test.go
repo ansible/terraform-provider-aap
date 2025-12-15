@@ -1,7 +1,6 @@
 package customtypes_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
@@ -65,7 +64,7 @@ func TestAAPCustomStringTypeValidate(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			diags := customtypes.AAPCustomStringType{}.Validate(context.Background(), testCase.in, path.Root("test"))
+			diags := customtypes.AAPCustomStringType{}.Validate(t.Context(), testCase.in, path.Root("test"))
 
 			if diff := cmp.Diff(diags, testCase.expectedDiags); diff != "" {
 				t.Errorf("Unexpected diagnostics (-got, +expected): %s", diff)
@@ -113,7 +112,7 @@ func TestAAPCustomStringTypeValueFromTerraform(t *testing.T) {
 		name, testCase := name, testCase
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			ctx := context.Background()
+			ctx := t.Context()
 
 			got, err := customtypes.AAPCustomStringType{}.ValueFromTerraform(ctx, testCase.in)
 			if err != nil {

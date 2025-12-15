@@ -522,7 +522,7 @@ func (r *HostResource) AssociateGroups(ctx context.Context, data []int64, url st
 		disassociate = args[0]
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	// Make sure it's called to release resources even if no errors
 	defer cancel()
 

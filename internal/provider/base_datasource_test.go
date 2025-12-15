@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
@@ -18,7 +17,7 @@ func TestBaseDataSourceMetadata(t *testing.T) {
 		DescriptiveEntityName: "datasource",
 		MetadataEntitySlug:    "datasource",
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 	metadataRequest := fwdatasource.MetadataRequest{
 		ProviderTypeName: "provider",
 	}
@@ -39,7 +38,7 @@ func TestBaseDataSourceSchema(t *testing.T) {
 		DescriptiveEntityName: "datasource",
 		MetadataEntitySlug:    "datasource",
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 	schemaRequest := fwdatasource.SchemaRequest{}
 	schemaResponse := &fwdatasource.SchemaResponse{}
 
@@ -110,7 +109,7 @@ func TestBaseDataSourceConfigValidators(t *testing.T) {
 	}
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			validator := test.datasource.ConfigValidators(ctx)
 			if !reflect.DeepEqual(validator, test.expected) {
 				t.Errorf("Expected (%s) not equal to actual (%s)", test.expected, validator)
