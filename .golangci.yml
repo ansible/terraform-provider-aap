@@ -25,6 +25,7 @@ linters:
     - unparam
     - unused
     - whitespace
+    - usetesting
   settings:
     goconst:
       min-len: 2
@@ -64,6 +65,11 @@ linters:
         - -ST1020
         - -ST1021
         - -ST1022
+    usetesting:
+      os-temp-dir: true
+      os-chdir: true
+      context-background: true
+      context-todo: true
   exclusions:
     generated: lax
     presets:
