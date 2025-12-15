@@ -20,7 +20,7 @@ import (
 func TestEDAEventStreamPostActionSchema(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	schemaRequest := fwaction.SchemaRequest{}
 	schemaResponse := fwaction.SchemaResponse{}
 
@@ -41,7 +41,7 @@ func TestEDAEventStreamPostActionSchema(t *testing.T) {
 // Test Metadata
 func TestEDAEventStreamPostActionMetadata(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	metadataRequest := fwaction.MetadataRequest{
 		ProviderTypeName: "test",
 	}

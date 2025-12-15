@@ -29,7 +29,7 @@ const (
 func TestWorkflowJobResourceSchema(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	schemaRequest := fwresource.SchemaRequest{}
 	schemaResponse := &fwresource.SchemaResponse{}
 
@@ -222,7 +222,7 @@ func TestWorkflowJobResourceMetadata(t *testing.T) {
 	}
 	resp := &fwresource.MetadataResponse{}
 
-	resource.Metadata(context.Background(), req, resp)
+	resource.Metadata(t.Context(), req, resp)
 
 	expectedTypeName := baseResourceNameWorkflowJob
 	if resp.TypeName != expectedTypeName {
@@ -268,7 +268,7 @@ func TestWorkflowJobResourceConfigure(t *testing.T) {
 				ProviderData: tc.providerData,
 			}
 			resp := &fwresource.ConfigureResponse{}
-			resource.Configure(context.Background(), req, resp)
+			resource.Configure(t.Context(), req, resp)
 
 			if resource.client != tc.expectClient {
 				t.Errorf("expected client to be %v, got %v", tc.expectClient, resource.client)
@@ -432,7 +432,7 @@ func TestAccAAPWorkflowJob_UpdateWithNewInventoryIdPromptOnLaunch(t *testing.T) 
 
 	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID")
-	ctx := context.Background()
+	ctx := t.Context()
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
@@ -594,7 +594,7 @@ func TestAccAAPWorkflowJobDisappears(t *testing.T) {
 	var workflowJobUrl string
 
 	jobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ID")
-	ctx := context.Background()
+	ctx := t.Context()
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
