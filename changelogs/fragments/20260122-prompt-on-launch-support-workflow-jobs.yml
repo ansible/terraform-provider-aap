@@ -1,0 +1,2 @@
+minor_changes:
+  - Add prompt on launch fields to aap_workflow_job resource and aap_workflow_job_launch action (job_tags, labels, limit, skip_tags).

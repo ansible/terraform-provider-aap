@@ -116,6 +116,7 @@ resource "aap_inventory" "test" {
 action "aap_workflow_job_launch" "test" {
 	config {
 		workflow_job_template_id = %s
+		inventory_id = aap_inventory.test.id
 		wait_for_completion 	 = true
 	}
 }
@@ -137,9 +138,106 @@ resource "aap_inventory" "test" {
 action "aap_workflow_job_launch" "test" {
 	config {
 		workflow_job_template_id = %s
+		inventory_id = aap_inventory.test.id
 		wait_for_completion 	 = true
 		ignore_job_results 	 	 = true
 	}
 }
 `, inventoryName, jobTemplateID)
+}
+
+// TestAccAAPWorkflowJobAction_AllFieldsOnPrompt tests that a workflow job action with all fields on prompt
+// can be launched successfully when all required fields are provided.
+func TestAccAAPWorkflowJobAction_AllFieldsOnPrompt(t *testing.T) {
+	workflowJobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID")
+	if workflowJobTemplateID == "" {
+		t.Skip("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID environment variable not set")
+	}
+	labelID := os.Getenv("AAP_TEST_LABEL_ID")
+	if labelID == "" {
+		t.Skip("AAP_TEST_LABEL_ID environment variable not set")
+	}
+
+	randNum, _ := rand.Int(rand.Reader, big.NewInt(50000000))
+	inventoryName := fmt.Sprintf("%s-%d", "tf-acc", randNum.Int64())
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccWorkflowJobActionAllFieldsOnPrompt(inventoryName, workflowJobTemplateID, labelID),
+			},
+		},
+	})
+}
+
+// TestAccAAPWorkflowJobAction_AllFieldsOnPrompt_MissingRequired tests that a workflow job action with all
+// fields on prompt fails when required fields are not provided.
+func TestAccAAPWorkflowJobAction_AllFieldsOnPrompt_MissingRequired(t *testing.T) {
+	workflowJobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID")
+	if workflowJobTemplateID == "" {
+		t.Skip("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID environment variable not set")
+	}
+	randNum, _ := rand.Int(rand.Reader, big.NewInt(50000000))
+	inventoryName := fmt.Sprintf("%s-%d", "tf-acc", randNum.Int64())
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccWorkflowJobActionAllFieldsOnPromptMissingRequired(inventoryName, workflowJobTemplateID),
+				ExpectError: regexp.MustCompile(".*Missing required field.*"),
+			},
+		},
+	})
+}
+
+func testAccWorkflowJobActionAllFieldsOnPrompt(inventoryName, workflowJobTemplateID, labelID string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+	name = "%s"
+	lifecycle {
+		action_trigger {
+			events = [after_create]
+			actions = [action.aap_workflow_job_launch.test]
+		}
+	}
+}
+
+action "aap_workflow_job_launch" "test" {
+	config {
+		workflow_job_template_id = %s
+		inventory_id             = aap_inventory.test.id
+		extra_vars               = "{\"test_var\": \"test_value\"}"
+		limit                    = "localhost"
+		job_tags                 = "test"
+		skip_tags                = "skip"
+		labels                   = [%s]
+		wait_for_completion      = true
+	}
+}
+`, inventoryName, workflowJobTemplateID, labelID)
+}
+
+func testAccWorkflowJobActionAllFieldsOnPromptMissingRequired(inventoryName, workflowJobTemplateID string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+	name = "%s"
+	lifecycle {
+		action_trigger {
+			events = [after_create]
+			actions = [action.aap_workflow_job_launch.test]
+		}
+	}
+}
+
+action "aap_workflow_job_launch" "test" {
+	config {
+		workflow_job_template_id = %s
+		wait_for_completion      = true
+	}
+}
+`, inventoryName, workflowJobTemplateID)
 }

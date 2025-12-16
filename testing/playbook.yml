@@ -91,6 +91,20 @@
         ask_inventory_on_launch: true
         organization: "Default"
       register: workflow_job_template_failure
+    # The tests for resource.aap_workflow_job and action.aap_workflow_job_launch test the behavior when ALL
+    # promptable fields are set to "prompt on launch". This verifies validation logic.
+    - name: Create Workflow Job Template with all fields on prompt
+      ansible.controller.workflow_job_template:
+        name: "Demo Workflow Job Template with All Fields on Prompt"
+        organization: "Default"
+        inventory: "Demo Inventory"
+        ask_variables_on_launch: true
+        ask_tags_on_launch: true
+        ask_skip_tags_on_launch: true
+        ask_limit_on_launch: true
+        ask_inventory_on_launch: true
+        ask_labels_on_launch: true
+      register: workflow_job_template_all_fields_on_prompt
     # The tests for resource.aap_inventory create an inventory that is in a non-default
     # organization. So we need an organization that is not 'Default'
     - name: Create non-default organization
