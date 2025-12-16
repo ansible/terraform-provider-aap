@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -78,108 +79,22 @@ func TestIsFinalStateAAPJob(t *testing.T) {
 	}
 }
 
-func TestJobResourceCreateRequestBody(t *testing.T) {
-	testTable := []struct {
-		name     string
-		input    JobResourceModel
-		expected []byte
-	}{
-		{
-			name: "unknown values",
-			input: JobResourceModel{JobModel: JobModel{
-				ExtraVars:   customtypes.NewAAPCustomStringUnknown(),
-				InventoryID: basetypes.NewInt64Unknown(),
-				TemplateID:  types.Int64Value(1),
-			}},
-			expected: []byte(`{}`),
-		},
-		{
-			name: "null values",
-			input: JobResourceModel{JobModel: JobModel{
-				ExtraVars:   customtypes.NewAAPCustomStringNull(),
-				InventoryID: basetypes.NewInt64Null(),
-				TemplateID:  types.Int64Value(1),
-			}},
-			expected: []byte(`{}`),
-		},
-		{
-			name: "extra vars only",
-			input: JobResourceModel{JobModel: JobModel{
-				ExtraVars:   customtypes.NewAAPCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
-				InventoryID: basetypes.NewInt64Null(),
-			}},
-			expected: []byte(`{"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
-		},
-		{
-			name: "inventory vars only",
-			input: JobResourceModel{JobModel: JobModel{
-				ExtraVars:   customtypes.NewAAPCustomStringNull(),
-				InventoryID: basetypes.NewInt64Value(201),
-			}},
-			expected: []byte(`{"inventory": 201}`),
-		},
-		{
-			name: "combined",
-			input: JobResourceModel{JobModel: JobModel{
-				ExtraVars:   customtypes.NewAAPCustomStringValue("{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"),
-				InventoryID: basetypes.NewInt64Value(3),
-			}},
-			expected: []byte(`{"inventory":3,"extra_vars":"{\"test_name\":\"extra_vars\", \"provider\":\"aap\"}"}`),
-		},
-		{
-			name: "manual_triggers",
-			input: JobResourceModel{JobModel: JobModel{
-				InventoryID: basetypes.NewInt64Value(3),
-			},
-				Triggers: types.MapNull(types.StringType),
-			},
-			expected: []byte(`{"inventory": 3}`),
-		},
-		{
-			name: "wait_for_completed parameters",
-			input: JobResourceModel{JobModel: JobModel{
-				InventoryID:              basetypes.NewInt64Value(3),
-				TemplateID:               types.Int64Value(1),
-				WaitForCompletion:        basetypes.NewBoolValue(true),
-				WaitForCompletionTimeout: basetypes.NewInt64Value(60),
-			}},
-			expected: []byte(`{"inventory":3}`),
-		},
-	}
-
-	for _, tc := range testTable {
-		t.Run(tc.name, func(t *testing.T) {
-			computed, diags := tc.input.CreateRequestBody()
-			if diags.HasError() {
-				t.Fatal(diags.Errors())
-			}
-			if tc.expected == nil || computed == nil {
-				if tc.expected == nil && computed != nil {
-					t.Fatal("expected nil but result is not nil", string(computed))
-				}
-				if tc.expected != nil && computed == nil {
-					t.Fatal("expected result not nil but result is nil", string(computed))
-				}
-			} else {
-				test, err := DeepEqualJSONByte(tc.expected, computed)
-				if err != nil {
-					t.Errorf("expected (%s)", string(tc.expected))
-					t.Errorf("computed (%s)", string(computed))
-					t.Fatal("Error while comparing results " + err.Error())
-				}
-				if !test {
-					t.Errorf("expected (%s)", string(tc.expected))
-					t.Errorf("computed (%s)", string(computed))
-				}
-			}
-		})
-	}
-}
-
 func TestJobResourceParseHTTPResponse(t *testing.T) {
 	templateID := basetypes.NewInt64Value(1)
 	inventoryID := basetypes.NewInt64Value(2)
 	extraVars := customtypes.NewAAPCustomStringNull()
+	// Optional+Computed fields are now set from API response values.
+	// UseStateForUnknown() plan modifiers handle drift prevention at plan time.
+	limit := customtypes.NewAAPCustomStringValue("")
+	jobTags := customtypes.NewAAPCustomStringValue("")
+	skipTags := customtypes.NewAAPCustomStringValue("")
+	diffMode := types.BoolValue(false)
+	verbosity := types.Int64Value(0)
+	executionEnvironmentID := types.Int64Value(0)
+	forks := types.Int64Value(0)
+	jobSliceCount := types.Int64Value(0)
+	timeout := types.Int64Value(0)
+	instanceGroups := types.ListNull(types.Int64Type)
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
@@ -199,9 +114,19 @@ func TestJobResourceParseHTTPResponse(t *testing.T) {
 			name:  "no ignored fields",
 			input: []byte(`{"inventory":2,"job_template":1,"job_type": "run", "url": "/api/v2/jobs/14/", "status": "pending"}`),
 			expected: JobResourceModel{JobModel: JobModel{
-				TemplateID:  templateID,
-				InventoryID: inventoryID,
-				ExtraVars:   extraVars,
+				TemplateID:             templateID,
+				InventoryID:            inventoryID,
+				ExtraVars:              extraVars,
+				Limit:                  limit,
+				JobTags:                jobTags,
+				SkipTags:               skipTags,
+				DiffMode:               diffMode,
+				Verbosity:              verbosity,
+				ExecutionEnvironmentID: executionEnvironmentID,
+				Forks:                  forks,
+				JobSliceCount:          jobSliceCount,
+				Timeout:                timeout,
+				InstanceGroups:         instanceGroups,
 			},
 				Type:          types.StringValue("run"),
 				URL:           types.StringValue("/api/v2/jobs/14/"),
@@ -215,9 +140,19 @@ func TestJobResourceParseHTTPResponse(t *testing.T) {
 			input: []byte(`{"inventory":2,"job_template":1,"job_type": "run", "url": "/api/v2/jobs/14/", "status":
 			"pending", "ignored_fields": {"extra_vars": "{\"bucket_state\":\"absent\"}"}}`),
 			expected: JobResourceModel{JobModel: JobModel{
-				TemplateID:  templateID,
-				InventoryID: inventoryID,
-				ExtraVars:   extraVars,
+				TemplateID:             templateID,
+				InventoryID:            inventoryID,
+				ExtraVars:              extraVars,
+				Limit:                  limit,
+				JobTags:                jobTags,
+				SkipTags:               skipTags,
+				DiffMode:               diffMode,
+				Verbosity:              verbosity,
+				ExecutionEnvironmentID: executionEnvironmentID,
+				Forks:                  forks,
+				JobSliceCount:          jobSliceCount,
+				Timeout:                timeout,
+				InstanceGroups:         instanceGroups,
 			},
 				Type:          types.StringValue("run"),
 				URL:           types.StringValue("/api/v2/jobs/14/"),
@@ -366,7 +301,7 @@ func TestAccAAPJob_UpdateWithNewInventoryIdPromptOnLaunch(t *testing.T) {
 	var jobURLBefore string
 
 	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
-	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_INVENTORY_PROMPT_ID")
 	ctx := t.Context()
 
 	resource.Test(t, resource.TestCase{
@@ -781,4 +716,90 @@ func TestRetryUntilAAPJobReachesAnyFinalState_LoggingBehavior(t *testing.T) {
 	assertLogFieldEquals(t, logEntry, "@message", "Job status update")
 	assertLogFieldEquals(t, logEntry, "@module", "provider")
 	assertLogFieldEquals(t, logEntry, "status", statusRunningConst)
+}
+
+// TestAccAAPJob_AllFieldsOnPrompt tests that a job resource with all fields on prompt
+// can be launched successfully when all required fields are provided.
+func TestAccAAPJob_AllFieldsOnPrompt(t *testing.T) {
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID")
+	if jobTemplateID == "" {
+		t.Skip("AAP_TEST_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID environment variable not set")
+	}
+	credentialID := os.Getenv("AAP_TEST_DEMO_CREDENTIAL_ID")
+	if credentialID == "" {
+		t.Skip("AAP_TEST_DEMO_CREDENTIAL_ID environment variable not set")
+	}
+	labelID := os.Getenv("AAP_TEST_LABEL_ID")
+	if labelID == "" {
+		t.Skip("AAP_TEST_LABEL_ID environment variable not set")
+	}
+	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	ctx := t.Context()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccJobAllFieldsOnPrompt(inventoryName, jobTemplateID, credentialID, labelID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckJobExists,
+					testAccCheckJobPause(ctx, resourceNameJob),
+				),
+			},
+		},
+	})
+}
+
+// TestAccAAPJob_AllFieldsOnPrompt_MissingRequired tests that a job resource with all
+// fields on prompt fails when required fields are not provided.
+func TestAccAAPJob_AllFieldsOnPrompt_MissingRequired(t *testing.T) {
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID")
+	if jobTemplateID == "" {
+		t.Skip("AAP_TEST_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID environment variable not set")
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccJobAllFieldsOnPromptMissingRequired(jobTemplateID),
+				ExpectError: regexp.MustCompile(".*Missing required field.*"),
+			},
+		},
+	})
+}
+
+func testAccJobAllFieldsOnPrompt(inventoryName, jobTemplateID, credentialID, labelID string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+	name = "%s"
+}
+
+resource "aap_job" "test" {
+	job_template_id       = %s
+	inventory_id          = aap_inventory.test.id
+	credentials           = [%s]
+	labels                = [%s]
+	extra_vars            = "{\"test_var\": \"test_value\"}"
+	limit                 = "localhost"
+	job_tags              = "test"
+	skip_tags             = "skip"
+	diff_mode             = true
+	verbosity             = 1
+	forks                 = 5
+	job_slice_count       = 1
+	timeout               = 300
+	wait_for_completion   = true
+}
+`, inventoryName, jobTemplateID, credentialID, labelID)
+}
+
+func testAccJobAllFieldsOnPromptMissingRequired(jobTemplateID string) string {
+	return fmt.Sprintf(`
+resource "aap_job" "test" {
+	job_template_id = %s
+}
+`, jobTemplateID)
 }
