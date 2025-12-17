@@ -1,0 +1,2 @@
+trivial:
+  - Add ConvertListToInt64Slice utility function for converting types.List to []int64.
