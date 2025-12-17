@@ -51,6 +51,26 @@ func (a *WorkflowJobAction) Schema(_ context.Context, _ action.SchemaRequest, re
 				Optional:    true,
 				CustomType:  customtypes.AAPCustomStringType{},
 			},
+			"limit": schema.StringAttribute{
+				Description: "Limit pattern to restrict the workflow job run to specific hosts.",
+				Optional:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+			},
+			"job_tags": schema.StringAttribute{
+				Description: "Tags to include in the workflow job run.",
+				Optional:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+			},
+			"skip_tags": schema.StringAttribute{
+				Description: "Tags to skip in the workflow job run.",
+				Optional:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+			},
+			"labels": schema.ListAttribute{
+				Description: "List of label IDs to apply to the workflow job.",
+				Optional:    true,
+				ElementType: types.Int64Type,
+			},
 			"wait_for_completion": schema.BoolAttribute{
 				Optional: true,
 				Description: "When this is set to `true`, Terraform will wait until this aap_job resource is created, reaches " +
@@ -101,12 +121,14 @@ func (a *WorkflowJobAction) Invoke(ctx context.Context, req action.InvokeRequest
 	})
 
 	tflog.Debug(ctx, "workflow job launched", map[string]interface{}{
-		"url":            jobResponse.URL,
-		"status":         jobResponse.Status,
-		"template_id":    jobResponse.TemplateID,
-		"inventory_id":   jobResponse.Inventory,
-		"extra_vars":     jobResponse.ExtraVars,
-		"ignored_fields": jobResponse.IgnoredFields,
+		"url":          jobResponse.URL,
+		"status":       jobResponse.Status,
+		"template_id":  jobResponse.TemplateID,
+		"inventory_id": jobResponse.Inventory,
+		"extra_vars":   jobResponse.ExtraVars,
+		"limit":        jobResponse.Limit,
+		"job_tags":     jobResponse.JobTags,
+		"skip_tags":    jobResponse.SkipTags,
 	})
 
 	// Extract job URL for polling if wait_for_completion is enabled

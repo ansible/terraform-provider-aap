@@ -1,23 +1,26 @@
 package provider
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path"
 	"time"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
@@ -28,36 +31,6 @@ const (
 	waitForCompletionTimeoutDefault int64  = 120
 	statusSuccessfulConst           string = "successful"
 )
-
-// JobAPIModel represents the AAP API model.
-type JobAPIModel struct {
-	TemplateID    int64                  `json:"job_template,omitempty"`
-	Type          string                 `json:"job_type,omitempty"`
-	URL           string                 `json:"url,omitempty"`
-	Status        string                 `json:"status,omitempty"`
-	Inventory     int64                  `json:"inventory,omitempty"`
-	ExtraVars     string                 `json:"extra_vars,omitempty"`
-	IgnoredFields map[string]interface{} `json:"ignored_fields,omitempty"`
-}
-
-// JobModel are the attributes that are provided by the user and also used by the action.
-type JobModel struct {
-	TemplateID               types.Int64                      `tfsdk:"job_template_id"`
-	InventoryID              types.Int64                      `tfsdk:"inventory_id"`
-	ExtraVars                customtypes.AAPCustomStringValue `tfsdk:"extra_vars"`
-	WaitForCompletion        types.Bool                       `tfsdk:"wait_for_completion"`
-	WaitForCompletionTimeout types.Int64                      `tfsdk:"wait_for_completion_timeout_seconds"`
-}
-
-// JobResourceModel maps the resource schema data.
-type JobResourceModel struct {
-	JobModel
-	Status        types.String `tfsdk:"status"`
-	Type          types.String `tfsdk:"job_type"`
-	URL           types.String `tfsdk:"url"`
-	IgnoredFields types.List   `tfsdk:"ignored_fields"`
-	Triggers      types.Map    `tfsdk:"triggers"`
-}
 
 // JobResource is the resource implementation.
 type JobResource struct {
@@ -204,6 +177,113 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Computed:    true,
 				Description: "The list of properties set by the user but ignored on server side.",
 			},
+			"limit": schema.StringAttribute{
+				Description: "Limit pattern to restrict the job run to specific hosts.",
+				Optional:    true,
+				Computed:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"job_tags": schema.StringAttribute{
+				Description: "Tags to include in the job run.",
+				Optional:    true,
+				Computed:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"skip_tags": schema.StringAttribute{
+				Description: "Tags to skip in the job run.",
+				Optional:    true,
+				Computed:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"diff_mode": schema.BoolAttribute{
+				Description: "Enable diff mode for the job run.",
+				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"verbosity": schema.Int64Attribute{
+				Description: "Verbosity level for the job run. Valid values: 0 (Normal), 1 (Verbose), 2 (More Verbose), 3 (Debug), 4 (Connection Debug), 5 (WinRM Debug).",
+				Optional:    true,
+				Computed:    true,
+				Validators: []validator.Int64{
+					int64validator.Between(0, VerbosityMax),
+				},
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
+			},
+			"execution_environment": schema.Int64Attribute{
+				Description: "ID of the execution environment to use for the job run.",
+				Optional:    true,
+				Computed:    true,
+			},
+			"forks": schema.Int64Attribute{
+				Description: "Number of parallel processes to use for the job run.",
+				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
+			},
+			"job_slice_count": schema.Int64Attribute{
+				Description: "Number of slices to divide the job into.",
+				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
+			},
+			"timeout": schema.Int64Attribute{
+				Description: "Timeout in seconds for the job run.",
+				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
+			},
+			// instance_groups is marked as Computed because the API may return a different
+			// value than what the user configured. When launching a job, the user can specify
+			// multiple instance groups, but the API response only includes the single instance
+			// group that was actually assigned. UseStateForUnknown preserves the user's
+			// configured value in state to prevent perpetual drift.
+			"instance_groups": schema.ListAttribute{
+				Description: "List of instance group IDs to use for the job run.",
+				Optional:    true,
+				Computed:    true,
+				ElementType: types.Int64Type,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
+			},
+			// credentials is marked as WriteOnly because the value is sent to the API
+			// at job launch time but is not returned from the job GET endpoint.
+			// The actual credentials are managed via the `related` API endpoint.
+			"credentials": schema.ListAttribute{
+				Description: "List of credential IDs to use for the job run. (Write-only: value is sent to API but not returned in state)",
+				Optional:    true,
+				WriteOnly:   true,
+				ElementType: types.Int64Type,
+			},
+			// labels is marked as WriteOnly because the value is sent to the API
+			// at job launch time but is not returned from the job GET endpoint.
+			// The actual labels are managed via the `related` API endpoint.
+			"labels": schema.ListAttribute{
+				Description: "List of label IDs to apply to the job. (Write-only: value is sent to API but not returned in state)",
+				Optional:    true,
+				WriteOnly:   true,
+				ElementType: types.Int64Type,
+			},
 			"wait_for_completion": schema.BoolAttribute{
 				Optional: true,
 				Computed: true,
@@ -242,6 +322,16 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	// WriteOnly attributes (credentials, labels) must be read from the config,
+	// not the plan, because WriteOnly values are always null in the plan.
+	var configData JobResourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &configData)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	data.Credentials = configData.Credentials
+	data.Labels = configData.Labels
 
 	resp.Diagnostics.Append(data.LaunchJobWithResponse(r.client)...)
 	if resp.Diagnostics.HasError() {
@@ -327,6 +417,16 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		return
 	}
 
+	// WriteOnly attributes (credentials, labels) must be read from the config,
+	// not the plan, because WriteOnly values are always null in the plan.
+	var configData JobResourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &configData)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	data.Credentials = configData.Credentials
+	data.Labels = configData.Labels
+
 	// Create new Job from job template
 	resp.Diagnostics.Append(data.LaunchJobWithResponse(r.client)...)
 	if resp.Diagnostics.HasError() {
@@ -366,34 +466,6 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 func (r JobResource) Delete(_ context.Context, _ resource.DeleteRequest, _ *resource.DeleteResponse) {
 }
 
-// CreateRequestBody creates a JSON encoded request body from the job resource data
-func (r *JobModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
-	var diags diag.Diagnostics
-	var inventoryID int64
-
-	// Use default inventory if not provided
-	if r.InventoryID.ValueInt64() != 0 {
-		inventoryID = r.InventoryID.ValueInt64()
-	}
-
-	// Convert job resource data to API data model
-	job := JobAPIModel{
-		ExtraVars: r.ExtraVars.ValueString(),
-		Inventory: inventoryID,
-	}
-
-	// Create JSON encoded request body
-	jsonBody, err := json.Marshal(job)
-	if err != nil {
-		diags.AddError(
-			"Error marshaling request body",
-			fmt.Sprintf("Could not create request body for job resource, unexpected error: %s", err.Error()),
-		)
-		return nil, diags
-	}
-	return jsonBody, diags
-}
-
 // ParseHTTPResponse updates the job resource data from an AAP API response.
 func (r *JobResourceModel) ParseHTTPResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
@@ -406,12 +478,35 @@ func (r *JobResourceModel) ParseHTTPResponse(body []byte) diag.Diagnostics {
 		return diags
 	}
 
-	// Map response to the job resource schema and update attribute values
+	// Map response to the job resource schema and update attribute values.
+	// All Optional+Computed fields use UseStateForUnknown() plan modifiers,
+	// so we can safely set values from the API response without causing drift.
 	r.Type = types.StringValue(resultAPIJob.Type)
 	r.URL = types.StringValue(resultAPIJob.URL)
 	r.Status = types.StringValue(resultAPIJob.Status)
 	r.TemplateID = types.Int64Value(resultAPIJob.TemplateID)
 	r.InventoryID = types.Int64Value(resultAPIJob.Inventory)
+	r.Limit = customtypes.NewAAPCustomStringValue(resultAPIJob.Limit)
+	r.JobTags = customtypes.NewAAPCustomStringValue(resultAPIJob.JobTags)
+	r.SkipTags = customtypes.NewAAPCustomStringValue(resultAPIJob.SkipTags)
+	r.DiffMode = types.BoolValue(resultAPIJob.DiffMode)
+	r.Verbosity = types.Int64Value(resultAPIJob.Verbosity)
+	r.ExecutionEnvironmentID = types.Int64Value(resultAPIJob.ExecutionEnvironment)
+	r.Forks = types.Int64Value(resultAPIJob.Forks)
+	r.JobSliceCount = types.Int64Value(resultAPIJob.JobSliceCount)
+	r.Timeout = types.Int64Value(resultAPIJob.Timeout)
+
+	// InstanceGroups requires special handling: the API returns a single instance_group,
+	// but user may have configured multiple. Only set from API if user didn't provide a value.
+	if r.InstanceGroups.IsNull() || r.InstanceGroups.IsUnknown() {
+		if resultAPIJob.InstanceGroup != 0 {
+			r.InstanceGroups, _ = types.ListValue(types.Int64Type, []attr.Value{types.Int64Value(resultAPIJob.InstanceGroup)})
+		} else {
+			r.InstanceGroups = types.ListNull(types.Int64Type)
+		}
+	}
+
+	// Credentials and Labels are WriteOnly and handled separately via API
 	diags = r.ParseIgnoredFields(resultAPIJob.IgnoredFields)
 	return diags
 }
@@ -436,25 +531,8 @@ func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]interface
 	return diags
 }
 
-func (r *JobModel) LaunchJob(client ProviderHTTPClient) (body []byte, diags diag.Diagnostics) {
-	// Create request body from job data
-	requestBody, diagCreateReq := r.CreateRequestBody()
-	diags.Append(diagCreateReq...)
-	if diags.HasError() {
-		return nil, diags
-	}
-
-	requestData := bytes.NewReader(requestBody)
-	var postURL = path.Join(client.getAPIEndpoint(), "job_templates", r.TemplateID.String(), "launch")
-	resp, body, err := client.doRequest(http.MethodPost, postURL, nil, requestData)
-	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
-	if diags.HasError() {
-		return nil, diags
-	}
-
-	return body, diags
-}
-
+// LaunchJobWithResponse launches a job from the job template and parses the HTTP response
+// into the JobResourceModel fields.
 func (r *JobResourceModel) LaunchJobWithResponse(client ProviderHTTPClient) diag.Diagnostics {
 	body, diags := r.LaunchJob(client)
 	if diags.HasError() {

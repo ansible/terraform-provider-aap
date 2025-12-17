@@ -151,6 +151,9 @@ func TestWorkflowJobResourceParseHTTPResponse(t *testing.T) {
 	templateID := basetypes.NewInt64Value(1)
 	inventoryID := basetypes.NewInt64Value(2)
 	extraVars := customtypes.NewAAPCustomStringNull()
+	limit := customtypes.NewAAPCustomStringValue("")
+	jobTags := customtypes.NewAAPCustomStringValue("")
+	skipTags := customtypes.NewAAPCustomStringValue("")
 	jsonError := diag.Diagnostics{}
 	jsonError.AddError("Error parsing JSON response from AAP", "invalid character 'N' looking for beginning of value")
 
@@ -174,6 +177,9 @@ func TestWorkflowJobResourceParseHTTPResponse(t *testing.T) {
 					TemplateID:  templateID,
 					InventoryID: inventoryID,
 					ExtraVars:   extraVars,
+					Limit:       limit,
+					JobTags:     jobTags,
+					SkipTags:    skipTags,
 				},
 				Type:          types.StringValue("run"),
 				URL:           types.StringValue("/api/v2/workflow_jobs/14/"),
@@ -191,6 +197,9 @@ func TestWorkflowJobResourceParseHTTPResponse(t *testing.T) {
 					TemplateID:  templateID,
 					InventoryID: inventoryID,
 					ExtraVars:   extraVars,
+					Limit:       limit,
+					JobTags:     jobTags,
+					SkipTags:    skipTags,
 				},
 				Type:          types.StringValue("run"),
 				URL:           types.StringValue("/api/v2/workflow_jobs/14/"),
@@ -588,6 +597,82 @@ resource "%s" "test" {
 	}
 }
 `, baseResourceNameWorkflowJob, jobTemplateID)
+}
+
+// TestAccAAPWorkflowJob_AllFieldsOnPrompt tests that a workflow job resource with all fields on prompt
+// can be launched successfully when all required fields are provided.
+func TestAccAAPWorkflowJob_AllFieldsOnPrompt(t *testing.T) {
+	workflowJobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID")
+	if workflowJobTemplateID == "" {
+		t.Skip("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID environment variable not set")
+	}
+	labelID := os.Getenv("AAP_TEST_LABEL_ID")
+	if labelID == "" {
+		t.Skip("AAP_TEST_LABEL_ID environment variable not set")
+	}
+	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	ctx := context.Background()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccWorkflowJobAllFieldsOnPrompt(inventoryName, workflowJobTemplateID, labelID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckWorkflowJobExists,
+					testAccCheckWorkflowJobPause(ctx, "aap_workflow_job.test"),
+				),
+			},
+		},
+	})
+}
+
+// TestAccAAPWorkflowJob_AllFieldsOnPrompt_MissingRequired tests that a workflow job resource with all
+// fields on prompt fails when required fields are not provided.
+func TestAccAAPWorkflowJob_AllFieldsOnPrompt_MissingRequired(t *testing.T) {
+	workflowJobTemplateID := os.Getenv("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID")
+	if workflowJobTemplateID == "" {
+		t.Skip("AAP_TEST_WORKFLOW_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID environment variable not set")
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccWorkflowJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccWorkflowJobAllFieldsOnPromptMissingRequired(workflowJobTemplateID),
+				ExpectError: regexp.MustCompile(".*Missing required field.*"),
+			},
+		},
+	})
+}
+
+func testAccWorkflowJobAllFieldsOnPrompt(inventoryName, workflowJobTemplateID, labelID string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+	name = "%s"
+}
+
+resource "aap_workflow_job" "test" {
+	workflow_job_template_id = %s
+	inventory_id             = aap_inventory.test.id
+	labels                   = [%s]
+	extra_vars               = "{\"test_var\": \"test_value\"}"
+	limit                    = "localhost"
+	job_tags                 = "test"
+	skip_tags                = "skip"
+	wait_for_completion      = true
+}
+`, inventoryName, workflowJobTemplateID, labelID)
+}
+
+func testAccWorkflowJobAllFieldsOnPromptMissingRequired(workflowJobTemplateID string) string {
+	return fmt.Sprintf(`
+resource "aap_workflow_job" "test" {
+	workflow_job_template_id = %s
+}
+`, workflowJobTemplateID)
 }
 
 func TestAccAAPWorkflowJobDisappears(t *testing.T) {

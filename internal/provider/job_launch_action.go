@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework/action"
 	"github.com/hashicorp/terraform-plugin-framework/action/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
@@ -50,6 +52,63 @@ func (a *JobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *acti
 				Description: "Extra Variables. Must be provided as either a JSON or YAML string.",
 				Optional:    true,
 				CustomType:  customtypes.AAPCustomStringType{},
+			},
+			"limit": schema.StringAttribute{
+				Description: "Limit pattern to restrict the job run to specific hosts.",
+				Optional:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+			},
+			"job_tags": schema.StringAttribute{
+				Description: "Tags to include in the job run.",
+				Optional:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+			},
+			"skip_tags": schema.StringAttribute{
+				Description: "Tags to skip in the job run.",
+				Optional:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+			},
+			"diff_mode": schema.BoolAttribute{
+				Description: "Enable diff mode for the job run.",
+				Optional:    true,
+			},
+			"verbosity": schema.Int64Attribute{
+				Description: "Verbosity level for the job run. Valid values: 0 (Normal), 1 (Verbose), 2 (More Verbose), 3 (Debug), 4 (Connection Debug), 5 (WinRM Debug).",
+				Optional:    true,
+				Validators: []validator.Int64{
+					int64validator.Between(0, VerbosityMax),
+				},
+			},
+			"execution_environment": schema.Int64Attribute{
+				Description: "ID of the execution environment to use for the job run.",
+				Optional:    true,
+			},
+			"forks": schema.Int64Attribute{
+				Description: "Number of parallel processes to use for the job run.",
+				Optional:    true,
+			},
+			"job_slice_count": schema.Int64Attribute{
+				Description: "Number of slices to divide the job into.",
+				Optional:    true,
+			},
+			"timeout": schema.Int64Attribute{
+				Description: "Timeout in seconds for the job run.",
+				Optional:    true,
+			},
+			"instance_groups": schema.ListAttribute{
+				Description: "List of instance group IDs to use for the job run.",
+				Optional:    true,
+				ElementType: types.Int64Type,
+			},
+			"credentials": schema.ListAttribute{
+				Description: "List of credential IDs to use for the job run. (Value is sent to API but not returned in state)",
+				Optional:    true,
+				ElementType: types.Int64Type,
+			},
+			"labels": schema.ListAttribute{
+				Description: "List of label IDs to apply to the job. (Value is sent to API but not returned in state)",
+				Optional:    true,
+				ElementType: types.Int64Type,
 			},
 			"wait_for_completion": schema.BoolAttribute{
 				Optional: true,

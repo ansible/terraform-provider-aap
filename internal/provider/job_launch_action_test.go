@@ -149,11 +149,48 @@ func createJobActionConfig(overrides jobActionConfigOverrides) map[string]tftype
 		"wait_for_completion":                 valueOrNil(tftypes.Bool, overrides.WaitForCompletion),
 		"wait_for_completion_timeout_seconds": valueOrNil(tftypes.Number, overrides.WaitForCompletionTimeout),
 		"ignore_job_results":                  valueOrNil(tftypes.Bool, overrides.IgnoreJobResults),
+		"limit":                               valueOrNil[string](tftypes.String, nil),
+		"job_tags":                            valueOrNil[string](tftypes.String, nil),
+		"skip_tags":                           valueOrNil[string](tftypes.String, nil),
+		"diff_mode":                           valueOrNil[bool](tftypes.Bool, nil),
+		"verbosity":                           valueOrNil[int64](tftypes.Number, nil),
+		"execution_environment":               valueOrNil[int64](tftypes.Number, nil),
+		"forks":                               valueOrNil[int64](tftypes.Number, nil),
+		"job_slice_count":                     valueOrNil[int64](tftypes.Number, nil),
+		"timeout":                             valueOrNil[int64](tftypes.Number, nil),
+		"instance_groups":                     valueOrNil[[]tftypes.Value](tftypes.List{ElementType: tftypes.Number}, nil),
+		"credentials":                         valueOrNil[[]tftypes.Value](tftypes.List{ElementType: tftypes.Number}, nil),
+		"labels":                              valueOrNil[[]tftypes.Value](tftypes.List{ElementType: tftypes.Number}, nil),
 	}
 }
 
 // mockSuccessfulJobLaunch mocks a successful job launch API call
 func mockSuccessfulJobLaunch(mock *MockProviderHTTPClient) {
+	// First, mock the GET request to check if job can be launched
+	mock.EXPECT().getAPIEndpoint().Return("/api/v2")
+	mock.EXPECT().doRequest(
+		http.MethodGet,
+		gomock.Any(),
+		gomock.Nil(),
+		gomock.Nil(),
+	).Return(&http.Response{StatusCode: http.StatusOK}, []byte(`{
+		"ask_variables_on_launch": false,
+		"ask_tags_on_launch": false,
+		"ask_skip_tags_on_launch": false,
+		"ask_job_type_on_launch": false,
+		"ask_limit_on_launch": false,
+		"ask_inventory_on_launch": false,
+		"ask_credential_on_launch": false,
+		"ask_execution_environment_on_launch": false,
+		"ask_labels_on_launch": false,
+		"ask_forks_on_launch": false,
+		"ask_diff_mode_on_launch": false,
+		"ask_verbosity_on_launch": false,
+		"ask_instance_groups_on_launch": false,
+		"ask_timeout_on_launch": false,
+		"ask_job_slice_count_on_launch": false
+	}`), nil)
+	// Then, mock the POST request to launch the job
 	mock.EXPECT().getAPIEndpoint().Return("/api/v2")
 	mock.EXPECT().doRequest(
 		http.MethodPost,
@@ -172,6 +209,31 @@ func mockSuccessfulJobLaunch(mock *MockProviderHTTPClient) {
 
 // mockFailedJobLaunch mocks a failed job launch API call
 func mockFailedJobLaunch(mock *MockProviderHTTPClient, statusCode int, responseBody string, err error) {
+	// First, mock the GET request to check if job can be launched
+	mock.EXPECT().getAPIEndpoint().Return("/api/v2")
+	mock.EXPECT().doRequest(
+		http.MethodGet,
+		gomock.Any(),
+		gomock.Nil(),
+		gomock.Nil(),
+	).Return(&http.Response{StatusCode: http.StatusOK}, []byte(`{
+		"ask_variables_on_launch": false,
+		"ask_tags_on_launch": false,
+		"ask_skip_tags_on_launch": false,
+		"ask_job_type_on_launch": false,
+		"ask_limit_on_launch": false,
+		"ask_inventory_on_launch": false,
+		"ask_credential_on_launch": false,
+		"ask_execution_environment_on_launch": false,
+		"ask_labels_on_launch": false,
+		"ask_forks_on_launch": false,
+		"ask_diff_mode_on_launch": false,
+		"ask_verbosity_on_launch": false,
+		"ask_instance_groups_on_launch": false,
+		"ask_timeout_on_launch": false,
+		"ask_job_slice_count_on_launch": false
+	}`), nil)
+	// Then, mock the failed POST request
 	mock.EXPECT().getAPIEndpoint().Return("/api/v2")
 	mock.EXPECT().doRequest(
 		http.MethodPost,
@@ -521,6 +583,117 @@ action "aap_job_launch" "test" {
 		job_template_id 	= %s
 		wait_for_completion = true
 		ignore_job_results  = true
+	}
+}
+`, inventoryName, jobTemplateID)
+}
+
+// TestAccAAPJobAction_AllFieldsOnPrompt tests that a job action with all fields on prompt
+// can be launched successfully when all required fields are provided.
+func TestAccAAPJobAction_AllFieldsOnPrompt(t *testing.T) {
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID")
+	if jobTemplateID == "" {
+		t.Skip("AAP_TEST_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID environment variable not set")
+	}
+	credentialID := os.Getenv("AAP_TEST_DEMO_CREDENTIAL_ID")
+	if credentialID == "" {
+		t.Skip("AAP_TEST_DEMO_CREDENTIAL_ID environment variable not set")
+	}
+	labelID := os.Getenv("AAP_TEST_LABEL_ID")
+	if labelID == "" {
+		t.Skip("AAP_TEST_LABEL_ID environment variable not set")
+	}
+	instanceGroupID := os.Getenv("AAP_TEST_DEFAULT_INSTANCE_GROUP_ID")
+	if instanceGroupID == "" {
+		t.Skip("AAP_TEST_DEFAULT_INSTANCE_GROUP_ID environment variable not set")
+	}
+
+	randNum, _ := rand.Int(rand.Reader, big.NewInt(50000000))
+	inventoryName := fmt.Sprintf("%s-%d", "tf-acc", randNum.Int64())
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccJobActionAllFieldsOnPrompt(inventoryName, jobTemplateID, credentialID, labelID, instanceGroupID),
+			},
+		},
+	})
+}
+
+// TestAccAAPJobAction_AllFieldsOnPrompt_MissingRequired tests that a job action with all
+// fields on prompt fails when required fields are not provided.
+func TestAccAAPJobAction_AllFieldsOnPrompt_MissingRequired(t *testing.T) {
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID")
+	if jobTemplateID == "" {
+		t.Skip("AAP_TEST_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID environment variable not set")
+	}
+	randNum, _ := rand.Int(rand.Reader, big.NewInt(50000000))
+	inventoryName := fmt.Sprintf("%s-%d", "tf-acc", randNum.Int64())
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccJobActionAllFieldsOnPromptMissingRequired(inventoryName, jobTemplateID),
+				ExpectError: regexp.MustCompile(".*Missing required field.*"),
+			},
+		},
+	})
+}
+
+func testAccJobActionAllFieldsOnPrompt(inventoryName, jobTemplateID, credentialID, labelID, instanceGroupID string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+	name = "%s"
+	lifecycle {
+		action_trigger {
+			events = [after_create]
+			actions = [action.aap_job_launch.test]
+		}
+	}
+}
+
+action "aap_job_launch" "test" {
+	config {
+		job_template_id       = %s
+		inventory_id          = aap_inventory.test.id
+		extra_vars            = "{\"test_var\": \"test_value\"}"
+		limit                 = "localhost"
+		job_tags              = "test"
+		skip_tags             = "skip"
+		diff_mode             = true
+		verbosity             = 1
+		forks                 = 5
+		job_slice_count       = 1
+		timeout               = 300
+		credentials           = [%s]
+		labels                = [%s]
+		instance_groups       = [%s]
+		wait_for_completion   = true
+	}
+}
+`, inventoryName, jobTemplateID, credentialID, labelID, instanceGroupID)
+}
+
+func testAccJobActionAllFieldsOnPromptMissingRequired(inventoryName, jobTemplateID string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "test" {
+	name = "%s"
+	lifecycle {
+		action_trigger {
+			events = [after_create]
+			actions = [action.aap_job_launch.test]
+		}
+	}
+}
+
+action "aap_job_launch" "test" {
+	config {
+		job_template_id     = %s
+		wait_for_completion = true
 	}
 }
 `, inventoryName, jobTemplateID)

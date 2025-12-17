@@ -1,0 +1,3 @@
+minor_changes:
+  - Add prompt on launch fields to aap_job resource and aap_job_launch action (credentials, diff_mode, execution_environment, forks, instance_groups, job_slice_count, job_tags, labels, limit, skip_tags, timeout, verbosity).
+  - Add prompt on launch fields to aap_workflow_job resource and aap_workflow_job_launch action (job_tags, labels, limit, skip_tags).

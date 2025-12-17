@@ -100,3 +100,28 @@ func ParseAAPCustomStringValue(variables string) customtypes.AAPCustomStringValu
 	}
 	return customtypes.NewAAPCustomStringNull()
 }
+
+// ConvertListToInt64Slice converts a types.List of Int64 to []int64.
+// This is used for API fields that expect a simple array of integers, such as instance_groups.
+func ConvertListToInt64Slice(list types.List) []int64 {
+	if list.IsNull() || list.IsUnknown() {
+		return nil
+	}
+
+	elements := list.Elements()
+	if len(elements) == 0 {
+		return nil
+	}
+
+	result := make([]int64, 0, len(elements))
+	for _, elem := range elements {
+		if int64Val, ok := elem.(types.Int64); ok && !int64Val.IsNull() && !int64Val.IsUnknown() {
+			result = append(result, int64Val.ValueInt64())
+		}
+	}
+
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}

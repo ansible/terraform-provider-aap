@@ -69,6 +69,27 @@ resource "aap_job" "sample_wait_for_completion" {
   wait_for_completion_timeout_seconds = 120
 }
 
+# Comprehensive example with all prompt on launch fields
+resource "aap_job" "sample_comprehensive" {
+  job_template_id                     = 7
+  inventory_id                        = aap_inventory.my_inventory.id
+  extra_vars                          = jsonencode({ "environment" : "production" })
+  limit                               = "webservers"
+  job_tags                            = "deploy"
+  skip_tags                           = "debug"
+  show_changes                        = true
+  verbosity                           = 1
+  execution_environment               = 3
+  forks                               = 5
+  job_slice_count                     = 1
+  timeout                             = 1800
+  instance_groups                     = [1, 2]
+  credentials                         = [10, 12]
+  labels                              = [5, 7]
+  wait_for_completion                 = true
+  wait_for_completion_timeout_seconds = 300
+}
+
 output "job_foo" {
   value = aap_job.sample_foo
 }
@@ -87,4 +108,12 @@ output "job_abc" {
 
 output "job_xyz" {
   value = aap_job.sample_xyz
+}
+
+output "job_wait_for_completion" {
+  value = aap_job.sample_wait_for_completion
+}
+
+output "job_comprehensive" {
+  value = aap_job.sample_comprehensive
 }

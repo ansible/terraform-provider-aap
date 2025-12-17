@@ -1,12 +1,10 @@
 package provider
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path"
 	"time"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
@@ -18,29 +16,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
-
-// WorkflowJobAPIModel represents the AAP API model for workflow jobs.
-type WorkflowJobAPIModel struct {
-	TemplateID    int64                  `json:"workflow_job_template,omitempty"`
-	Inventory     int64                  `json:"inventory,omitempty"`
-	Type          string                 `json:"job_type,omitempty"`
-	URL           string                 `json:"url,omitempty"`
-	Status        string                 `json:"status,omitempty"`
-	ExtraVars     string                 `json:"extra_vars,omitempty"`
-	IgnoredFields map[string]interface{} `json:"ignored_fields,omitempty"`
-}
-
-type WorkflowJobModel struct {
-	TemplateID               types.Int64                      `tfsdk:"workflow_job_template_id"`
-	InventoryID              types.Int64                      `tfsdk:"inventory_id"`
-	ExtraVars                customtypes.AAPCustomStringValue `tfsdk:"extra_vars"`
-	WaitForCompletion        types.Bool                       `tfsdk:"wait_for_completion"`
-	WaitForCompletionTimeout types.Int64                      `tfsdk:"wait_for_completion_timeout_seconds"`
-}
 
 // WorkflowJobResourceModel maps the resource schema data.
 type WorkflowJobResourceModel struct {
@@ -138,6 +118,42 @@ func (r *WorkflowJobResource) Schema(_ context.Context, _ resource.SchemaRequest
 				Computed:    true,
 				Description: "The list of properties set by the user but ignored on server side.",
 			},
+			"limit": schema.StringAttribute{
+				Description: "Limit pattern to restrict the workflow job run to specific hosts.",
+				Optional:    true,
+				Computed:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"job_tags": schema.StringAttribute{
+				Description: "Tags to include in the workflow job run.",
+				Optional:    true,
+				Computed:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"skip_tags": schema.StringAttribute{
+				Description: "Tags to skip in the workflow job run.",
+				Optional:    true,
+				Computed:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			// labels is marked as WriteOnly because the value is sent to the API
+			// at job launch time but is not returned from the job GET endpoint.
+			// The actual labels are managed via the `related` API endpoint.
+			"labels": schema.ListAttribute{
+				Description: "List of label IDs to apply to the workflow job.",
+				Optional:    true,
+				WriteOnly:   true,
+				ElementType: types.Int64Type,
+			},
 			"wait_for_completion": schema.BoolAttribute{
 				Optional: true,
 				Computed: true,
@@ -172,6 +188,15 @@ func (r *WorkflowJobResource) Create(ctx context.Context, req resource.CreateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	// WriteOnly attributes (labels) must be read from the config,
+	// not the plan, because WriteOnly values are always null in the plan.
+	var configData WorkflowJobResourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &configData)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	data.Labels = configData.Labels
 
 	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(r.client)...)
 	if resp.Diagnostics.HasError() {
@@ -255,6 +280,15 @@ func (r *WorkflowJobResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 
+	// WriteOnly attributes (labels) must be read from the config,
+	// not the plan, because WriteOnly values are always null in the plan.
+	var configData WorkflowJobResourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &configData)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	data.Labels = configData.Labels
+
 	// Create new Workflow Job from workflow job template
 	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(r.client)...)
 	if resp.Diagnostics.HasError() {
@@ -292,32 +326,6 @@ func (r *WorkflowJobResource) Update(ctx context.Context, req resource.UpdateReq
 func (r WorkflowJobResource) Delete(_ context.Context, _ resource.DeleteRequest, _ *resource.DeleteResponse) {
 }
 
-// CreateRequestBody creates a JSON encoded request body from the workflow job resource data
-func (r *WorkflowJobModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
-	// Convert workflow job resource data to API data model
-	workflowJob := WorkflowJobAPIModel{
-		ExtraVars: r.ExtraVars.ValueString(),
-	}
-
-	// Set inventory id if provided
-	if r.InventoryID.ValueInt64() != 0 {
-		workflowJob.Inventory = r.InventoryID.ValueInt64()
-	}
-
-	// Create JSON encoded request body
-	jsonBody, err := json.Marshal(workflowJob)
-	if err != nil {
-		diags.AddError(
-			"Error marshaling request body",
-			fmt.Sprintf("Could not create request body for workflow job resource, unexpected error: %s", err.Error()),
-		)
-		return nil, diags
-	}
-	return jsonBody, diags
-}
-
 // ParseHTTPResponse updates the workflow job resource data from an AAP API response.
 func (r *WorkflowJobResourceModel) ParseHTTPResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
@@ -330,14 +338,30 @@ func (r *WorkflowJobResourceModel) ParseHTTPResponse(body []byte) diag.Diagnosti
 		return diags
 	}
 
-	// Map response to the job resource schema and update attribute values
+	// Map response to the job resource schema and update attribute values.
+	// All Optional+Computed fields use UseStateForUnknown() plan modifiers,
+	// so we can safely set values from the API response without causing drift.
 	r.Type = types.StringValue(resultAPIWorkflowJob.Type)
 	r.URL = types.StringValue(resultAPIWorkflowJob.URL)
 	r.Status = types.StringValue(resultAPIWorkflowJob.Status)
 	r.TemplateID = types.Int64Value(resultAPIWorkflowJob.TemplateID)
 	r.InventoryID = types.Int64Value(resultAPIWorkflowJob.Inventory)
+	r.Limit = customtypes.NewAAPCustomStringValue(resultAPIWorkflowJob.Limit)
+	r.JobTags = customtypes.NewAAPCustomStringValue(resultAPIWorkflowJob.JobTags)
+	r.SkipTags = customtypes.NewAAPCustomStringValue(resultAPIWorkflowJob.SkipTags)
+
+	// Labels are WriteOnly and handled separately via API
+
 	diags = r.ParseIgnoredFields(resultAPIWorkflowJob.IgnoredFields)
 	return diags
+}
+
+func (r *WorkflowJobResourceModel) LaunchWorkflowJobWithResponse(client ProviderHTTPClient) diag.Diagnostics {
+	body, diags := r.LaunchWorkflowJob(client)
+	if diags.HasError() {
+		return diags
+	}
+	return r.ParseHTTPResponse(body)
 }
 
 // ParseIgnoredFields parses ignored fields from the AAP API response.
@@ -358,34 +382,4 @@ func (r *WorkflowJobResourceModel) ParseIgnoredFields(ignoredFields map[string]i
 	}
 
 	return diags
-}
-
-func (r *WorkflowJobModel) LaunchWorkflowJob(client ProviderHTTPClient) ([]byte, diag.Diagnostics) {
-	// Create new Workflow Job from workflow job template
-	var diags diag.Diagnostics
-
-	// Create request body from workflow job data
-	requestBody, diagCreateReq := r.CreateRequestBody()
-	diags.Append(diagCreateReq...)
-	if diags.HasError() {
-		return nil, diags
-	}
-
-	requestData := bytes.NewReader(requestBody)
-	var postURL = path.Join(client.getAPIEndpoint(), "workflow_job_templates", r.TemplateID.String(), "launch")
-	resp, body, err := client.doRequest(http.MethodPost, postURL, nil, requestData)
-	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
-	if diags.HasError() {
-		return nil, diags
-	}
-
-	return body, diags
-}
-
-func (r *WorkflowJobResourceModel) LaunchWorkflowJobWithResponse(client ProviderHTTPClient) diag.Diagnostics {
-	body, diags := r.LaunchWorkflowJob(client)
-	if diags.HasError() {
-		return diags
-	}
-	return r.ParseHTTPResponse(body)
 }
