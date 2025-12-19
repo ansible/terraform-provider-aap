@@ -4,7 +4,7 @@ page_title: "aap_job_launch Action - terraform-provider-aap"
 subcategory: ""
 description: |-
   Launches an AAP job.
-  This actions always creates a new job in AAP.
+  This action always creates a new job in AAP.
   Moreover, you can set wait_for_completion to true, then Terraform will wait until this job is created and reaches any final state before continuing. You can also tweak wait_for_completion_timeout_seconds to control the timeout limit.
 ---
 
@@ -12,7 +12,7 @@ description: |-
 
 Launches an AAP job.
 
-This actions always creates a new job in AAP. 
+This action always creates a new job in AAP. 
 Moreover, you can set `wait_for_completion` to true, then Terraform will wait until this job is created and reaches any final state before continuing. You can also tweak `wait_for_completion_timeout_seconds` to control the timeout limit.
 
 ## Example Usage
@@ -39,6 +39,29 @@ action "aap_job_launch" "test" {
   }
 }
 
+# Comprehensive action with all prompt on launch fields
+action "aap_job_launch" "comprehensive" {
+  config {
+    job_template_id                     = 1234
+    inventory_id                        = 5678
+    extra_vars                          = jsonencode({ "environment" : "production" })
+    limit                               = "webservers"
+    job_tags                            = "deploy"
+    skip_tags                           = "debug"
+    diff_mode                           = true
+    verbosity                           = 1
+    execution_environment               = 3
+    forks                               = 5
+    job_slice_count                     = 1
+    timeout                             = 1800
+    instance_groups                     = [1, 2]
+    credentials                         = [10, 12]
+    labels                              = [5, 7]
+    wait_for_completion                 = true
+    wait_for_completion_timeout_seconds = 300
+  }
+}
+
 # Configure the action to trigger after a resource is created
 resource "terraform_data" "trigger" {
   input = "example"
@@ -60,8 +83,20 @@ resource "terraform_data" "trigger" {
 
 ### Optional
 
+- `credentials` (List of Number) List of credential IDs to use for the job run. (Value is sent to API but not returned in state)
+- `diff_mode` (Boolean) Enable diff mode for the job run. When enabled, any module that supports diff mode will report the changes made.
+- `execution_environment` (Number) ID of the execution environment to use for the job run.
 - `extra_vars` (String) Extra Variables. Must be provided as either a JSON or YAML string.
+- `forks` (Number) Number of parallel processes to use for the job run.
 - `ignore_job_results` (Boolean) When this is set to `true`, and wait_for_completion is `true`, ignore the job status.
+- `instance_groups` (List of Number) List of instance group IDs to use for the job run.
 - `inventory_id` (Number) Identifier for the inventory where job should be created in. If not provided, the job will be created in the default inventory.
+- `job_slice_count` (Number) Number of slices to divide the job into.
+- `job_tags` (String) Tags to include in the job run.
+- `labels` (List of Number) List of label IDs to apply to the job. (Value is sent to API but not returned in state)
+- `limit` (String) Limit pattern to restrict the job run to specific hosts.
+- `skip_tags` (String) Tags to skip in the job run.
+- `timeout` (Number) Timeout in seconds for the job run.
+- `verbosity` (Number) Verbosity level for the job run. Valid values: 0 (Normal), 1 (Verbose), 2 (More Verbose), 3 (Debug), 4 (Connection Debug), 5 (WinRM Debug).
 - `wait_for_completion` (Boolean) When this is set to `true`, Terraform will wait until this aap_job resource is created, reaches any final status and then, proceeds with the following resource operation
 - `wait_for_completion_timeout_seconds` (Number) Sets the maximum amount of seconds Terraform will wait before timing out the updates, and the job creation will fail. Default value of `120`
