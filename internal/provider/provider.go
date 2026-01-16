@@ -198,6 +198,7 @@ func (p *aapProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewWorkflowJobResource,
 		NewGroupResource,
 		NewHostResource,
+		NewEdaProjectResource,
 	}
 }
 
