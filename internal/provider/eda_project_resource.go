@@ -60,7 +60,7 @@ type EdaProjectAPIModel struct {
 
 // EdaProjectListResponse represents a list response from the EDA API.
 type EdaProjectListResponse struct {
-	Count   int                      `json:"count"`
+	Count   int                  `json:"count"`
 	Results []EdaProjectAPIModel `json:"results"`
 }
 
