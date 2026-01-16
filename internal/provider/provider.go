@@ -187,6 +187,7 @@ func (p *aapProvider) DataSources(_ context.Context) []func() datasource.DataSou
 		NewWorkflowJobTemplateDataSource,
 		NewOrganizationDataSource,
 		NewEDAEventStreamDataSource,
+		NewEDACredentialTypeDataSource,
 	}
 }
 
@@ -198,6 +199,7 @@ func (p *aapProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewWorkflowJobResource,
 		NewGroupResource,
 		NewHostResource,
+		NewEDACredentialTypeResource,
 	}
 }
 
