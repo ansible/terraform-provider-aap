@@ -188,6 +188,7 @@ func (p *aapProvider) DataSources(_ context.Context) []func() datasource.DataSou
 		NewOrganizationDataSource,
 		NewEDAEventStreamDataSource,
 		NewEDAProjectDataSource,
+		NewEDAProjectsDataSource,
 	}
 }
 
