@@ -134,6 +134,37 @@ func (mr *MockProviderHTTPClientMockRecorder) GetWithStatus(path, params any) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWithStatus", reflect.TypeOf((*MockProviderHTTPClient)(nil).GetWithStatus), path, params)
 }
 
+// Patch mocks base method.
+func (m *MockProviderHTTPClient) Patch(path string, data io.Reader) ([]byte, diag.Diagnostics) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Patch", path, data)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(diag.Diagnostics)
+	return ret0, ret1
+}
+
+// Patch indicates an expected call of Patch.
+func (mr *MockProviderHTTPClientMockRecorder) Patch(path, data any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Patch", reflect.TypeOf((*MockProviderHTTPClient)(nil).Patch), path, data)
+}
+
+// PatchWithStatus mocks base method.
+func (m *MockProviderHTTPClient) PatchWithStatus(path string, data io.Reader) ([]byte, diag.Diagnostics, int) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PatchWithStatus", path, data)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(diag.Diagnostics)
+	ret2, _ := ret[2].(int)
+	return ret0, ret1, ret2
+}
+
+// PatchWithStatus indicates an expected call of PatchWithStatus.
+func (mr *MockProviderHTTPClientMockRecorder) PatchWithStatus(path, data any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PatchWithStatus", reflect.TypeOf((*MockProviderHTTPClient)(nil).PatchWithStatus), path, data)
+}
+
 // Update mocks base method.
 func (m *MockProviderHTTPClient) Update(path string, data io.Reader) ([]byte, diag.Diagnostics) {
 	m.ctrl.T.Helper()
