@@ -200,6 +200,7 @@ func (p *aapProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewGroupResource,
 		NewHostResource,
 		NewEDACredentialTypeResource,
+		NewEDACredentialResource,
 	}
 }
 
