@@ -20,7 +20,6 @@ import (
 
 type EDACredentialResourceModel struct {
 	ID               tftypes.Int64  `tfsdk:"id"`
-	URL              tftypes.String `tfsdk:"url"`
 	Name             tftypes.String `tfsdk:"name"`
 	Description      tftypes.String `tfsdk:"description"`
 	CredentialTypeID tftypes.Int64  `tfsdk:"credential_type_id"`
@@ -83,13 +82,6 @@ func (r *EDACredentialResource) Schema(_ context.Context, _ resource.SchemaReque
 					int64planmodifier.UseStateForUnknown(),
 				},
 				Description: "EDA Credential id",
-			},
-			"url": schema.StringAttribute{
-				Computed: true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-				Description: "URL of the EDA Credential",
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
@@ -187,7 +179,8 @@ func (r *EDACredentialResource) Read(ctx context.Context, req resource.ReadReque
 	currentHash := data.InputsWOHash.ValueString()
 	currentInputsWO := data.InputsWO.ValueString()
 
-	readResponseBody, diags := r.client.Get(data.URL.ValueString())
+	url := fmt.Sprintf("/api/eda/v1/credentials/%d/", data.ID.ValueInt64())
+	readResponseBody, diags := r.client.Get(url)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -243,7 +236,8 @@ func (r *EDACredentialResource) Update(ctx context.Context, req resource.UpdateR
 	}
 	requestData := bytes.NewReader(updateRequestBody)
 
-	updateResponseBody, diags := r.client.Update(data.URL.ValueString(), requestData)
+	url := fmt.Sprintf("/api/eda/v1/credentials/%d/", data.ID.ValueInt64())
+	updateResponseBody, diags := r.client.Patch(url, requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -274,7 +268,8 @@ func (r *EDACredentialResource) Delete(ctx context.Context, req resource.DeleteR
 		return
 	}
 
-	_, diags = r.client.Delete(data.URL.ValueString())
+	url := fmt.Sprintf("/api/eda/v1/credentials/%d/", data.ID.ValueInt64())
+	_, diags = r.client.Delete(url)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -327,7 +322,6 @@ func (r *EDACredentialResourceModel) parseHTTPResponse(body []byte) diag.Diagnos
 	}
 
 	r.ID = tftypes.Int64Value(apiCredential.ID)
-	r.URL = tftypes.StringValue(apiCredential.URL)
 	r.Name = tftypes.StringValue(apiCredential.Name)
 	r.Description = ParseStringValue(apiCredential.Description)
 	r.CredentialTypeID = tftypes.Int64Value(apiCredential.CredentialTypeID)

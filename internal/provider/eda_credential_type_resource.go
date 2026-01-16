@@ -6,20 +6,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // EDACredentialTypeResourceModel maps the credential type resource schema to a Go struct.
 type EDACredentialTypeResourceModel struct {
 	ID          tftypes.Int64  `tfsdk:"id"`
-	URL         tftypes.String `tfsdk:"url"`
 	Name        tftypes.String `tfsdk:"name"`
 	Description tftypes.String `tfsdk:"description"`
 	Inputs      tftypes.String `tfsdk:"inputs"`
@@ -87,13 +86,6 @@ func (r *EDACredentialTypeResource) Schema(_ context.Context, _ resource.SchemaR
 					int64planmodifier.UseStateForUnknown(),
 				},
 				Description: "EDA Credential Type id",
-			},
-			"url": schema.StringAttribute{
-				Computed: true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-				Description: "URL of the EDA Credential Type",
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
@@ -180,7 +172,8 @@ func (r *EDACredentialTypeResource) Read(ctx context.Context, req resource.ReadR
 	}
 
 	// Get latest credential type data from EDA
-	readResponseBody, diags := r.client.Get(data.URL.ValueString())
+	url := fmt.Sprintf("/api/eda/v1/credential-types/%d/", data.ID.ValueInt64())
+	readResponseBody, diags := r.client.Get(url)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -221,8 +214,8 @@ func (r *EDACredentialTypeResource) Update(ctx context.Context, req resource.Upd
 	}
 	requestData := bytes.NewReader(updateRequestBody)
 
-	// Update credential type in EDA
-	updateResponseBody, diags := r.client.Update(data.URL.ValueString(), requestData)
+	url := fmt.Sprintf("/api/eda/v1/credential-types/%d/", data.ID.ValueInt64())
+	updateResponseBody, diags := r.client.Patch(url, requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -256,7 +249,8 @@ func (r *EDACredentialTypeResource) Delete(ctx context.Context, req resource.Del
 	}
 
 	// Delete credential type from EDA
-	_, diags = r.client.Delete(data.URL.ValueString())
+	url := fmt.Sprintf("/api/eda/v1/credential-types/%d/", data.ID.ValueInt64())
+	_, diags = r.client.Delete(url)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -273,14 +267,14 @@ func (r *EDACredentialTypeResourceModel) generateRequestBody() ([]byte, diag.Dia
 		Description: r.Description.ValueString(),
 	}
 
-	// Handle inputs - convert string to json.RawMessage if not empty
+	// Handle inputs - convert string to json.RawMessage if not empty, normalize by trimming whitespace
 	if !r.Inputs.IsNull() && r.Inputs.ValueString() != "" {
-		credentialType.Inputs = json.RawMessage(r.Inputs.ValueString())
+		credentialType.Inputs = json.RawMessage(strings.TrimSpace(r.Inputs.ValueString()))
 	}
 
-	// Handle injectors - convert string to json.RawMessage if not empty
+	// Handle injectors - convert string to json.RawMessage if not empty, normalize by trimming whitespace
 	if !r.Injectors.IsNull() && r.Injectors.ValueString() != "" {
-		credentialType.Injectors = json.RawMessage(r.Injectors.ValueString())
+		credentialType.Injectors = json.RawMessage(strings.TrimSpace(r.Injectors.ValueString()))
 	}
 
 	// Generate JSON encoded request body
@@ -310,23 +304,36 @@ func (r *EDACredentialTypeResourceModel) parseHTTPResponse(body []byte) diag.Dia
 
 	// Map response to the credential type resource schema and update attribute values
 	r.ID = tftypes.Int64Value(apiCredentialType.ID)
-	r.URL = tftypes.StringValue(apiCredentialType.URL)
 	r.Name = tftypes.StringValue(apiCredentialType.Name)
 	r.Description = ParseStringValue(apiCredentialType.Description)
 
 	// Convert json.RawMessage to string for inputs
-	// Treat empty objects {} as null
-	inputsStr := string(apiCredentialType.Inputs)
-	if len(apiCredentialType.Inputs) > 0 && inputsStr != "{}" && inputsStr != "null" {
+	// Treat empty objects {} as null, and normalize JSON to ensure consistent formatting
+	inputsStr := strings.TrimSpace(string(apiCredentialType.Inputs))
+	if len(inputsStr) > 0 && inputsStr != "{}" && inputsStr != "null" {
+		// Re-marshal to normalize JSON formatting (key ordering, whitespace)
+		var inputsObj interface{}
+		if err := json.Unmarshal([]byte(inputsStr), &inputsObj); err == nil {
+			if normalized, err := json.Marshal(inputsObj); err == nil {
+				inputsStr = string(normalized)
+			}
+		}
 		r.Inputs = tftypes.StringValue(inputsStr)
 	} else {
 		r.Inputs = tftypes.StringNull()
 	}
 
 	// Convert json.RawMessage to string for injectors
-	// Treat empty objects {} as null
-	injectorsStr := string(apiCredentialType.Injectors)
-	if len(apiCredentialType.Injectors) > 0 && injectorsStr != "{}" && injectorsStr != "null" {
+	// Treat empty objects {} as null, and normalize JSON to ensure consistent formatting
+	injectorsStr := strings.TrimSpace(string(apiCredentialType.Injectors))
+	if len(injectorsStr) > 0 && injectorsStr != "{}" && injectorsStr != "null" {
+		// Re-marshal to normalize JSON formatting (key ordering, whitespace)
+		var injectorsObj interface{}
+		if err := json.Unmarshal([]byte(injectorsStr), &injectorsObj); err == nil {
+			if normalized, err := json.Marshal(injectorsObj); err == nil {
+				injectorsStr = string(normalized)
+			}
+		}
 		r.Injectors = tftypes.StringValue(injectorsStr)
 	} else {
 		r.Injectors = tftypes.StringNull()

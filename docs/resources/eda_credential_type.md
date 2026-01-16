@@ -67,4 +67,3 @@ resource "aap_eda_credential_type" "complete" {
 ### Read-Only
 
 - `id` (Number) EDA Credential Type id
-- `url` (String) URL of the EDA Credential Type

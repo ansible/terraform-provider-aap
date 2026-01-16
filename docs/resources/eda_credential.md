@@ -92,4 +92,3 @@ resource "aap_eda_credential" "github" {
 
 - `id` (Number) EDA Credential id
 - `inputs_wo_hash` (String) SHA256 hash of inputs_wo used for change detection. Automatically calculated by the provider.
-- `url` (String) URL of the EDA Credential
