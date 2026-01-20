@@ -13,20 +13,39 @@ Creates an EDA credential with write-only secret inputs that are never stored in
 This resource uses **write-only attributes** to handle sensitive credential data. The `inputs_wo` field containing secrets is:
 - Sent to the EDA API during creation and updates
 - **Never stored in Terraform state**
-- Only the SHA256 hash (`inputs_wo_hash`) is stored for change detection
+- A SHA256 hash is stored in private state (not visible in state files) for change detection
 
 This ensures that sensitive credential values like passwords, tokens, and API keys never appear in your state files.
+
+## Version Management
+
+The `inputs_wo_version` field tracks changes to credential inputs and supports two modes:
+
+### Auto-Managed Mode (Default)
+When `inputs_wo_version` is not set in your configuration:
+- Version starts at 1
+- Automatically increments when `inputs_wo` changes
+- Recommended for most use cases
+
+### Manual Mode  
+When you explicitly set `inputs_wo_version`:
+- You control the version number
+- Change `inputs_wo_version` to trigger credential updates
+- Useful when you need explicit control over when credentials are updated
+
+**Important:** The mode is chosen at resource creation and cannot be changed. To switch modes, you must recreate the resource.
 
 
 ## Example Usage
 
 ```terraform
 # Create an EDA credential with write-only secret inputs
+# Version is auto-managed by default - increments when inputs_wo changes
 resource "aap_eda_credential" "example" {
   name               = "my-api-credential"
   description        = "API credential for external service"
   credential_type_id = aap_eda_credential_type.api.id
-  
+
   # Write-only: sent to API but NEVER stored in Terraform state
   inputs_wo = jsonencode({
     username  = "service-account"
@@ -36,11 +55,32 @@ resource "aap_eda_credential" "example" {
 ```
 
 ```terraform
+# Create an EDA credential with manual version control
+# You control when the credential updates by incrementing inputs_wo_version
+resource "aap_eda_credential" "manual" {
+  name               = "my-manual-credential"
+  description        = "Credential with manual version control"
+  credential_type_id = aap_eda_credential_type.api.id
+  organization_id    = 1
+
+  # Write-only credential inputs
+  inputs_wo = jsonencode({
+    username  = "service-account"
+    api_token = var.api_token
+  })
+
+  # Increment this value to force credential update
+  # The credential will only update when this value changes
+  inputs_wo_version = 1
+}
+```
+
+```terraform
 # Define the credential type first
 resource "aap_eda_credential_type" "github" {
   name        = "GitHub Token"
   description = "GitHub personal access token"
-  
+
   inputs = jsonencode({
     fields = [
       {
@@ -51,7 +91,7 @@ resource "aap_eda_credential_type" "github" {
       }
     ]
   })
-  
+
   injectors = jsonencode({
     env = {
       GITHUB_TOKEN = "{{ token }}"
@@ -65,8 +105,9 @@ resource "aap_eda_credential" "github" {
   description        = "GitHub credential for automation"
   credential_type_id = aap_eda_credential_type.github.id
   organization_id    = 1
-  
-  # Secrets never stored in state, only the hash for change detection
+
+  # Secrets never stored in state
+  # Version auto-increments when inputs change
   inputs_wo = jsonencode({
     token = var.github_token
   })
@@ -79,16 +120,18 @@ resource "aap_eda_credential" "github" {
 
 ### Required
 
+> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
+
 - `credential_type_id` (Number) ID of the credential type for this credential
-- `inputs_wo` (String, Sensitive) Write-only credential inputs as JSON string. These values are sent to the API but never stored in Terraform state. Example: jsonencode({"username": "user", "password": "secret"})
+- `inputs_wo` (String, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only credential inputs as JSON string. These values are sent to the API but never stored in Terraform state. Example: jsonencode({"username": "user", "password": "secret"})
 - `name` (String) Name of the EDA Credential
 
 ### Optional
 
 - `description` (String) Description for the EDA Credential
+- `inputs_wo_version` (Number) Version number for managing credential updates. If not set, the provider will automatically detect changes to inputs_wo using a SHA-256 hash stored in private state. If set manually, you control when the credential is updated by incrementing this value yourself.
 - `organization_id` (Number) ID of the organization for this credential
 
 ### Read-Only
 
 - `id` (Number) EDA Credential id
-- `inputs_wo_hash` (String) SHA256 hash of inputs_wo used for change detection. Automatically calculated by the provider.

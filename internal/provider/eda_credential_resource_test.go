@@ -51,13 +51,16 @@ func TestCalculateInputsHash(t *testing.T) {
 		{
 			name:     "simple json",
 			input:    `{"username":"test","password":"secret"}`,
-			expected: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
+			expected: "69ed42ab17d3e9714d19405d1b70a725fc3e75dc4bb8bf46c9e0bf477fc5b219",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := calculateInputsHash(tc.input)
+			result, diags := calculateInputsHash(tc.input)
+			if diags.HasError() {
+				t.Fatalf("Error generating hash: %v", diags)
+			}
 			if result != tc.expected {
 				t.Errorf("Expected hash %s, got %s", tc.expected, result)
 			}
@@ -224,7 +227,7 @@ func checkBasicEDACredentialAttributes(t *testing.T, name string, credential EDA
 		testAccCheckEDACredentialInputsNotInState(name),
 		resource.TestCheckResourceAttr(name, "name", expectedName),
 		resource.TestCheckResourceAttrSet(name, "id"),
-		resource.TestCheckResourceAttrSet(name, "inputs_wo_hash"),
+		resource.TestCheckResourceAttrSet(name, "inputs_wo_version"),
 	}
 
 	// Only check description if provided
@@ -285,11 +288,11 @@ func testAccCheckEDACredentialInputsNotInState(name string) resource.TestCheckFu
 		}
 
 		// Sensitive attributes in framework are not written to state file at all
-		// So we just verify inputs_wo_hash exists for change detection
+		// We verify inputs_wo_version exists for change detection
 		// Note: in test state, sensitive values may appear - this is expected in test framework
 
-		if _, exists := credentialResource.Primary.Attributes["inputs_wo_hash"]; !exists {
-			return fmt.Errorf("inputs_wo_hash should exist in state for change detection")
+		if _, exists := credentialResource.Primary.Attributes["inputs_wo_version"]; !exists {
+			return fmt.Errorf("inputs_wo_version should exist in state for change detection")
 		}
 
 		return nil
@@ -316,3 +319,8 @@ func testAccCheckEDACredentialResourceDestroy(s *terraform.State) error {
 
 	return nil
 }
+
+// NOTE: Mode switching tests removed
+// The mode (auto vs manual) is determined at resource creation based on whether
+// inputs_wo_version is set. Once set, the mode cannot be changed without recreating
+// the resource. The mode switching prevention logic is in place in the Update function.

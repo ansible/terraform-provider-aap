@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -25,7 +24,7 @@ type EDACredentialResourceModel struct {
 	CredentialTypeID tftypes.Int64  `tfsdk:"credential_type_id"`
 	OrganizationID   tftypes.Int64  `tfsdk:"organization_id"`
 	InputsWO         tftypes.String `tfsdk:"inputs_wo"`
-	InputsWOHash     tftypes.String `tfsdk:"inputs_wo_hash"`
+	InputsWOVersion  tftypes.Int64  `tfsdk:"inputs_wo_version"`
 }
 
 type EDACredentialAPIModel struct {
@@ -33,10 +32,10 @@ type EDACredentialAPIModel struct {
 	URL            string `json:"url,omitempty"`
 	Name           string `json:"name"`
 	Description    string `json:"description,omitempty"`
-	CredentialType struct {
+	CredentialType *struct {
 		ID int64 `json:"id"`
 	} `json:"credential_type,omitempty"`
-	Organization struct {
+	Organization *struct {
 		ID int64 `json:"id"`
 	} `json:"organization,omitempty"`
 	CredentialTypeID int64           `json:"credential_type_id,omitempty"` // For POST/PATCH
@@ -110,12 +109,13 @@ func (r *EDACredentialResource) Schema(_ context.Context, _ resource.SchemaReque
 				WriteOnly:   true,
 				Description: "Write-only credential inputs as JSON string. These values are sent to the API but never stored in Terraform state. Example: jsonencode({\"username\": \"user\", \"password\": \"secret\"})",
 			},
-			"inputs_wo_hash": schema.StringAttribute{
+			"inputs_wo_version": schema.Int64Attribute{
+				Optional: true,
 				Computed: true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
 				},
-				Description: "SHA256 hash of inputs_wo used for change detection. Automatically calculated by the provider.",
+				Description: "Version number for managing credential updates. If not set, the provider will automatically detect changes to inputs_wo using a SHA-256 hash stored in private state. If set manually, you control when the credential is updated by incrementing this value yourself.",
 			},
 		},
 		Description: `Creates an EDA credential with write-only secret inputs that are never stored in Terraform state.`,
@@ -132,8 +132,27 @@ func (r *EDACredentialResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	inputsHash := calculateInputsHash(data.InputsWO.ValueString())
-	data.InputsWOHash = tftypes.StringValue(inputsHash)
+	// Handle version management: user-provided version vs automatic hash-based detection
+	var versionToSet tftypes.Int64
+	if data.InputsWOVersion.IsNull() || data.InputsWOVersion.IsUnknown() {
+		// Auto-managed: store hash in private state, start version at 1
+		inputsHash, diags := calculateInputsHash(data.InputsWO.ValueString())
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		// Private state requires valid JSON - wrap hash in a JSON object
+		hashJSON := fmt.Sprintf(`{"hash":"%s"}`, inputsHash)
+		diags = resp.Private.SetKey(ctx, "inputs_wo_hash", []byte(hashJSON))
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		versionToSet = tftypes.Int64Value(1)
+	} else {
+		// User-managed version, preserve their value
+		versionToSet = data.InputsWOVersion
+	}
 
 	createRequestBody, diags := data.generateRequestBody()
 	resp.Diagnostics.Append(diags...)
@@ -163,7 +182,8 @@ func (r *EDACredentialResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	data.InputsWOHash = tftypes.StringValue(inputsHash)
+	// Restore version value (API doesn't return this)
+	data.InputsWOVersion = versionToSet
 
 	diags = resp.State.Set(ctx, data)
 	resp.Diagnostics.Append(diags...)
@@ -182,8 +202,9 @@ func (r *EDACredentialResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	currentHash := data.InputsWOHash.ValueString()
+	// Preserve current values that aren't returned by API
 	currentInputsWO := data.InputsWO.ValueString()
+	currentVersion := data.InputsWOVersion
 
 	url := fmt.Sprintf("/api/eda/v1/eda-credentials/%d/", data.ID.ValueInt64())
 	readResponseBody, diags := r.client.Get(url)
@@ -198,9 +219,17 @@ func (r *EDACredentialResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	// Restore hash and inputs_wo from state since API doesn't return secrets
-	data.InputsWOHash = tftypes.StringValue(currentHash)
+	// Restore inputs_wo and version from state since API doesn't return secrets
 	data.InputsWO = tftypes.StringValue(currentInputsWO)
+	data.InputsWOVersion = currentVersion
+
+	// Copy private state data forward (hash is preserved automatically)
+	if hashBytes, diags := req.Private.GetKey(ctx, "inputs_wo_hash"); diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+	} else if hashBytes != nil {
+		diags = resp.Private.SetKey(ctx, "inputs_wo_hash", hashBytes)
+		resp.Diagnostics.Append(diags...)
+	}
 
 	diags = resp.State.Set(ctx, data)
 	resp.Diagnostics.Append(diags...)
@@ -226,13 +255,84 @@ func (r *EDACredentialResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	newInputsHash := calculateInputsHash(data.InputsWO.ValueString())
-	oldInputsHash := state.InputsWOHash.ValueString()
+	// Get hash from private state to see if we were previously auto-managing
+	oldHashBytes, getDiags := req.Private.GetKey(ctx, "inputs_wo_hash")
+	resp.Diagnostics.Append(getDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	wasAutoManaged := oldHashBytes != nil
 
-	if newInputsHash != oldInputsHash {
-		data.InputsWOHash = tftypes.StringValue(newInputsHash)
+	// To determine current mode, we need to check the config (not just plan)
+	// Get the config value for inputs_wo_version
+	var configModel EDACredentialResourceModel
+	configDiags := req.Config.Get(ctx, &configModel)
+	resp.Diagnostics.Append(configDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	configVersion := configModel.InputsWOVersion
+	
+	// User is manually managing if they set a non-null, non-unknown value in config
+	isNowManual := !configVersion.IsNull() && !configVersion.IsUnknown()
+	// wasManual if there was NO hash in private state AND version exists in state
+	wasManual := !wasAutoManaged && !state.InputsWOVersion.IsNull()
+
+	// Prevent mode switching
+	if wasAutoManaged && isNowManual {
+		resp.Diagnostics.AddError(
+			"Cannot switch from auto-managed to manual version management",
+			"The inputs_wo_version field was previously auto-managed. Once auto-managed, it cannot be switched to manual mode. "+
+				"If you need to manually control the version, you must recreate the resource with inputs_wo_version set from the start.",
+		)
+		return
+	}
+	if wasManual && !isNowManual {
+		resp.Diagnostics.AddError(
+			"Cannot switch from manual to auto-managed version management",
+			"The inputs_wo_version field was previously manually managed. Once manually managed, it cannot be switched to auto mode. "+
+				"If you need auto-managed version control, you must recreate the resource without setting inputs_wo_version.",
+		)
+		return
+	}
+
+	if wasAutoManaged {
+		// Auto-managed mode - check if inputs changed
+		var hashWrapper struct {
+			Hash string `json:"hash"`
+		}
+		if err := json.Unmarshal(oldHashBytes, &hashWrapper); err != nil {
+			resp.Diagnostics.AddError(
+				"Error reading stored hash from private state",
+				fmt.Sprintf("Could not parse hash JSON: %s", err.Error()),
+			)
+			return
+		}
+		oldHash := hashWrapper.Hash
+
+		newHash, diags := calculateInputsHash(data.InputsWO.ValueString())
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		if newHash != oldHash {
+			// Inputs changed, increment version and update hash
+			data.InputsWOVersion = tftypes.Int64Value(state.InputsWOVersion.ValueInt64() + 1)
+			hashJSON := fmt.Sprintf(`{"hash":"%s"}`, newHash)
+			diags = resp.Private.SetKey(ctx, "inputs_wo_hash", []byte(hashJSON))
+			resp.Diagnostics.Append(diags...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		} else {
+			// No change to inputs, keep version as-is
+			data.InputsWOVersion = state.InputsWOVersion
+		}
 	} else {
-		data.InputsWOHash = state.InputsWOHash
+		// Manual mode - user controls the version
+		// Keep the version value from plan (user's value or from state)
+		// No hash management needed
 	}
 
 	updateRequestBody, diags := data.generateRequestBody()
@@ -254,8 +354,6 @@ func (r *EDACredentialResource) Update(ctx context.Context, req resource.UpdateR
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	data.InputsWOHash = tftypes.StringValue(newInputsHash)
 
 	diags = resp.State.Set(ctx, data)
 	resp.Diagnostics.Append(diags...)
@@ -282,10 +380,16 @@ func (r *EDACredentialResource) Delete(ctx context.Context, req resource.DeleteR
 	}
 }
 
-func calculateInputsHash(inputs string) string {
+// calculateInputsHash generates a SHA-256 hash of the inputs for change detection.
+// Returns a deterministic hex-encoded hash string.
+func calculateInputsHash(inputs string) (string, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
 	h := sha256.New()
 	h.Write([]byte(inputs))
-	return hex.EncodeToString(h.Sum(nil))
+	hash := hex.EncodeToString(h.Sum(nil))
+
+	return hash, diags
 }
 
 func (r *EDACredentialResourceModel) generateRequestBody() ([]byte, diag.Diagnostics) {
@@ -335,7 +439,7 @@ func (r *EDACredentialResourceModel) parseHTTPResponse(body []byte) diag.Diagnos
 	r.Description = ParseStringValue(apiCredential.Description)
 
 	// Extract credential_type_id from nested object if present, otherwise use direct field
-	if apiCredential.CredentialType.ID > 0 {
+	if apiCredential.CredentialType != nil && apiCredential.CredentialType.ID > 0 {
 		r.CredentialTypeID = tftypes.Int64Value(apiCredential.CredentialType.ID)
 	} else if apiCredential.CredentialTypeID > 0 {
 		r.CredentialTypeID = tftypes.Int64Value(apiCredential.CredentialTypeID)
@@ -344,7 +448,7 @@ func (r *EDACredentialResourceModel) parseHTTPResponse(body []byte) diag.Diagnos
 	}
 
 	// Extract organization_id from nested object if present, otherwise use direct field
-	if apiCredential.Organization.ID > 0 {
+	if apiCredential.Organization != nil && apiCredential.Organization.ID > 0 {
 		r.OrganizationID = tftypes.Int64Value(apiCredential.Organization.ID)
 	} else if apiCredential.OrganizationID > 0 {
 		r.OrganizationID = tftypes.Int64Value(apiCredential.OrganizationID)

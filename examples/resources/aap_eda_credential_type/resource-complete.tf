@@ -6,9 +6,9 @@ resource "aap_eda_credential_type" "complete" {
   inputs = jsonencode({
     fields = [
       {
-        id     = "username"
-        label  = "Username"
-        type   = "string"
+        id    = "username"
+        label = "Username"
+        type  = "string"
       },
       {
         id     = "api_token"
