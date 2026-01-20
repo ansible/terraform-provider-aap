@@ -29,12 +29,17 @@ type EDACredentialResourceModel struct {
 }
 
 type EDACredentialAPIModel struct {
-	ID               int64           `json:"id,omitempty"`
-	URL              string          `json:"url,omitempty"`
-	Name             string          `json:"name"`
-	Description      string          `json:"description,omitempty"`
-	CredentialTypeID int64           `json:"credential_type_id"`
-	OrganizationID   int64           `json:"organization_id,omitempty"`
+	ID             int64  `json:"id,omitempty"`
+	Name           string `json:"name"`
+	Description    string `json:"description,omitempty"`
+	CredentialType struct {
+		ID int64 `json:"id"`
+	} `json:"credential_type,omitempty"`
+	Organization struct {
+		ID int64 `json:"id"`
+	} `json:"organization,omitempty"`
+	CredentialTypeID int64           `json:"credential_type_id,omitempty"` // For POST/PATCH
+	OrganizationID   int64           `json:"organization_id,omitempty"`    // For POST/PATCH
 	Inputs           json.RawMessage `json:"inputs,omitempty"`
 }
 
@@ -101,7 +106,7 @@ func (r *EDACredentialResource) Schema(_ context.Context, _ resource.SchemaReque
 			},
 			"inputs_wo": schema.StringAttribute{
 				Required:    true,
-				Sensitive:   true,
+				WriteOnly:   true,
 				Description: "Write-only credential inputs as JSON string. These values are sent to the API but never stored in Terraform state. Example: jsonencode({\"username\": \"user\", \"password\": \"secret\"})",
 			},
 			"inputs_wo_hash": schema.StringAttribute{
@@ -144,7 +149,7 @@ func (r *EDACredentialResource) Create(ctx context.Context, req resource.CreateR
 		)
 		return
 	}
-	credentialsURL := path.Join(edaEndpoint, "credentials")
+	credentialsURL := path.Join(edaEndpoint, "eda-credentials")
 	createResponseBody, diags := r.client.Create(credentialsURL, requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -179,7 +184,7 @@ func (r *EDACredentialResource) Read(ctx context.Context, req resource.ReadReque
 	currentHash := data.InputsWOHash.ValueString()
 	currentInputsWO := data.InputsWO.ValueString()
 
-	url := fmt.Sprintf("/api/eda/v1/credentials/%d/", data.ID.ValueInt64())
+	url := fmt.Sprintf("/api/eda/v1/eda-credentials/%d/", data.ID.ValueInt64())
 	readResponseBody, diags := r.client.Get(url)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -236,7 +241,7 @@ func (r *EDACredentialResource) Update(ctx context.Context, req resource.UpdateR
 	}
 	requestData := bytes.NewReader(updateRequestBody)
 
-	url := fmt.Sprintf("/api/eda/v1/credentials/%d/", data.ID.ValueInt64())
+	url := fmt.Sprintf("/api/eda/v1/eda-credentials/%d/", data.ID.ValueInt64())
 	updateResponseBody, diags := r.client.Patch(url, requestData)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -268,7 +273,7 @@ func (r *EDACredentialResource) Delete(ctx context.Context, req resource.DeleteR
 		return
 	}
 
-	url := fmt.Sprintf("/api/eda/v1/credentials/%d/", data.ID.ValueInt64())
+	url := fmt.Sprintf("/api/eda/v1/eda-credentials/%d/", data.ID.ValueInt64())
 	_, diags = r.client.Delete(url)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -324,9 +329,20 @@ func (r *EDACredentialResourceModel) parseHTTPResponse(body []byte) diag.Diagnos
 	r.ID = tftypes.Int64Value(apiCredential.ID)
 	r.Name = tftypes.StringValue(apiCredential.Name)
 	r.Description = ParseStringValue(apiCredential.Description)
-	r.CredentialTypeID = tftypes.Int64Value(apiCredential.CredentialTypeID)
-	
-	if apiCredential.OrganizationID > 0 {
+
+	// Extract credential_type_id from nested object if present, otherwise use direct field
+	if apiCredential.CredentialType.ID > 0 {
+		r.CredentialTypeID = tftypes.Int64Value(apiCredential.CredentialType.ID)
+	} else if apiCredential.CredentialTypeID > 0 {
+		r.CredentialTypeID = tftypes.Int64Value(apiCredential.CredentialTypeID)
+	} else {
+		r.CredentialTypeID = tftypes.Int64Null()
+	}
+
+	// Extract organization_id from nested object if present, otherwise use direct field
+	if apiCredential.Organization.ID > 0 {
+		r.OrganizationID = tftypes.Int64Value(apiCredential.Organization.ID)
+	} else if apiCredential.OrganizationID > 0 {
 		r.OrganizationID = tftypes.Int64Value(apiCredential.OrganizationID)
 	} else {
 		r.OrganizationID = tftypes.Int64Null()
