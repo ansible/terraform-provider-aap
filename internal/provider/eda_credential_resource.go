@@ -30,6 +30,7 @@ type EDACredentialResourceModel struct {
 
 type EDACredentialAPIModel struct {
 	ID             int64  `json:"id,omitempty"`
+	URL            string `json:"url,omitempty"`
 	Name           string `json:"name"`
 	Description    string `json:"description,omitempty"`
 	CredentialType struct {
@@ -40,7 +41,7 @@ type EDACredentialAPIModel struct {
 	} `json:"organization,omitempty"`
 	CredentialTypeID int64           `json:"credential_type_id,omitempty"` // For POST/PATCH
 	OrganizationID   int64           `json:"organization_id,omitempty"`    // For POST/PATCH
-	Inputs           json.RawMessage `json:"inputs,omitempty"`
+	Inputs           json.RawMessage `json:"inputs"`
 }
 
 type EDACredentialResource struct {
@@ -300,8 +301,11 @@ func (r *EDACredentialResourceModel) generateRequestBody() ([]byte, diag.Diagnos
 		credential.OrganizationID = r.OrganizationID.ValueInt64()
 	}
 
+	// Inputs field is required by the API - default to empty object if not provided
 	if !r.InputsWO.IsNull() && r.InputsWO.ValueString() != "" {
 		credential.Inputs = json.RawMessage(r.InputsWO.ValueString())
+	} else {
+		credential.Inputs = json.RawMessage("{}")
 	}
 
 	jsonBody, err := json.Marshal(credential)

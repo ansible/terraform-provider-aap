@@ -168,11 +168,9 @@ func TestEDACredentialResourceParseHTTPResponse(t *testing.T) {
 }
 
 func TestAccEDACredentialResource(t *testing.T) {
-	// t.Skip("Skipping: EDA credentials API endpoint not available in EDA 1.1.x - requires EDA 1.2+")
 
 	var credential EDACredentialAPIModel
 	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
-	updatedName := "updated " + randomName
 	updatedDescription := "An updated test credential"
 	initialInputs := `{"username":"testuser","password":"initial123"}`
 	updatedInputs := `{"username":"testuser","password":"updated456"}`
@@ -180,7 +178,6 @@ func TestAccEDACredentialResource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
 			testAccPreCheck(t)
-			// skipTestWithoutEDAPreCheck(t)
 		},
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -189,8 +186,8 @@ func TestAccEDACredentialResource(t *testing.T) {
 				Check:  checkBasicEDACredentialAttributes(t, resourceNameEDACredential, credential, randomName, "", initialInputs),
 			},
 			{
-				Config: testAccEDACredentialResourceComplete(updatedName, updatedDescription, updatedInputs),
-				Check:  checkBasicEDACredentialAttributes(t, resourceNameEDACredential, credential, updatedName, updatedDescription, updatedInputs),
+				Config: testAccEDACredentialResourceComplete(randomName, updatedDescription, updatedInputs),
+				Check:  checkBasicEDACredentialAttributes(t, resourceNameEDACredential, credential, randomName, updatedDescription, updatedInputs),
 			},
 		},
 		CheckDestroy: testAccCheckEDACredentialResourceDestroy,
