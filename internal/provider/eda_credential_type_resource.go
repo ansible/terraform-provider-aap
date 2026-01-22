@@ -310,7 +310,7 @@ func (r *EDACredentialTypeResourceModel) parseHTTPResponse(body []byte) diag.Dia
 	// Convert json.RawMessage to string for inputs
 	// Treat empty objects {} as null, and normalize JSON to ensure consistent formatting
 	inputsStr := strings.TrimSpace(string(apiCredentialType.Inputs))
-	if len(inputsStr) > 0 && inputsStr != "{}" && inputsStr != "null" {
+	if len(inputsStr) > 0 && inputsStr != JSONEmptyObject && inputsStr != JSONNull {
 		// Re-marshal to normalize JSON formatting (key ordering, whitespace)
 		var inputsObj interface{}
 		if err := json.Unmarshal([]byte(inputsStr), &inputsObj); err == nil {
@@ -326,7 +326,7 @@ func (r *EDACredentialTypeResourceModel) parseHTTPResponse(body []byte) diag.Dia
 	// Convert json.RawMessage to string for injectors
 	// Treat empty objects {} as null, and normalize JSON to ensure consistent formatting
 	injectorsStr := strings.TrimSpace(string(apiCredentialType.Injectors))
-	if len(injectorsStr) > 0 && injectorsStr != "{}" && injectorsStr != "null" {
+	if len(injectorsStr) > 0 && injectorsStr != JSONEmptyObject && injectorsStr != JSONNull {
 		// Re-marshal to normalize JSON formatting (key ordering, whitespace)
 		var injectorsObj interface{}
 		if err := json.Unmarshal([]byte(injectorsStr), &injectorsObj); err == nil {

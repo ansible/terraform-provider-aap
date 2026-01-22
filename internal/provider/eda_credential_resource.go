@@ -272,7 +272,7 @@ func (r *EDACredentialResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 	configVersion := configModel.InputsWOVersion
-	
+
 	// User is manually managing if they set a non-null, non-unknown value in config
 	isNowManual := !configVersion.IsNull() && !configVersion.IsUnknown()
 	// wasManual if there was NO hash in private state AND version exists in state

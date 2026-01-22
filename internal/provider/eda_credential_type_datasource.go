@@ -200,7 +200,7 @@ func (d *EDACredentialTypeDataSourceModel) parseHTTPResponse(body []byte) diag.D
 	// Convert json.RawMessage to string for inputs
 	if len(apiCredentialType.Inputs) > 0 {
 		inputsStr := string(apiCredentialType.Inputs)
-		if inputsStr != "null" && inputsStr != "{}" {
+		if inputsStr != JSONNull && inputsStr != JSONEmptyObject {
 			d.Inputs = tftypes.StringValue(inputsStr)
 		} else {
 			d.Inputs = tftypes.StringNull()
@@ -212,7 +212,7 @@ func (d *EDACredentialTypeDataSourceModel) parseHTTPResponse(body []byte) diag.D
 	// Convert json.RawMessage to string for injectors
 	if len(apiCredentialType.Injectors) > 0 {
 		injectorsStr := string(apiCredentialType.Injectors)
-		if injectorsStr != "null" && injectorsStr != "{}" {
+		if injectorsStr != JSONNull && injectorsStr != JSONEmptyObject {
 			d.Injectors = tftypes.StringValue(injectorsStr)
 		} else {
 			d.Injectors = tftypes.StringNull()

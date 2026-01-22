@@ -47,41 +47,41 @@ func TestEDACredentialTypeResourceGenerateRequestBody(t *testing.T) {
 	}{
 		{
 			name: "unknown values",
-		input: EDACredentialTypeResourceModel{
-			ID:          tftypes.Int64Unknown(),
-			Name:        tftypes.StringUnknown(),
-			Description: tftypes.StringUnknown(),
-			Inputs:      tftypes.StringUnknown(),
-			Injectors:   tftypes.StringUnknown(),
-		},
+			input: EDACredentialTypeResourceModel{
+				ID:          tftypes.Int64Unknown(),
+				Name:        tftypes.StringUnknown(),
+				Description: tftypes.StringUnknown(),
+				Inputs:      tftypes.StringUnknown(),
+				Injectors:   tftypes.StringUnknown(),
+			},
 			expected: []byte(`{"name":""}`),
 		},
 		{
 			name: "null values",
-		input: EDACredentialTypeResourceModel{
-			ID:          tftypes.Int64Null(),
-			Name:        tftypes.StringNull(),
-			Description: tftypes.StringNull(),
-			Inputs:      tftypes.StringNull(),
-			Injectors:   tftypes.StringNull(),
-		},
+			input: EDACredentialTypeResourceModel{
+				ID:          tftypes.Int64Null(),
+				Name:        tftypes.StringNull(),
+				Description: tftypes.StringNull(),
+				Inputs:      tftypes.StringNull(),
+				Injectors:   tftypes.StringNull(),
+			},
 			expected: []byte(`{"name":""}`),
 		},
 		{
 			name: "provided values",
-		input: EDACredentialTypeResourceModel{
-			ID:          tftypes.Int64Value(1),
-			Name:        tftypes.StringValue("test credential type"),
-			Description: tftypes.StringValue("A test credential type"),
-			Inputs:      tftypes.StringValue(`{"fields":[{"id":"username","label":"Username","type":"string"}]}`),
-			Injectors:   tftypes.StringValue(`{"env":{"MY_VAR":"{{ username }}"}}`),
-		},
+			input: EDACredentialTypeResourceModel{
+				ID:          tftypes.Int64Value(1),
+				Name:        tftypes.StringValue("test credential type"),
+				Description: tftypes.StringValue("A test credential type"),
+				Inputs:      tftypes.StringValue(`{"fields":[{"id":"username","label":"Username","type":"string"}]}`),
+				Injectors:   tftypes.StringValue(`{"env":{"MY_VAR":"{{ username }}"}}`),
+			},
 			expected: []byte(
 				`{"name":"test credential type","description":"A test credential type",` +
 					`"inputs":{"fields":[{"id":"username","label":"Username","type":"string"}]},` +
 					`"injectors":{"env":{"MY_VAR":"{{ username }}"}}}`,
 			),
-			},
+		},
 	}
 
 	for _, test := range testTable {
@@ -116,13 +116,13 @@ func TestEDACredentialTypeResourceParseHTTPResponse(t *testing.T) {
 		{
 			name:  "missing values",
 			input: []byte(`{"id":1,"name":"test credential type","url":"/api/eda/v1/credential-types/1/"}`),
-		expected: EDACredentialTypeResourceModel{
-			ID:          tftypes.Int64Value(1),
-			Name:        tftypes.StringValue("test credential type"),
-			Description: tftypes.StringNull(),
-			Inputs:      tftypes.StringNull(),
-			Injectors:   tftypes.StringNull(),
-		},
+			expected: EDACredentialTypeResourceModel{
+				ID:          tftypes.Int64Value(1),
+				Name:        tftypes.StringValue("test credential type"),
+				Description: tftypes.StringNull(),
+				Inputs:      tftypes.StringNull(),
+				Injectors:   tftypes.StringNull(),
+			},
 			errors: diag.Diagnostics{},
 		},
 		{
@@ -133,13 +133,13 @@ func TestEDACredentialTypeResourceParseHTTPResponse(t *testing.T) {
 					`"inputs":{"fields":[{"id":"username","label":"Username","type":"string"}]},` +
 					`"injectors":{"env":{"MY_VAR":"{{ username }}"}}}`,
 			),
-		expected: EDACredentialTypeResourceModel{
-			ID:          tftypes.Int64Value(1),
-			Name:        tftypes.StringValue("test credential type"),
-			Description: tftypes.StringValue("A test credential type"),
-			Inputs:      tftypes.StringValue(`{"fields":[{"id":"username","label":"Username","type":"string"}]}`),
-			Injectors:   tftypes.StringValue(`{"env":{"MY_VAR":"{{ username }}"}}`),
-		},
+			expected: EDACredentialTypeResourceModel{
+				ID:          tftypes.Int64Value(1),
+				Name:        tftypes.StringValue("test credential type"),
+				Description: tftypes.StringValue("A test credential type"),
+				Inputs:      tftypes.StringValue(`{"fields":[{"id":"username","label":"Username","type":"string"}]}`),
+				Injectors:   tftypes.StringValue(`{"env":{"MY_VAR":"{{ username }}"}}`),
+			},
 			errors: diag.Diagnostics{},
 		},
 	}
@@ -234,7 +234,7 @@ func checkBasicEDACredentialTypeAttributes(t *testing.T, name string, credential
 		resource.TestCheckResourceAttr(name, "name", expectedName),
 		resource.TestCheckResourceAttrSet(name, "id"),
 	}
-	
+
 	// Only check optional attributes if they have values
 	if expectedDescription != "" {
 		checks = append(checks, resource.TestCheckResourceAttr(name, "description", expectedDescription))
@@ -245,7 +245,7 @@ func checkBasicEDACredentialTypeAttributes(t *testing.T, name string, credential
 	if expectedInjectors != "" {
 		checks = append(checks, resource.TestCheckResourceAttr(name, "injectors", expectedInjectors))
 	}
-	
+
 	return resource.ComposeAggregateTestCheckFunc(checks...)
 }
 
@@ -253,7 +253,7 @@ func checkBasicEDACredentialTypeAttributes(t *testing.T, name string, credential
 func checkBasicEDACredentialTypeAttributesComplete(t *testing.T, name string, credentialType EDACredentialTypeAPIModel, expectedName string, expectedDescription string) resource.TestCheckFunc {
 	expectedInputs := `{"fields":[{"id":"username","label":"Username","type":"string"},{"id":"password","label":"Password","secret":true,"type":"string"}]}`
 	expectedInjectors := `{"env":{"MY_PASSWORD":"{{ password }}","MY_USERNAME":"{{ username }}"}}`
-	
+
 	return resource.ComposeAggregateTestCheckFunc(
 		testAccCheckEDACredentialTypeResourceExists(name, &credentialType),
 		testAccCheckEDACredentialTypeResourceValues(&credentialType, expectedName, expectedDescription, expectedInputs, expectedInjectors),
@@ -300,14 +300,14 @@ func testAccCheckEDACredentialTypeResourceExists(name string, credentialType *ED
 // jsonEqual compares two JSON strings for equality, ignoring whitespace and key ordering
 func jsonEqual(s1, s2 string) bool {
 	var o1, o2 interface{}
-	
+
 	if err := json.Unmarshal([]byte(s1), &o1); err != nil {
 		return false
 	}
 	if err := json.Unmarshal([]byte(s2), &o2); err != nil {
 		return false
 	}
-	
+
 	b1, err := json.Marshal(o1)
 	if err != nil {
 		return false
@@ -316,7 +316,7 @@ func jsonEqual(s1, s2 string) bool {
 	if err != nil {
 		return false
 	}
-	
+
 	return bytes.Equal(b1, b2)
 }
 
@@ -335,21 +335,21 @@ func testAccCheckEDACredentialTypeResourceValues(credentialType *EDACredentialTy
 		// API returns {} for empty inputs/injectors, normalize and compare
 		expectedInputs := strings.TrimSpace(inputs)
 		if expectedInputs == "" {
-			expectedInputs = "{}"
+			expectedInputs = JSONEmptyObject
 		}
 		actualInputs := strings.TrimSpace(string(credentialType.Inputs))
-		
+
 		// Compare as JSON to handle key ordering differences
 		if !jsonEqual(expectedInputs, actualInputs) {
 			return fmt.Errorf("bad credential type inputs in EDA, expected \"%s\", got: %s", expectedInputs, actualInputs)
 		}
-		
+
 		expectedInjectors := strings.TrimSpace(injectors)
 		if expectedInjectors == "" {
-			expectedInjectors = "{}"
+			expectedInjectors = JSONEmptyObject
 		}
 		actualInjectors := strings.TrimSpace(string(credentialType.Injectors))
-		
+
 		if !jsonEqual(expectedInjectors, actualInjectors) {
 			return fmt.Errorf("bad credential type injectors in EDA, expected \"%s\", got: %s", expectedInjectors, actualInjectors)
 		}
