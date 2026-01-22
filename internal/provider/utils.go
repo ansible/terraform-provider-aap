@@ -16,6 +16,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+const (
+	// JSONNull represents a JSON null value as a string
+	JSONNull = "null"
+	// JSONEmptyObject represents an empty JSON object as a string
+	JSONEmptyObject = "{}"
+)
+
 // ReturnAAPNamedURL returns an AAP named URL for the given model and URI.
 // TODO: Replace ReturnAAPNamedURL with CreateNamedURL during Resource refactor
 func ReturnAAPNamedURL(id types.Int64, name types.String, orgName types.String, uri string) (string, error) {
