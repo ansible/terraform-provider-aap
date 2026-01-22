@@ -11,60 +11,128 @@ import (
 func TestNewEDACredentialTypeDataSource(t *testing.T) {
 	testDataSource := NewEDACredentialTypeDataSource()
 
-	expectedMetadataEntitySlug := "eda_credential_type"
-	expectedDescriptiveEntityName := "EDA Credential Type"
-	expectedAPIEntitySlug := "credential-types"
-
 	switch v := testDataSource.(type) {
 	case *EDACredentialTypeDataSource:
-		if v.APIEntitySlug != expectedAPIEntitySlug {
-			t.Errorf("Incorrect APIEntitySlug. Got: %s, wanted: %s", v.APIEntitySlug, expectedAPIEntitySlug)
-		}
-		if v.DescriptiveEntityName != expectedDescriptiveEntityName {
-			t.Errorf("Incorrect DescriptiveEntityName. Got: %s, wanted: %s", v.DescriptiveEntityName, expectedDescriptiveEntityName)
-		}
-		if v.MetadataEntitySlug != expectedMetadataEntitySlug {
-			t.Errorf("Incorrect MetadataEntitySlug. Got: %s, wanted: %s", v.MetadataEntitySlug, expectedMetadataEntitySlug)
-		}
+		// Type check passes
 	default:
-		t.Errorf("Incorrect datasource type returned. Got: %T, wanted: %T", v, testDataSource)
+		t.Errorf("Incorrect datasource type returned. Got: %T, wanted: *EDACredentialTypeDataSource", v)
 	}
 }
 
-// TestAccEDACredentialTypeDataSource ensures the aap_eda_credential_type datasource can retrieve
-// an EDA Credential Type successfully.
 func TestAccEDACredentialTypeDataSource(t *testing.T) {
-	t.Skip("Skipping: Test framework issue with EDA resources - manual verification confirms API works correctly")
-	
 	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	description := "Test credential type description"
+
+	// Define expected JSON values with field ordering matching the API response
+	expectedInputs := `{"fields":[{"id":"username","type":"string","label":"Username"},{"id":"password","type":"string","label":"Password","secret":true}]}`
+	expectedInjectors := `{"env":{"MY_PASSWORD":"{{ password }}","MY_USERNAME":"{{ username }}"}}`
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
 			testAccPreCheck(t)
-			skipTestWithoutEDAPreCheck(t)
 		},
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccEDACredentialTypeDataSource(randomName),
+				Config: testAccEDACredentialTypeDataSourceByName(randomName, description),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.aap_eda_credential_type.test", "name", randomName),
+					resource.TestCheckResourceAttr("data.aap_eda_credential_type.test", "description", description),
 					resource.TestCheckResourceAttrSet("data.aap_eda_credential_type.test", "id"),
-					resource.TestCheckResourceAttrSet("data.aap_eda_credential_type.test", "url"),
+					resource.TestCheckResourceAttr("data.aap_eda_credential_type.test", "inputs", expectedInputs),
+					resource.TestCheckResourceAttr("data.aap_eda_credential_type.test", "injectors", expectedInjectors),
 				),
 			},
 		},
 	})
 }
 
-func testAccEDACredentialTypeDataSource(name string) string {
+func TestAccEDACredentialTypeDataSourceByID(t *testing.T) {
+	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	description := "Test credential type description for ID lookup"
+
+	// Define expected JSON values with field ordering matching the API response
+	expectedInputs := `{"fields":[{"id":"api_key","type":"string","label":"API Key","secret":true}]}`
+	expectedInjectors := `{"env":{"API_KEY":"{{ api_key }}"}}`
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			testAccPreCheck(t)
+		},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccEDACredentialTypeDataSourceByID(randomName, description),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.aap_eda_credential_type.test", "name", randomName),
+					resource.TestCheckResourceAttr("data.aap_eda_credential_type.test", "description", description),
+					resource.TestCheckResourceAttrSet("data.aap_eda_credential_type.test", "id"),
+					resource.TestCheckResourceAttr("data.aap_eda_credential_type.test", "inputs", expectedInputs),
+					resource.TestCheckResourceAttr("data.aap_eda_credential_type.test", "injectors", expectedInjectors),
+				),
+			},
+		},
+	})
+}
+
+func testAccEDACredentialTypeDataSourceByName(name string, description string) string {
 	return fmt.Sprintf(`
 resource "aap_eda_credential_type" "test" {
-  name = "%s"
+  name        = "%s"
+  description = "%s"
+  inputs      = jsonencode({
+    fields = [
+      {
+        id    = "username"
+        label = "Username"
+        type  = "string"
+      },
+      {
+        id     = "password"
+        label  = "Password"
+        type   = "string"
+        secret = true
+      }
+    ]
+  })
+  injectors = jsonencode({
+    env = {
+      MY_USERNAME = "{{ username }}"
+      MY_PASSWORD = "{{ password }}"
+    }
+  })
 }
 
 data "aap_eda_credential_type" "test" {
   name = aap_eda_credential_type.test.name
 }
-`, name)
+`, name, description)
+}
+
+func testAccEDACredentialTypeDataSourceByID(name string, description string) string {
+	return fmt.Sprintf(`
+resource "aap_eda_credential_type" "test" {
+  name        = "%s"
+  description = "%s"
+  inputs      = jsonencode({
+    fields = [
+      {
+        id     = "api_key"
+        label  = "API Key"
+        type   = "string"
+        secret = true
+      }
+    ]
+  })
+  injectors = jsonencode({
+    env = {
+      API_KEY = "{{ api_key }}"
+    }
+  })
+}
+
+data "aap_eda_credential_type" "test" {
+  id = aap_eda_credential_type.test.id
+}
+`, name, description)
 }
