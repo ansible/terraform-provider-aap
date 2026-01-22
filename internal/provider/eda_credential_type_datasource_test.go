@@ -13,7 +13,6 @@ func TestNewEDACredentialTypeDataSource(t *testing.T) {
 
 	switch v := testDataSource.(type) {
 	case *EDACredentialTypeDataSource:
-		// Type check passes
 	default:
 		t.Errorf("Incorrect datasource type returned. Got: %T, wanted: *EDACredentialTypeDataSource", v)
 	}
@@ -23,7 +22,6 @@ func TestAccEDACredentialTypeDataSource(t *testing.T) {
 	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	description := "Test credential type description"
 
-	// Define expected JSON values with field ordering matching the API response
 	expectedInputs := `{"fields":[{"id":"username","type":"string","label":"Username"},{"id":"password","type":"string","label":"Password","secret":true}]}`
 	expectedInjectors := `{"env":{"MY_PASSWORD":"{{ password }}","MY_USERNAME":"{{ username }}"}}`
 
@@ -51,7 +49,6 @@ func TestAccEDACredentialTypeDataSourceByID(t *testing.T) {
 	randomName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 	description := "Test credential type description for ID lookup"
 
-	// Define expected JSON values with field ordering matching the API response
 	expectedInputs := `{"fields":[{"id":"api_key","type":"string","label":"API Key","secret":true}]}`
 	expectedInjectors := `{"env":{"API_KEY":"{{ api_key }}"}}`
 

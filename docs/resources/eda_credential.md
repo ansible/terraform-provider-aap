@@ -8,15 +8,6 @@ description: |-
 
 Creates an EDA credential with write-only secret inputs that are never stored in Terraform state.
 
-## Security Note
-
-This resource uses **write-only attributes** to handle sensitive credential data. The `inputs_wo` field containing secrets is:
-- Sent to the EDA API during creation and updates
-- **Never stored in Terraform state**
-- A SHA256 hash is stored in private state (not visible in state files) for change detection
-
-This ensures that sensitive credential values like passwords, tokens, and API keys never appear in your state files.
-
 ## Version Management
 
 The `inputs_wo_version` field tracks changes to credential inputs and supports two modes:
@@ -36,17 +27,14 @@ When you explicitly set `inputs_wo_version`:
 ~> **NOTE:** The mode is chosen at resource creation and cannot be changed. To switch modes, you must recreate the resource.
 
 
-## Example Usage
+## Basic Example Usage
 
 ```terraform
-# Create an EDA credential with write-only secret inputs
-# Version is auto-managed by default - increments when inputs_wo changes
 resource "aap_eda_credential" "example" {
   name               = "my-api-credential"
   description        = "API credential for external service"
   credential_type_id = aap_eda_credential_type.api.id
 
-  # Write-only: sent to API but NEVER stored in Terraform state
   inputs_wo = jsonencode({
     username  = "service-account"
     api_token = var.api_token
@@ -54,29 +42,9 @@ resource "aap_eda_credential" "example" {
 }
 ```
 
-```terraform
-# Create an EDA credential with manual version control
-# You control when the credential updates by incrementing inputs_wo_version
-resource "aap_eda_credential" "manual" {
-  name               = "my-manual-credential"
-  description        = "Credential with manual version control"
-  credential_type_id = aap_eda_credential_type.api.id
-  organization_id    = 1
-
-  # Write-only credential inputs
-  inputs_wo = jsonencode({
-    username  = "service-account"
-    api_token = var.api_token
-  })
-
-  # Increment this value to force credential update
-  # The credential will only update when this value changes
-  inputs_wo_version = 1
-}
-```
+## Auto-Managed Versioning Example
 
 ```terraform
-# Define the credential type first
 resource "aap_eda_credential_type" "github" {
   name        = "GitHub Token"
   description = "GitHub personal access token"
@@ -99,18 +67,33 @@ resource "aap_eda_credential_type" "github" {
   })
 }
 
-# Create credential using the type
 resource "aap_eda_credential" "github" {
   name               = "my-github-credential"
   description        = "GitHub credential for automation"
   credential_type_id = aap_eda_credential_type.github.id
   organization_id    = 1
 
-  # Secrets never stored in state
-  # Version auto-increments when inputs change
   inputs_wo = jsonencode({
     token = var.github_token
   })
+}
+```
+
+## Manual Version Management 
+
+```terraform
+resource "aap_eda_credential" "manual" {
+  name               = "my-manual-credential"
+  description        = "Credential with manual version control"
+  credential_type_id = aap_eda_credential_type.api.id
+  organization_id    = 1
+
+  inputs_wo = jsonencode({
+    username  = "service-account"
+    api_token = var.api_token
+  })
+
+  inputs_wo_version = 1
 }
 ```
 

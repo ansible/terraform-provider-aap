@@ -230,7 +230,6 @@ func checkBasicEDACredentialAttributes(t *testing.T, name string, credential EDA
 		resource.TestCheckResourceAttrSet(name, "inputs_wo_version"),
 	}
 
-	// Only check description if provided
 	if expectedDescription != "" {
 		checks = append(checks, resource.TestCheckResourceAttr(name, "description", expectedDescription))
 	}
@@ -287,10 +286,6 @@ func testAccCheckEDACredentialInputsNotInState(name string) resource.TestCheckFu
 			return fmt.Errorf("credential (%s) not found in state", name)
 		}
 
-		// Sensitive attributes in framework are not written to state file at all
-		// We verify inputs_wo_version exists for change detection
-		// Note: in test state, sensitive values may appear - this is expected in test framework
-
 		if _, exists := credentialResource.Primary.Attributes["inputs_wo_version"]; !exists {
 			return fmt.Errorf("inputs_wo_version should exist in state for change detection")
 		}
@@ -319,8 +314,3 @@ func testAccCheckEDACredentialResourceDestroy(s *terraform.State) error {
 
 	return nil
 }
-
-// NOTE: Mode switching tests removed
-// The mode (auto vs manual) is determined at resource creation based on whether
-// inputs_wo_version is set. Once set, the mode cannot be changed without recreating
-// the resource. The mode switching prevention logic is in place in the Update function.

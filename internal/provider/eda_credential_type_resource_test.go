@@ -24,14 +24,12 @@ func TestEDACredentialTypeResourceSchema(t *testing.T) {
 	schemaRequest := fwresource.SchemaRequest{}
 	schemaResponse := &fwresource.SchemaResponse{}
 
-	// Instantiate the EDACredentialTypeResource and call its Schema method
 	NewEDACredentialTypeResource().Schema(ctx, schemaRequest, schemaResponse)
 
 	if schemaResponse.Diagnostics.HasError() {
 		t.Fatalf("Schema method diagnostics: %+v", schemaResponse.Diagnostics)
 	}
 
-	// Validate the schema
 	diagnostics := schemaResponse.Schema.ValidateImplementation(ctx)
 
 	if diagnostics.HasError() {
@@ -171,23 +169,19 @@ func TestAccEDACredentialTypeResource(t *testing.T) {
 		},
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Create and Read testing
 			{
 				Config: testAccEDACredentialTypeResourceMinimal(randomName),
 				Check:  checkBasicEDACredentialTypeAttributes(t, resourceNameEDACredentialType, credentialType, randomName, "", "", ""),
 			},
-			// Update and Read testing
 			{
 				Config: testAccEDACredentialTypeResourceComplete(updatedName, updatedDescription),
 				Check:  checkBasicEDACredentialTypeAttributesComplete(t, resourceNameEDACredentialType, credentialType, updatedName, updatedDescription),
 			},
-			// Delete testing automatically occurs in TestCase
 		},
 		CheckDestroy: testAccCheckEDACredentialTypeResourceDestroy,
 	})
 }
 
-// testAccEDACredentialTypeResourceMinimal returns a configuration for an EDA Credential Type with the provided name only.
 func testAccEDACredentialTypeResourceMinimal(name string) string {
 	return fmt.Sprintf(`
 resource "aap_eda_credential_type" "test" {
@@ -195,7 +189,6 @@ resource "aap_eda_credential_type" "test" {
 }`, name)
 }
 
-// testAccEDACredentialTypeResourceComplete returns a configuration for an EDA Credential Type with all options.
 func testAccEDACredentialTypeResourceComplete(name string, description string) string {
 	return fmt.Sprintf(`
 resource "aap_eda_credential_type" "test" {
@@ -226,7 +219,6 @@ resource "aap_eda_credential_type" "test" {
 `, name, description)
 }
 
-// checkBasicEDACredentialTypeAttributes is a helper function to check basic credential type attributes in acceptance tests.
 func checkBasicEDACredentialTypeAttributes(t *testing.T, name string, credentialType EDACredentialTypeAPIModel, expectedName string, expectedDescription string, expectedInputs string, expectedInjectors string) resource.TestCheckFunc {
 	checks := []resource.TestCheckFunc{
 		testAccCheckEDACredentialTypeResourceExists(name, &credentialType),
@@ -235,7 +227,6 @@ func checkBasicEDACredentialTypeAttributes(t *testing.T, name string, credential
 		resource.TestCheckResourceAttrSet(name, "id"),
 	}
 
-	// Only check optional attributes if they have values
 	if expectedDescription != "" {
 		checks = append(checks, resource.TestCheckResourceAttr(name, "description", expectedDescription))
 	}
@@ -249,7 +240,6 @@ func checkBasicEDACredentialTypeAttributes(t *testing.T, name string, credential
 	return resource.ComposeAggregateTestCheckFunc(checks...)
 }
 
-// checkBasicEDACredentialTypeAttributesComplete checks attributes with JSON values
 func checkBasicEDACredentialTypeAttributesComplete(t *testing.T, name string, credentialType EDACredentialTypeAPIModel, expectedName string, expectedDescription string) resource.TestCheckFunc {
 	expectedInputs := `{"fields":[{"id":"username","label":"Username","type":"string"},{"id":"password","label":"Password","secret":true,"type":"string"}]}`
 	expectedInjectors := `{"env":{"MY_PASSWORD":"{{ password }}","MY_USERNAME":"{{ username }}"}}`
@@ -265,7 +255,6 @@ func checkBasicEDACredentialTypeAttributesComplete(t *testing.T, name string, cr
 	)
 }
 
-// testAccCheckEDACredentialTypeResourceExists queries the EDA API and retrieves the matching credential type.
 func testAccCheckEDACredentialTypeResourceExists(name string, credentialType *EDACredentialTypeAPIModel) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		credentialTypeResource, ok := s.RootModule().Resources[name]
@@ -297,7 +286,6 @@ func testAccCheckEDACredentialTypeResourceExists(name string, credentialType *ED
 	}
 }
 
-// jsonEqual compares two JSON strings for equality, ignoring whitespace and key ordering
 func jsonEqual(s1, s2 string) bool {
 	var o1, o2 interface{}
 
@@ -320,7 +308,6 @@ func jsonEqual(s1, s2 string) bool {
 	return bytes.Equal(b1, b2)
 }
 
-// testAccCheckEDACredentialTypeResourceValues verifies that the provided credential type retrieved from EDA contains the expected values.
 func testAccCheckEDACredentialTypeResourceValues(credentialType *EDACredentialTypeAPIModel, name string, description string, inputs string, injectors string) resource.TestCheckFunc {
 	return func(_ *terraform.State) error {
 		if credentialType.ID == 0 {
@@ -332,14 +319,12 @@ func testAccCheckEDACredentialTypeResourceValues(credentialType *EDACredentialTy
 		if credentialType.Description != description {
 			return fmt.Errorf("bad credential type description in EDA, expected \"%s\", got: %s", description, credentialType.Description)
 		}
-		// API returns {} for empty inputs/injectors, normalize and compare
 		expectedInputs := strings.TrimSpace(inputs)
 		if expectedInputs == "" {
 			expectedInputs = JSONEmptyObject
 		}
 		actualInputs := strings.TrimSpace(string(credentialType.Inputs))
 
-		// Compare as JSON to handle key ordering differences
 		if !jsonEqual(expectedInputs, actualInputs) {
 			return fmt.Errorf("bad credential type inputs in EDA, expected \"%s\", got: %s", expectedInputs, actualInputs)
 		}
@@ -357,7 +342,6 @@ func testAccCheckEDACredentialTypeResourceValues(credentialType *EDACredentialTy
 	}
 }
 
-// testAccCheckEDACredentialTypeResourceDestroy verifies the credential type has been destroyed.
 func testAccCheckEDACredentialTypeResourceDestroy(s *terraform.State) error {
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "aap_eda_credential_type" {

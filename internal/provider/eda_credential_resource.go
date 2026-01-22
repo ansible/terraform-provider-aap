@@ -202,7 +202,6 @@ func (r *EDACredentialResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	// Preserve current values that aren't returned by API
 	currentInputsWO := data.InputsWO.ValueString()
 	currentVersion := data.InputsWOVersion
 
@@ -219,7 +218,6 @@ func (r *EDACredentialResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	// Restore inputs_wo and version from state since API doesn't return secrets
 	data.InputsWO = tftypes.StringValue(currentInputsWO)
 	data.InputsWOVersion = currentVersion
 
@@ -255,7 +253,6 @@ func (r *EDACredentialResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	// Get hash from private state to see if we were previously auto-managing
 	oldHashBytes, getDiags := req.Private.GetKey(ctx, "inputs_wo_hash")
 	resp.Diagnostics.Append(getDiags...)
 	if resp.Diagnostics.HasError() {
@@ -263,8 +260,6 @@ func (r *EDACredentialResource) Update(ctx context.Context, req resource.UpdateR
 	}
 	wasAutoManaged := oldHashBytes != nil
 
-	// To determine current mode, we need to check the config (not just plan)
-	// Get the config value for inputs_wo_version
 	var configModel EDACredentialResourceModel
 	configDiags := req.Config.Get(ctx, &configModel)
 	resp.Diagnostics.Append(configDiags...)
@@ -278,7 +273,6 @@ func (r *EDACredentialResource) Update(ctx context.Context, req resource.UpdateR
 	// wasManual if there was NO hash in private state AND version exists in state
 	wasManual := !wasAutoManaged && !state.InputsWOVersion.IsNull()
 
-	// Prevent mode switching
 	if wasAutoManaged && isNowManual {
 		resp.Diagnostics.AddError(
 			"Cannot switch from auto-managed to manual version management",
@@ -297,7 +291,6 @@ func (r *EDACredentialResource) Update(ctx context.Context, req resource.UpdateR
 	}
 
 	if wasAutoManaged {
-		// Auto-managed mode - check if inputs changed
 		var hashWrapper struct {
 			Hash string `json:"hash"`
 		}
@@ -317,7 +310,6 @@ func (r *EDACredentialResource) Update(ctx context.Context, req resource.UpdateR
 		}
 
 		if newHash != oldHash {
-			// Inputs changed, increment version and update hash
 			data.InputsWOVersion = tftypes.Int64Value(state.InputsWOVersion.ValueInt64() + 1)
 			hashJSON := fmt.Sprintf(`{"hash":"%s"}`, newHash)
 			diags = resp.Private.SetKey(ctx, "inputs_wo_hash", []byte(hashJSON))
@@ -326,13 +318,8 @@ func (r *EDACredentialResource) Update(ctx context.Context, req resource.UpdateR
 				return
 			}
 		} else {
-			// No change to inputs, keep version as-is
 			data.InputsWOVersion = state.InputsWOVersion
 		}
-	} else {
-		// Manual mode - user controls the version
-		// Keep the version value from plan (user's value or from state)
-		// No hash management needed
 	}
 
 	updateRequestBody, diags := data.generateRequestBody()
@@ -438,7 +425,6 @@ func (r *EDACredentialResourceModel) parseHTTPResponse(body []byte) diag.Diagnos
 	r.Name = tftypes.StringValue(apiCredential.Name)
 	r.Description = ParseStringValue(apiCredential.Description)
 
-	// Extract credential_type_id from nested object if present, otherwise use direct field
 	if apiCredential.CredentialType != nil && apiCredential.CredentialType.ID > 0 {
 		r.CredentialTypeID = tftypes.Int64Value(apiCredential.CredentialType.ID)
 	} else if apiCredential.CredentialTypeID > 0 {
@@ -447,7 +433,6 @@ func (r *EDACredentialResourceModel) parseHTTPResponse(body []byte) diag.Diagnos
 		r.CredentialTypeID = tftypes.Int64Null()
 	}
 
-	// Extract organization_id from nested object if present, otherwise use direct field
 	if apiCredential.Organization != nil && apiCredential.Organization.ID > 0 {
 		r.OrganizationID = tftypes.Int64Value(apiCredential.Organization.ID)
 	} else if apiCredential.OrganizationID > 0 {

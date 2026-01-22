@@ -16,7 +16,6 @@ import (
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// EDACredentialTypeResourceModel maps the credential type resource schema to a Go struct.
 type EDACredentialTypeResourceModel struct {
 	ID          tftypes.Int64  `tfsdk:"id"`
 	Name        tftypes.String `tfsdk:"name"`
@@ -25,7 +24,6 @@ type EDACredentialTypeResourceModel struct {
 	Injectors   tftypes.String `tfsdk:"injectors"`
 }
 
-// EDACredentialTypeAPIModel represents the EDA API model for credential types.
 type EDACredentialTypeAPIModel struct {
 	ID          int64           `json:"id,omitempty"`
 	URL         string          `json:"url,omitempty"`
@@ -35,28 +33,23 @@ type EDACredentialTypeAPIModel struct {
 	Injectors   json.RawMessage `json:"injectors,omitempty"`
 }
 
-// EDACredentialTypeResource is the resource implementation.
 type EDACredentialTypeResource struct {
 	client ProviderHTTPClient
 }
 
-// Ensure the implementation satisfies the expected interfaces.
 var (
 	_ resource.Resource              = &EDACredentialTypeResource{}
 	_ resource.ResourceWithConfigure = &EDACredentialTypeResource{}
 )
 
-// NewEDACredentialTypeResource is a helper function to simplify the provider implementation.
 func NewEDACredentialTypeResource() resource.Resource {
 	return &EDACredentialTypeResource{}
 }
 
-// Metadata returns the resource type name.
 func (r *EDACredentialTypeResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_eda_credential_type"
 }
 
-// Configure adds the provider configured client to the resource.
 func (r *EDACredentialTypeResource) Configure(_ context.Context, req resource.ConfigureRequest,
 	resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
@@ -76,7 +69,6 @@ func (r *EDACredentialTypeResource) Configure(_ context.Context, req resource.Co
 	r.client = client
 }
 
-// Schema defines the schema for the resource.
 func (r *EDACredentialTypeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
@@ -108,19 +100,16 @@ func (r *EDACredentialTypeResource) Schema(_ context.Context, _ resource.SchemaR
 	}
 }
 
-// Create creates the credential type resource and sets the Terraform state on success.
 func (r *EDACredentialTypeResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data EDACredentialTypeResourceModel
 	var diags diag.Diagnostics
 
-	// Read Terraform plan data into credential type resource model
 	diags = req.Plan.Get(ctx, &data)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Generate request body from credential type data
 	createRequestBody, diags := data.generateRequestBody()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -128,7 +117,6 @@ func (r *EDACredentialTypeResource) Create(ctx context.Context, req resource.Cre
 	}
 	requestData := bytes.NewReader(createRequestBody)
 
-	// Create new credential type in EDA
 	edaEndpoint := r.client.getEdaAPIEndpoint()
 	if edaEndpoint == "" {
 		resp.Diagnostics.AddError(
@@ -144,14 +132,12 @@ func (r *EDACredentialTypeResource) Create(ctx context.Context, req resource.Cre
 		return
 	}
 
-	// Save new credential type data into credential type resource model
 	diags = data.parseHTTPResponse(createResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Save updated state
 	diags = resp.State.Set(ctx, data)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -159,19 +145,16 @@ func (r *EDACredentialTypeResource) Create(ctx context.Context, req resource.Cre
 	}
 }
 
-// Read refreshes the Terraform state with the latest credential type data.
 func (r *EDACredentialTypeResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var data EDACredentialTypeResourceModel
 	var diags diag.Diagnostics
 
-	// Read current Terraform state data into credential type resource model
 	diags = req.State.Get(ctx, &data)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Get latest credential type data from EDA
 	url := fmt.Sprintf("/api/eda/v1/credential-types/%d/", data.ID.ValueInt64())
 	readResponseBody, diags := r.client.Get(url)
 	resp.Diagnostics.Append(diags...)
@@ -179,14 +162,12 @@ func (r *EDACredentialTypeResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 
-	// Save latest credential type data into credential type resource model
 	diags = data.parseHTTPResponse(readResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Save updated state
 	diags = resp.State.Set(ctx, data)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -194,19 +175,16 @@ func (r *EDACredentialTypeResource) Read(ctx context.Context, req resource.ReadR
 	}
 }
 
-// Update updates the credential type resource and sets the updated Terraform state on success.
 func (r *EDACredentialTypeResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var data EDACredentialTypeResourceModel
 	var diags diag.Diagnostics
 
-	// Read Terraform plan data into credential type resource model
 	diags = req.Plan.Get(ctx, &data)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Generate request body from credential type data
 	updateRequestBody, diags := data.generateRequestBody()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -221,14 +199,12 @@ func (r *EDACredentialTypeResource) Update(ctx context.Context, req resource.Upd
 		return
 	}
 
-	// Save updated credential type data into credential type resource model
 	diags = data.parseHTTPResponse(updateResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Save updated state
 	diags = resp.State.Set(ctx, data)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -236,19 +212,16 @@ func (r *EDACredentialTypeResource) Update(ctx context.Context, req resource.Upd
 	}
 }
 
-// Delete deletes the credential type resource.
 func (r *EDACredentialTypeResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var data EDACredentialTypeResourceModel
 	var diags diag.Diagnostics
 
-	// Read current Terraform state data into credential type resource model
 	diags = req.State.Get(ctx, &data)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Delete credential type from EDA
 	url := fmt.Sprintf("/api/eda/v1/credential-types/%d/", data.ID.ValueInt64())
 	_, diags = r.client.Delete(url)
 	resp.Diagnostics.Append(diags...)
@@ -257,27 +230,22 @@ func (r *EDACredentialTypeResource) Delete(ctx context.Context, req resource.Del
 	}
 }
 
-// generateRequestBody creates a JSON encoded request body from the credential type resource data.
 func (r *EDACredentialTypeResourceModel) generateRequestBody() ([]byte, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
-	// Convert credential type resource data to API data model
 	credentialType := EDACredentialTypeAPIModel{
 		Name:        r.Name.ValueString(),
 		Description: r.Description.ValueString(),
 	}
 
-	// Handle inputs - convert string to json.RawMessage if not empty, normalize by trimming whitespace
 	if !r.Inputs.IsNull() && r.Inputs.ValueString() != "" {
 		credentialType.Inputs = json.RawMessage(strings.TrimSpace(r.Inputs.ValueString()))
 	}
 
-	// Handle injectors - convert string to json.RawMessage if not empty, normalize by trimming whitespace
 	if !r.Injectors.IsNull() && r.Injectors.ValueString() != "" {
 		credentialType.Injectors = json.RawMessage(strings.TrimSpace(r.Injectors.ValueString()))
 	}
 
-	// Generate JSON encoded request body
 	jsonBody, err := json.Marshal(credentialType)
 	if err != nil {
 		diags.AddError(
@@ -290,11 +258,9 @@ func (r *EDACredentialTypeResourceModel) generateRequestBody() ([]byte, diag.Dia
 	return jsonBody, nil
 }
 
-// parseHTTPResponse updates the credential type resource data from an EDA API response.
 func (r *EDACredentialTypeResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics {
 	var parseResponseDiags diag.Diagnostics
 
-	// Unmarshal the JSON response
 	var apiCredentialType EDACredentialTypeAPIModel
 	err := json.Unmarshal(body, &apiCredentialType)
 	if err != nil {
@@ -302,16 +268,12 @@ func (r *EDACredentialTypeResourceModel) parseHTTPResponse(body []byte) diag.Dia
 		return parseResponseDiags
 	}
 
-	// Map response to the credential type resource schema and update attribute values
 	r.ID = tftypes.Int64Value(apiCredentialType.ID)
 	r.Name = tftypes.StringValue(apiCredentialType.Name)
 	r.Description = ParseStringValue(apiCredentialType.Description)
 
-	// Convert json.RawMessage to string for inputs
-	// Treat empty objects {} as null, and normalize JSON to ensure consistent formatting
 	inputsStr := strings.TrimSpace(string(apiCredentialType.Inputs))
 	if len(inputsStr) > 0 && inputsStr != JSONEmptyObject && inputsStr != JSONNull {
-		// Re-marshal to normalize JSON formatting (key ordering, whitespace)
 		var inputsObj interface{}
 		if err := json.Unmarshal([]byte(inputsStr), &inputsObj); err == nil {
 			if normalized, err := json.Marshal(inputsObj); err == nil {
@@ -323,11 +285,8 @@ func (r *EDACredentialTypeResourceModel) parseHTTPResponse(body []byte) diag.Dia
 		r.Inputs = tftypes.StringNull()
 	}
 
-	// Convert json.RawMessage to string for injectors
-	// Treat empty objects {} as null, and normalize JSON to ensure consistent formatting
 	injectorsStr := strings.TrimSpace(string(apiCredentialType.Injectors))
 	if len(injectorsStr) > 0 && injectorsStr != JSONEmptyObject && injectorsStr != JSONNull {
-		// Re-marshal to normalize JSON formatting (key ordering, whitespace)
 		var injectorsObj interface{}
 		if err := json.Unmarshal([]byte(injectorsStr), &injectorsObj); err == nil {
 			if normalized, err := json.Marshal(injectorsObj); err == nil {

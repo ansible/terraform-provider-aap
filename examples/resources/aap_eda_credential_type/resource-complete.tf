@@ -1,4 +1,3 @@
-# Create an EDA credential type with inputs and injectors
 resource "aap_eda_credential_type" "complete" {
   name        = "my-api-credential"
   description = "API credential type with username and token"

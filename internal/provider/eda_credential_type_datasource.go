@@ -12,7 +12,6 @@ import (
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Ensure the implementation satisfies the desired interfaces.
 var _ datasource.DataSource = &EDACredentialTypeDataSource{}
 var _ datasource.DataSourceWithConfigure = &EDACredentialTypeDataSource{}
 
@@ -87,18 +86,15 @@ func (d *EDACredentialTypeDataSource) Read(ctx context.Context, req datasource.R
 	var state EDACredentialTypeDataSourceModel
 	var diags diag.Diagnostics
 
-	// Check Read preconditions
 	if !DoReadPreconditionsMeet(ctx, resp, d.client) {
 		return
 	}
 
-	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Validate that exactly one of id or name is provided
 	hasID := !state.ID.IsNull()
 	hasName := !state.Name.IsNull()
 
@@ -120,7 +116,6 @@ func (d *EDACredentialTypeDataSource) Read(ctx context.Context, req datasource.R
 
 	var credentialTypeID int64
 
-	// If name is provided, query the list endpoint to find the ID
 	if hasName {
 		edaEndpoint := d.client.getEdaAPIEndpoint()
 		if edaEndpoint == "" {
@@ -140,7 +135,6 @@ func (d *EDACredentialTypeDataSource) Read(ctx context.Context, req datasource.R
 			return
 		}
 
-		// Parse list response to get the ID
 		var listResponse BaseEdaAPIModelList
 		err := json.Unmarshal(listResponseBody, &listResponse)
 		if err != nil {
@@ -158,11 +152,9 @@ func (d *EDACredentialTypeDataSource) Read(ctx context.Context, req datasource.R
 
 		credentialTypeID = listResponse.Results[0].Id
 	} else {
-		// Use the provided ID
 		credentialTypeID = state.ID.ValueInt64()
 	}
 
-	// Fetch the detail endpoint to get all fields including URL, description, inputs, and injectors
 	detailURL := fmt.Sprintf("/api/eda/v1/credential-types/%d/", credentialTypeID)
 	detailResponseBody, diags := d.client.Get(detailURL)
 	resp.Diagnostics.Append(diags...)
@@ -170,21 +162,18 @@ func (d *EDACredentialTypeDataSource) Read(ctx context.Context, req datasource.R
 		return
 	}
 
-	// Parse the detail response
 	diags = state.parseHTTPResponse(detailResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (d *EDACredentialTypeDataSourceModel) parseHTTPResponse(body []byte) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	// Unmarshal the JSON response
 	var apiCredentialType EDACredentialTypeAPIModel
 	err := json.Unmarshal(body, &apiCredentialType)
 	if err != nil {
@@ -192,12 +181,10 @@ func (d *EDACredentialTypeDataSourceModel) parseHTTPResponse(body []byte) diag.D
 		return diags
 	}
 
-	// Map response to the data source model
 	d.ID = tftypes.Int64Value(apiCredentialType.ID)
 	d.Name = tftypes.StringValue(apiCredentialType.Name)
 	d.Description = ParseStringValue(apiCredentialType.Description)
 
-	// Convert json.RawMessage to string for inputs
 	if len(apiCredentialType.Inputs) > 0 {
 		inputsStr := string(apiCredentialType.Inputs)
 		if inputsStr != JSONNull && inputsStr != JSONEmptyObject {
@@ -209,7 +196,6 @@ func (d *EDACredentialTypeDataSourceModel) parseHTTPResponse(body []byte) diag.D
 		d.Inputs = tftypes.StringNull()
 	}
 
-	// Convert json.RawMessage to string for injectors
 	if len(apiCredentialType.Injectors) > 0 {
 		injectorsStr := string(apiCredentialType.Injectors)
 		if injectorsStr != JSONNull && injectorsStr != JSONEmptyObject {
