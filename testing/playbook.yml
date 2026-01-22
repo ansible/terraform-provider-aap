@@ -8,10 +8,20 @@
       ansible.controller.organization:
         name: "Default"
         description: "The default organization for Ansible Automation Platform"
+    - name: Create Job Template
+      ansible.controller.job_template:
+        name: "Test Job Template - hello_world.yml"
+        inventory: "Demo Inventory"
+        organization: "Default"
+        project: "Demo Project"
+        playbook: "hello_world.yml"
+        credentials:
+          - "Demo Credential"
+      register: job_template
     # The tests for resource.aap_job test the behavior when the template is configured
     # to prompt for inventory on launch. So we need a Job Template that is configured
     # to prompt for inventory
-    - name: Create Job Template
+    - name: Create Job Template with inventory on prompt
       ansible.controller.job_template:
         name: "Test Job Template - hello_world.yml with Inventory Prompt"
         inventory: "Demo Inventory"
@@ -22,6 +32,50 @@
         credentials:
           - "Demo Credential"
       register: job_template_inventory_prompt_on_launch
+    # Get the Demo Credential ID for tests that need to provide credentials at launch
+    - name: Get Demo Credential
+      ansible.controller.credential:
+        name: "Demo Credential"
+        credential_type: "Machine"
+      register: demo_credential
+    # The tests for resource.aap_job and action.aap_job_launch test the behavior when ALL
+    # promptable fields are set to "prompt on launch". This verifies validation logic.
+    - name: Create Job Template with all fields on prompt
+      ansible.controller.job_template:
+        name: "Test Job Template - hello_world.yml with All Fields on Prompt"
+        inventory: "Demo Inventory"
+        organization: "Default"
+        project: "Demo Project"
+        playbook: "hello_world.yml"
+        credentials:
+          - "Demo Credential"
+        ask_variables_on_launch: true
+        ask_tags_on_launch: true
+        ask_skip_tags_on_launch: true
+        ask_job_type_on_launch: true
+        ask_limit_on_launch: true
+        ask_inventory_on_launch: true
+        ask_credential_on_launch: true
+        ask_execution_environment_on_launch: false # We don't have a good way to retrieve the ID of the default EE
+        ask_labels_on_launch: true
+        ask_forks_on_launch: true
+        ask_diff_mode_on_launch: true
+        ask_verbosity_on_launch: true
+        ask_instance_groups_on_launch: true
+        ask_timeout_on_launch: true
+        ask_job_slice_count_on_launch: true
+      register: job_template_all_fields_on_prompt
+    # Create a label for tests that need to provide labels at launch
+    - name: Create test label
+      ansible.controller.label:
+        name: "Test Label"
+        organization: "Default"
+      register: test_label
+    # Get the default instance group for tests that need to provide it at launch
+    - name: Get default instance group
+      ansible.controller.instance_group:
+        name: "default"
+      register: default_instance_group
     # The tests for resource.aap_workflow_job test the behavior when the template
     # is configured to prompt for inventory on launch. So we need a Workflow Job Template
     # in the 'Default' organization that is configured to prompt for inventory.
