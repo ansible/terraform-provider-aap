@@ -4,7 +4,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 )
 
-// Ensure the implementation satisfies the desired interfaces.
 var _ datasource.DataSource = &EDAProjectDataSource{}
 
 type EDAProjectDataSource struct {

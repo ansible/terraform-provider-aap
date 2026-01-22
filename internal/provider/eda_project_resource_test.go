@@ -133,11 +133,8 @@ func testAccCheckEdaProjectDestroy(s *terraform.State) error {
 			continue
 		}
 
-		// Try to find the project by querying the EDA API
-		// We need to discover the EDA endpoint first
 		body, err := testMethodResource("GET", "/api/")
 		if err != nil {
-			// If API is unreachable, assume resources are destroyed
 			return nil
 		}
 
@@ -147,7 +144,6 @@ func testAccCheckEdaProjectDestroy(s *terraform.State) error {
 		}
 
 		if apiResponse.APIs.EDA == "" {
-			// EDA not available, skip check
 			return nil
 		}
 
@@ -161,10 +157,8 @@ func testAccCheckEdaProjectDestroy(s *terraform.State) error {
 			return fmt.Errorf("error parsing EDA response: %w", jsonErr)
 		}
 
-		// Extract path from EDA endpoint URL
 		var edaPath string
 		if len(edaResponse.CurrentVersion) > 0 {
-			// Parse URL to get path
 			if parsed, parseErr := url.Parse(edaResponse.CurrentVersion); parseErr == nil {
 				edaPath = parsed.Path
 			}
@@ -181,7 +175,6 @@ func testAccCheckEdaProjectDestroy(s *terraform.State) error {
 
 		listBody, err := testMethodResourceWithParams("GET", projectsURL, params)
 		if err != nil {
-			// If we get an error, the project might be deleted
 			return nil
 		}
 
@@ -209,7 +202,6 @@ func testAccCheckEdaProjectExists(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("No EDA Project ID is set")
 		}
 
-		// Discover EDA endpoint
 		body, err := testMethodResource("GET", "/api/")
 		if err != nil {
 			return fmt.Errorf("error fetching API info: %w", err)

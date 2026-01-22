@@ -31,8 +31,6 @@ func TestNewEDAProjectDataSource(t *testing.T) {
 	}
 }
 
-// TestAccEDAProjectDataSource ensures the aap_eda_project data source can retrieve
-// an EDA project successfully.
 func TestAccEDAProjectDataSource(t *testing.T) {
 	rName := "tf-test-" + acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 

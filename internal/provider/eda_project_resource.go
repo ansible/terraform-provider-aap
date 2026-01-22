@@ -19,24 +19,20 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
-// Ensure the implementation satisfies the expected interfaces.
 var (
 	_ resource.Resource                = &EdaProjectResource{}
 	_ resource.ResourceWithConfigure   = &EdaProjectResource{}
 	_ resource.ResourceWithImportState = &EdaProjectResource{}
 )
 
-// NewEdaProjectResource is a helper function to simplify the provider implementation.
 func NewEdaProjectResource() resource.Resource {
 	return &EdaProjectResource{}
 }
 
-// EdaProjectResource is the resource implementation.
 type EdaProjectResource struct {
 	client ProviderHTTPClient
 }
 
-// EdaProjectResourceModel maps the resource schema data.
 type EdaProjectResourceModel struct {
 	ID             types.Int64  `tfsdk:"id"`
 	Name           types.String `tfsdk:"name"`
@@ -47,7 +43,6 @@ type EdaProjectResourceModel struct {
 	Proxy          types.String `tfsdk:"proxy"`
 }
 
-// EdaProjectAPIModel represents the EDA Project API model.
 type EdaProjectAPIModel struct {
 	ID             int64  `json:"id,omitempty"`
 	Name           string `json:"name"`
@@ -58,18 +53,15 @@ type EdaProjectAPIModel struct {
 	Proxy          string `json:"proxy,omitempty"`
 }
 
-// EdaProjectListResponse represents a list response from the EDA API.
 type EdaProjectListResponse struct {
 	Count   int                  `json:"count"`
 	Results []EdaProjectAPIModel `json:"results"`
 }
 
-// Metadata returns the resource type name.
 func (r *EdaProjectResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_eda_project"
 }
 
-// Schema defines the schema for the resource.
 func (r *EdaProjectResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Manages an EDA Project resource.",
@@ -115,7 +107,6 @@ func (r *EdaProjectResource) Schema(_ context.Context, _ resource.SchemaRequest,
 	}
 }
 
-// Configure adds the provider configured client to the resource.
 func (r *EdaProjectResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if resp == nil {
 		tflog.Error(ctx, "Response not defined, we cannot continue with the execution.")
@@ -142,24 +133,20 @@ func (r *EdaProjectResource) Configure(ctx context.Context, req resource.Configu
 	r.client = client
 }
 
-// Create creates the resource and sets the initial Terraform state.
 func (r *EdaProjectResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan EdaProjectResourceModel
 
-	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Generate API request body
 	requestBody, diags := plan.generateRequestBody()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Create new EDA project
 	edaEndpoint := r.client.getEdaAPIEndpoint()
 	if edaEndpoint == "" {
 		resp.Diagnostics.AddError(
@@ -177,28 +164,23 @@ func (r *EdaProjectResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	// Parse response and update state
 	diags = plan.parseHTTPResponse(createResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
-// Read refreshes the Terraform state with the latest data.
 func (r *EdaProjectResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state EdaProjectResourceModel
 
-	// Read current Terraform state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Query by name since EDA projects are typically queried by name
 	edaEndpoint := r.client.getEdaAPIEndpoint()
 	if edaEndpoint == "" {
 		resp.Diagnostics.AddError(
@@ -219,7 +201,6 @@ func (r *EdaProjectResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	// Parse list response
 	var listResponse EdaProjectListResponse
 	err := json.Unmarshal(readResponseBody, &listResponse)
 	if err != nil {
@@ -231,7 +212,6 @@ func (r *EdaProjectResource) Read(ctx context.Context, req resource.ReadRequest,
 	}
 
 	if listResponse.Count == 0 {
-		// Project was deleted outside of Terraform - remove from state
 		resp.State.RemoveResource(ctx)
 		return
 	}
@@ -244,7 +224,6 @@ func (r *EdaProjectResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	// Update state from API response
 	project := listResponse.Results[0]
 	diags = state.parseAPIModel(&project)
 	resp.Diagnostics.Append(diags...)
@@ -252,28 +231,23 @@ func (r *EdaProjectResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	// Save updated state
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
 
-// Update updates the resource and sets the updated Terraform state on success.
 func (r *EdaProjectResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan EdaProjectResourceModel
 
-	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Generate API request body
 	requestBody, diags := plan.generateRequestBody()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Update EDA project - EDA API uses PATCH for updates
 	edaEndpoint := r.client.getEdaAPIEndpoint()
 	if edaEndpoint == "" {
 		resp.Diagnostics.AddError(
@@ -291,23 +265,18 @@ func (r *EdaProjectResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	// Parse response and update state
 	diags = plan.parseHTTPResponse(updateResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Save updated state
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
-// ImportState imports the resource by ID.
 func (r *EdaProjectResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// Import by ID - parse the ID and fetch the project
 	id := req.ID
-	
-	// Try to parse as integer ID
+
 	var projectID int64
 	_, err := fmt.Sscanf(id, "%d", &projectID)
 	if err != nil {
@@ -318,11 +287,9 @@ func (r *EdaProjectResource) ImportState(ctx context.Context, req resource.Impor
 		return
 	}
 
-	// Set the ID in state
 	var state EdaProjectResourceModel
 	state.ID = types.Int64Value(projectID)
 
-	// Query the project by ID
 	edaEndpoint := r.client.getEdaAPIEndpoint()
 	if edaEndpoint == "" {
 		resp.Diagnostics.AddError(
@@ -339,28 +306,23 @@ func (r *EdaProjectResource) ImportState(ctx context.Context, req resource.Impor
 		return
 	}
 
-	// Parse response and update state
 	diags = state.parseHTTPResponse(readResponseBody)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Save imported state
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
 
-// Delete deletes the resource and removes the Terraform state on success.
 func (r *EdaProjectResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state EdaProjectResourceModel
 
-	// Read current Terraform state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Delete EDA project
 	edaEndpoint := r.client.getEdaAPIEndpoint()
 	if edaEndpoint == "" {
 		resp.Diagnostics.AddError(
@@ -372,14 +334,12 @@ func (r *EdaProjectResource) Delete(ctx context.Context, req resource.DeleteRequ
 
 	projectURL := path.Join(edaEndpoint, "projects", strconv.FormatInt(state.ID.ValueInt64(), 10))
 	_, diags, statusCode := r.client.DeleteWithStatus(projectURL)
-	// Treat 404 as success - resource is already deleted
 	if statusCode == http.StatusNotFound {
 		return
 	}
 	resp.Diagnostics.Append(diags...)
 }
 
-// generateRequestBody creates a JSON encoded request body from the resource data.
 func (r *EdaProjectResourceModel) generateRequestBody() ([]byte, diag.Diagnostics) {
 	project := EdaProjectAPIModel{
 		Name:           r.Name.ValueString(),
@@ -403,7 +363,6 @@ func (r *EdaProjectResourceModel) generateRequestBody() ([]byte, diag.Diagnostic
 	return jsonBody, nil
 }
 
-// parseHTTPResponse updates the resource data from an EDA API response.
 func (r *EdaProjectResourceModel) parseHTTPResponse(body []byte) diag.Diagnostics {
 	var apiProject EdaProjectAPIModel
 	err := json.Unmarshal(body, &apiProject)
@@ -416,7 +375,6 @@ func (r *EdaProjectResourceModel) parseHTTPResponse(body []byte) diag.Diagnostic
 	return r.parseAPIModel(&apiProject)
 }
 
-// parseAPIModel updates the resource model from an API model.
 func (r *EdaProjectResourceModel) parseAPIModel(apiProject *EdaProjectAPIModel) diag.Diagnostics {
 	r.ID = types.Int64Value(apiProject.ID)
 	r.Name = types.StringValue(apiProject.Name)
