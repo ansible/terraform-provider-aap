@@ -1,0 +1,4 @@
+minor_changes:
+  - New resource 'aap_eda_project' for managing EDA projects with full CRUD operations and import support.
+  - New data source 'aap_eda_project' for looking up EDA projects by name.
+  - Add PATCH HTTP method support to provider client for EDA API compatibility.
