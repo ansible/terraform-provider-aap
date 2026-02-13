@@ -22,6 +22,8 @@ type ProviderHTTPClient interface {
 	GetWithStatus(path string, params map[string]string) ([]byte, diag.Diagnostics, int)
 	Update(path string, data io.Reader) ([]byte, diag.Diagnostics)
 	UpdateWithStatus(path string, data io.Reader) ([]byte, diag.Diagnostics, int)
+	Patch(path string, data io.Reader) ([]byte, diag.Diagnostics)
+	PatchWithStatus(path string, data io.Reader) ([]byte, diag.Diagnostics, int)
 	Delete(path string) ([]byte, diag.Diagnostics)
 	DeleteWithStatus(path string) ([]byte, diag.Diagnostics, int)
 	setAPIEndpoint() diag.Diagnostics
@@ -258,6 +260,25 @@ func (c *AAPClient) UpdateWithStatus(path string, data io.Reader) ([]byte, diag.
 		return body, diags, http.StatusInternalServerError
 	}
 	return body, diags, updateResponse.StatusCode
+}
+
+// Patch sends a PATCH request with the provided data to the provided path, checks for errors,
+// and returns the response body with any errors as diagnostics.
+func (c *AAPClient) Patch(path string, data io.Reader) ([]byte, diag.Diagnostics) {
+	body, diags, _ := c.PatchWithStatus(path, data)
+	return body, diags
+}
+
+// PatchWithStatus sends a PATCH request with the provided data to the provided path, checks for errors,
+// and returns the response body with any errors as diagnostics and the status code.
+func (c *AAPClient) PatchWithStatus(path string, data io.Reader) ([]byte, diag.Diagnostics, int) {
+	patchResponse, body, err := c.doRequest("PATCH", path, nil, data)
+	diags := ValidateResponse(patchResponse, body, err, []int{http.StatusOK})
+	if patchResponse == nil {
+		diags.AddError("HTTP response error", "No HTTP response from server")
+		return body, diags, http.StatusInternalServerError
+	}
+	return body, diags, patchResponse.StatusCode
 }
 
 // Delete sends a DELETE request to the provided path, checks for errors, and returns any errors as diagnostics.
