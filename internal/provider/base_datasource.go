@@ -36,7 +36,7 @@ var (
 // NewBaseDataSource constructs a new BaseDataSource object provided with a client instance (usually
 // initialized to nil, it will be later configured calling the Configure function)
 // and an apiEntitySlug string indicating the entity path name to consult the API.
-func NewBaseDataSource(client HTTPClient, stringDescriptions StringDescriptions) *BaseDataSource {
+func NewBaseDataSource(client ProviderHTTPClient, stringDescriptions StringDescriptions) *BaseDataSource {
 	return &BaseDataSource{
 		client:             client,
 		StringDescriptions: stringDescriptions,
@@ -46,7 +46,7 @@ func NewBaseDataSource(client HTTPClient, stringDescriptions StringDescriptions)
 // NewBaseDataSourceWithOrg constructs a new BaseDataSourceWithOrg object provided with a client instance (usually
 // initialized to nil, it will be later configured calling the Configure function)
 // and an apiEntitySlug string indicating the entity path name to consult the API.
-func NewBaseDataSourceWithOrg(client HTTPClient, stringDescriptions StringDescriptions) *BaseDataSourceWithOrg {
+func NewBaseDataSourceWithOrg(client ProviderHTTPClient, stringDescriptions StringDescriptions) *BaseDataSourceWithOrg {
 	return &BaseDataSourceWithOrg{
 		BaseDataSource: BaseDataSource{
 			client:             client,

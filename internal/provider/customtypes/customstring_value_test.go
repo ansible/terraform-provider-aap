@@ -1,7 +1,6 @@
 package customtypes_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
@@ -77,7 +76,7 @@ func TestAAPCustomStringStringSemanticEquals(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			match, diags := testCase.currentData.StringSemanticEquals(context.Background(), testCase.givenData)
+			match, diags := testCase.currentData.StringSemanticEquals(t.Context(), testCase.givenData)
 
 			if testCase.expectedMatch != match {
 				t.Errorf("Expected StringSemanticEquals to return: %t, but got: %t", testCase.expectedMatch, match)

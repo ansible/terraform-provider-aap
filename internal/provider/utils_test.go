@@ -340,3 +340,87 @@ func TestParseNormalizedValue(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertListToInt64Slice(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    types.List
+		expected []int64
+	}{
+		{
+			name:     "null list",
+			input:    types.ListNull(types.Int64Type),
+			expected: nil,
+		},
+		{
+			name:     "unknown list",
+			input:    types.ListUnknown(types.Int64Type),
+			expected: nil,
+		},
+		{
+			name:     "empty list",
+			input:    types.ListValueMust(types.Int64Type, []attr.Value{}),
+			expected: nil,
+		},
+		{
+			name:     "single element",
+			input:    types.ListValueMust(types.Int64Type, []attr.Value{types.Int64Value(42)}),
+			expected: []int64{42},
+		},
+		{
+			name: "multiple elements",
+			input: types.ListValueMust(types.Int64Type, []attr.Value{
+				types.Int64Value(1),
+				types.Int64Value(2),
+				types.Int64Value(3),
+			}),
+			expected: []int64{1, 2, 3},
+		},
+		{
+			name: "skip null elements",
+			input: types.ListValueMust(types.Int64Type, []attr.Value{
+				types.Int64Value(10),
+				types.Int64Null(),
+				types.Int64Value(30),
+			}),
+			expected: []int64{10, 30},
+		},
+		{
+			name: "list with only null values",
+			input: types.ListValueMust(types.Int64Type, []attr.Value{
+				types.Int64Null(),
+				types.Int64Null(),
+			}),
+			expected: nil,
+		},
+		{
+			name: "list with only unknown values",
+			input: types.ListValueMust(types.Int64Type, []attr.Value{
+				types.Int64Unknown(),
+				types.Int64Unknown(),
+			}),
+			expected: nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := ConvertListToInt64Slice(test.input)
+			if test.expected == nil {
+				if result != nil {
+					t.Errorf("Expected nil, but got %v", result)
+				}
+				return
+			}
+			if len(result) != len(test.expected) {
+				t.Errorf("Expected length %d, but got %d", len(test.expected), len(result))
+				return
+			}
+			for i, expected := range test.expected {
+				if result[i] != expected {
+					t.Errorf("At index %d: expected %d, but got %d", i, expected, result[i])
+				}
+			}
+		})
+	}
+}

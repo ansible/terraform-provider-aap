@@ -3,3 +3,6 @@ collections:
   - name: ansible.controller
   # https://console.redhat.com/ansible/automation-hub/repo/published/ansible/platform/docs/
   - name: ansible.platform
+  # https://console.redhat.com/ansible/automation-hub/repo/published/ansible/eda/
+  - name: ansible.eda
+

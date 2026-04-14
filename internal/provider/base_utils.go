@@ -27,7 +27,7 @@ func IsContextActive(ctx context.Context, operationName string, diagnostics *dia
 }
 
 // DoReadPreconditionsMeet checks if all preconditions for a read operation are met.
-func DoReadPreconditionsMeet(ctx context.Context, resp any, client HTTPClient) bool {
+func DoReadPreconditionsMeet(ctx context.Context, resp any, client ProviderHTTPClient) bool {
 	if resp == nil {
 		tflog.Error(ctx, "Response not defined, we cannot continue with the execution")
 		return false

@@ -67,3 +67,23 @@ releases:
     fragments:
     - 20250715-fix-workflow-job-inventory-id.yml
     release_date: '2025-07-17'
+  1.4.0:
+    changes:
+      major_changes:
+      - Adds support for Token authentication via the AAP_TOKEN environment variable
+        or 'token' attribute in the provider block.
+      - New Action 'aap_eda_eventstream_post' enabling action-based AAP integration
+        via EDA Event Streams.
+      - New Action 'aap_job_launch' enabling action-based AAP Job launch.
+      - New Data Source 'aap_eda_eventstream' supporting lookup of EDA Event Streams
+        for use with 'aap_eda_eventstream_post' Action.
+      minor_changes:
+      - In addition to the AAP_HOST environment variable, the provider now reads AAP_HOSTNAME
+        to be consistent with other Ansible content.
+    fragments:
+    - 20250915-honor-aap-hostname-variable.yml
+    - 20250916-support-token-authentication.yml
+    - 20250924-action-eda-eventstream.yml
+    - 20250930-datasource-eda-eventstream.yml
+    - 20251119-action-job-launch.yml
+    release_date: '2025-11-19'

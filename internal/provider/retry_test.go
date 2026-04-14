@@ -24,7 +24,7 @@ func TestRetryOperation(t *testing.T) {
 	t.Parallel()
 	testSetup := func(t *testing.T) (context.Context, *gomock.Controller, []int, []int, int64, int64, int64) {
 		ctrl := gomock.NewController(t)
-		ctx := context.Background()
+		ctx := t.Context()
 		successCodes := []int{http.StatusOK}
 		retryableCodes := []int{http.StatusConflict}
 		testTimeout := int64(10)
@@ -269,7 +269,7 @@ func validateRetryStateConf(t *testing.T, config *RetryConfig, expectedTimeout, 
 
 func TestCreateRetryConfig(t *testing.T) {
 	const operationName = "testOperation"
-	ctx := context.Background()
+	ctx := t.Context()
 	mockOperation := func() ([]byte, diag.Diagnostics, int) {
 		return []byte("test"), nil, http.StatusOK
 	}
@@ -402,7 +402,7 @@ func TestSafeDurationFromSeconds(t *testing.T) {
 }
 
 func TestRetryWithConfig(t *testing.T) {
-	cancelledCtx, cancel := context.WithCancel(context.Background())
+	cancelledCtx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel the context immediately
 	tests := []struct {
 		name                 string
@@ -429,7 +429,7 @@ func TestRetryWithConfig(t *testing.T) {
 					Delay:      2 * time.Millisecond,
 				},
 				operationName: "testOperation",
-				ctx:           context.Background(),
+				ctx:           t.Context(),
 			},
 			expectedResult: &RetryResult{
 				Body:  []byte("success result"),
@@ -457,7 +457,7 @@ func TestRetryWithConfig(t *testing.T) {
 					Delay:      2 * time.Millisecond,
 				},
 				operationName: "testOperation",
-				ctx:           context.Background(),
+				ctx:           t.Context(),
 			},
 			expectedResult:       nil,
 			expectedErrorMessage: "error occurred during retry operation",
@@ -473,7 +473,7 @@ func TestRetryWithConfig(t *testing.T) {
 			retryConfig: &RetryConfig{
 				stateConf:     nil,
 				operationName: "testOperation",
-				ctx:           context.Background(),
+				ctx:           t.Context(),
 			},
 			expectedResult:       nil,
 			expectedErrorMessage: "state configuration is not initialized",

@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"testing"
@@ -17,7 +16,7 @@ import (
 func TestOrganizationDataSourceSchema(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	schemaRequest := fwdatasource.SchemaRequest{}
 	schemaResponse := &fwdatasource.SchemaResponse{}
 
@@ -80,7 +79,7 @@ func TestOrganizationDataSourceValidateConfig(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 
 			// Create the data source
 			ds := NewOrganizationDataSource().(*OrganizationDataSource)

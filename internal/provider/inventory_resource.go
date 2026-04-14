@@ -32,7 +32,7 @@ type InventoryResourceModel struct {
 
 // InventoryResource is the resource implementation.
 type InventoryResource struct {
-	client HTTPClient
+	client ProviderHTTPClient
 }
 
 // Ensure the implementation satisfies the expected interfaces.
