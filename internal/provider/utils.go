@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -124,4 +125,126 @@ func ConvertListToInt64Slice(list types.List) []int64 {
 		return nil
 	}
 	return result
+}
+
+// LaunchFieldValidation represents a single field validation for launch-time parameters.
+type LaunchFieldValidation struct {
+	AskOnLaunch bool
+	Value       attr.Value
+	FieldName   string
+}
+
+// ValidateLaunchFields validates that required fields are provided and warns about ignored fields.
+// Used by both Job and WorkflowJob launch validation.
+func ValidateLaunchFields(validations []LaunchFieldValidation, templateType string) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	for _, v := range validations {
+		isNullOrUnknown := v.Value.IsNull() || v.Value.IsUnknown()
+		if v.AskOnLaunch && isNullOrUnknown {
+			diags.AddError(
+				"Missing required field",
+				fmt.Sprintf("%s requires '%s' to be provided at launch", templateType, v.FieldName),
+			)
+		}
+		if !v.AskOnLaunch && !isNullOrUnknown {
+			diags.AddWarning(
+				"Field will be ignored",
+				fmt.Sprintf("'%s' is provided but the %s does not allow it to be specified at launch", v.FieldName, templateType),
+			)
+		}
+	}
+
+	return diags
+}
+
+// ParseIgnoredFieldsToList converts ignored fields from the AAP API response into a types.List.
+// This is shared logic used by Job and WorkflowJob resources.
+func ParseIgnoredFieldsToList(ignoredFields map[string]interface{}) (types.List, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	if len(ignoredFields) == 0 {
+		return types.ListNull(types.StringType), diags
+	}
+
+	var keysList = []attr.Value{}
+	for k := range ignoredFields {
+		key := k
+		if v, ok := keyMapping[k]; ok {
+			key = v
+		}
+		keysList = append(keysList, types.StringValue(key))
+	}
+
+	if len(keysList) == 0 {
+		return types.ListNull(types.StringType), diags
+	}
+
+	list, listDiags := types.ListValue(types.StringType, keysList)
+	diags.Append(listDiags...)
+	return list, diags
+}
+
+// LaunchableJob is an interface for job types that can be launched (Job or WorkflowJob).
+type LaunchableJob interface {
+	CreateRequestBody() ([]byte, diag.Diagnostics)
+	GetTemplateID() int64
+}
+
+// GetLaunchConfiguration performs a GET request to retrieve the launch configuration
+// for a job or workflow job template.
+func GetLaunchConfiguration(
+	client ProviderHTTPClient,
+	templateType string,
+	templateID int64,
+	result interface{},
+	templateTypeName string,
+) diag.Diagnostics {
+	var diags diag.Diagnostics
+	launchURL := path.Join(client.getAPIEndpoint(), templateType, fmt.Sprintf("%d", templateID), "launch")
+
+	getResp, getBody, getErr := client.doRequest(http.MethodGet, launchURL, nil, nil)
+	diags.Append(ValidateResponse(getResp, getBody, getErr, []int{http.StatusOK})...)
+	if diags.HasError() {
+		return diags
+	}
+
+	err := json.Unmarshal(getBody, result)
+	if err != nil {
+		diags.AddError(
+			fmt.Sprintf("Error parsing %s launch configuration", templateTypeName),
+			fmt.Sprintf("Could not parse launch configuration response: %s", err.Error()),
+		)
+		return diags
+	}
+
+	return diags
+}
+
+// LaunchJobTemplate performs the common POST request to launch a job or workflow job.
+// It takes the template type ("job_templates" or "workflow_job_templates") and the model.
+func LaunchJobTemplate(
+	client ProviderHTTPClient,
+	templateType string,
+	model LaunchableJob,
+) ([]byte, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	// Create request body
+	requestBody, diagCreateReq := model.CreateRequestBody()
+	diags.Append(diagCreateReq...)
+	if diags.HasError() {
+		return nil, diags
+	}
+
+	// POST to launch endpoint
+	requestData := bytes.NewReader(requestBody)
+	postURL := path.Join(client.getAPIEndpoint(), templateType, fmt.Sprintf("%d", model.GetTemplateID()), "launch")
+	resp, body, err := client.doRequest(http.MethodPost, postURL, nil, requestData)
+	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
+	if diags.HasError() {
+		return nil, diags
+	}
+
+	return body, diags
 }

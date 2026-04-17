@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework/action"
@@ -12,7 +11,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
 
 // WorkflowJobAction represents a workflow job action that can be executed in AAP.
@@ -50,6 +48,26 @@ func (a *WorkflowJobAction) Schema(_ context.Context, _ action.SchemaRequest, re
 				Description: "Extra Variables. Must be provided as either a JSON or YAML string.",
 				Optional:    true,
 				CustomType:  customtypes.AAPCustomStringType{},
+			},
+			"limit": schema.StringAttribute{
+				Description: "Limit pattern to restrict the workflow job run to specific hosts.",
+				Optional:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+			},
+			"job_tags": schema.StringAttribute{
+				Description: "Tags to include in the workflow job run.",
+				Optional:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+			},
+			"skip_tags": schema.StringAttribute{
+				Description: "Tags to skip in the workflow job run.",
+				Optional:    true,
+				CustomType:  customtypes.AAPCustomStringType{},
+			},
+			"labels": schema.ListAttribute{
+				Description: "List of label IDs to apply to the workflow job.",
+				Optional:    true,
+				ElementType: types.Int64Type,
 			},
 			"wait_for_completion": schema.BoolAttribute{
 				Optional: true,
@@ -101,12 +119,14 @@ func (a *WorkflowJobAction) Invoke(ctx context.Context, req action.InvokeRequest
 	})
 
 	tflog.Debug(ctx, "workflow job launched", map[string]interface{}{
-		"url":            jobResponse.URL,
-		"status":         jobResponse.Status,
-		"template_id":    jobResponse.TemplateID,
-		"inventory_id":   jobResponse.Inventory,
-		"extra_vars":     jobResponse.ExtraVars,
-		"ignored_fields": jobResponse.IgnoredFields,
+		"url":          jobResponse.URL,
+		"status":       jobResponse.Status,
+		"template_id":  jobResponse.TemplateID,
+		"inventory_id": jobResponse.Inventory,
+		"extra_vars":   jobResponse.ExtraVars,
+		"limit":        jobResponse.Limit,
+		"job_tags":     jobResponse.JobTags,
+		"skip_tags":    jobResponse.SkipTags,
 	})
 
 	// Extract job URL for polling if wait_for_completion is enabled
@@ -114,16 +134,14 @@ func (a *WorkflowJobAction) Invoke(ctx context.Context, req action.InvokeRequest
 		if config.WaitForCompletionTimeout.IsNull() {
 			config.WaitForCompletionTimeout = types.Int64Value(waitForCompletionTimeoutDefault)
 		}
-		timeout := time.Duration(config.WaitForCompletionTimeout.ValueInt64()) * time.Second
-		var status string
 		retryProgressFunc := func(status string) {
 			response.SendProgress(action.InvokeProgressEvent{
 				Message: fmt.Sprintf("Workflow job at: %s is in status: %s", jobResponse.URL, status),
 			})
 		}
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, a.client, retryProgressFunc, jobResponse.URL, &status))
-		if err != nil {
-			response.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
+		status, diags := config.WaitForWorkflowJobCompletion(ctx, a.client, jobResponse.URL, retryProgressFunc)
+		response.Diagnostics.Append(diags...)
+		if response.Diagnostics.HasError() {
 			return
 		}
 		jobResponse.Status = status

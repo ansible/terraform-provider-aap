@@ -1,12 +1,10 @@
 package provider
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path"
 	"time"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
@@ -15,13 +13,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -230,172 +225,89 @@ func (r *JobResource) Configure(_ context.Context, req resource.ConfigureRequest
 
 // Schema defines the schema for the  jobresource.
 func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Attributes: map[string]schema.Attribute{
-			"job_template_id": schema.Int64Attribute{
-				Required:    true,
-				Description: "ID of the job template.",
-			},
-			"inventory_id": schema.Int64Attribute{
-				Optional: true,
-				Computed: true,
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.UseStateForUnknown(),
-				},
-				Description: "Identifier for the inventory where job should be created in. " +
-					"If not provided, the job will be created in the default inventory.",
-			},
-			"job_type": schema.StringAttribute{
-				Computed:    true,
-				Description: "Job type",
-			},
-			"url": schema.StringAttribute{
-				Computed:    true,
-				Description: "URL of the job template",
-			},
-			"status": schema.StringAttribute{
-				Computed:    true,
-				Description: "Status of the job",
-			},
-			"extra_vars": schema.StringAttribute{
-				Description: "Extra Variables. Must be provided as either a JSON or YAML string.",
-				Optional:    true,
-				CustomType:  customtypes.AAPCustomStringType{},
-			},
-			"triggers": schema.MapAttribute{
-				Optional:    true,
-				ElementType: types.StringType,
-				Description: "Map of arbitrary keys and values that, when changed, will trigger a creation" +
-					" of a new Job on AAP. Use 'terraform taint' if you want to force the creation of a new job" +
-					" without changing this value.",
-			},
-			"ignored_fields": schema.ListAttribute{
-				ElementType: types.StringType,
-				Computed:    true,
-				Description: "The list of properties set by the user but ignored on server side.",
-			},
-			"limit": schema.StringAttribute{
-				Description: "Limit pattern to restrict the job run to specific hosts.",
-				Optional:    true,
-				Computed:    true,
-				CustomType:  customtypes.AAPCustomStringType{},
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"job_tags": schema.StringAttribute{
-				Description: "Tags to include in the job run.",
-				Optional:    true,
-				Computed:    true,
-				CustomType:  customtypes.AAPCustomStringType{},
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"skip_tags": schema.StringAttribute{
-				Description: "Tags to skip in the job run.",
-				Optional:    true,
-				Computed:    true,
-				CustomType:  customtypes.AAPCustomStringType{},
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"diff_mode": schema.BoolAttribute{
-				Description: "Enable diff mode for the job run. When enabled, any module that supports diff mode will report the changes made.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"verbosity": schema.Int64Attribute{
-				Description: "Verbosity level for the job run. Valid values: 0 (Normal), 1 (Verbose), 2 (More Verbose), 3 (Debug), 4 (Connection Debug), 5 (WinRM Debug).",
-				Optional:    true,
-				Computed:    true,
-				Validators: []validator.Int64{
-					int64validator.Between(0, VerbosityMax),
-				},
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.UseStateForUnknown(),
-				},
-			},
-			"execution_environment": schema.Int64Attribute{
-				Description: "ID of the execution environment to use for the job run.",
-				Optional:    true,
-				Computed:    true,
-			},
-			"forks": schema.Int64Attribute{
-				Description: "Number of parallel processes to use for the job run.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.UseStateForUnknown(),
-				},
-			},
-			"job_slice_count": schema.Int64Attribute{
-				Description: "Number of slices to divide the job into.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.UseStateForUnknown(),
-				},
-			},
-			"timeout": schema.Int64Attribute{
-				Description: "Timeout in seconds for the job run.",
-				Optional:    true,
-				Computed:    true,
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.UseStateForUnknown(),
-				},
-			},
-			// instance_groups is marked as Computed because the API may return a different
-			// value than what the user configured. When launching a job, the user can specify
-			// multiple instance groups, but the API response only includes the single instance
-			// group that was actually assigned. UseStateForUnknown preserves the user's
-			// configured value in state to prevent perpetual drift.
-			"instance_groups": schema.ListAttribute{
-				Description: "List of instance group IDs to use for the job run.",
-				Optional:    true,
-				Computed:    true,
-				ElementType: types.Int64Type,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
-				},
-			},
-			// credentials is marked as WriteOnly because the value is sent to the API
-			// at job launch time but is not returned from the job GET endpoint.
-			// The actual credentials are managed via the `related` API endpoint.
-			"credentials": schema.ListAttribute{
-				Description: "List of credential IDs to use for the job run. (Write-only: value is sent to API but not returned in state)",
-				Optional:    true,
-				WriteOnly:   true,
-				ElementType: types.Int64Type,
-			},
-			// labels is marked as WriteOnly because the value is sent to the API
-			// at job launch time but is not returned from the job GET endpoint.
-			// The actual labels are managed via the `related` API endpoint.
-			"labels": schema.ListAttribute{
-				Description: "List of label IDs to apply to the job. (Write-only: value is sent to API but not returned in state)",
-				Optional:    true,
-				WriteOnly:   true,
-				ElementType: types.Int64Type,
-			},
-			"wait_for_completion": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
-				Default:  booldefault.StaticBool(false),
-				Description: "When this is set to `true`, Terraform will wait until this aap_job resource is created, reaches " +
-					"any final status and then, proceeds with the following resource operation",
-			},
-			"wait_for_completion_timeout_seconds": schema.Int64Attribute{
-				Optional: true,
-				Computed: true,
-				Default:  int64default.StaticInt64(waitForCompletionTimeoutDefault),
-				Description: "Sets the maximum amount of seconds Terraform will wait before timing out the updates, " +
-					"and the job creation will fail. Default value of `120`",
-			},
+	// Start with common attributes
+	attributes := CommonJobSchemaAttributes("job")
+
+	// Add job-specific attributes
+	attributes["job_template_id"] = schema.Int64Attribute{
+		Required:    true,
+		Description: "ID of the job template.",
+	}
+	attributes["inventory_id"] = schema.Int64Attribute{
+		Optional: true,
+		Computed: true,
+		PlanModifiers: []planmodifier.Int64{
+			int64planmodifier.UseStateForUnknown(),
 		},
+		Description: "Identifier for the inventory where job should be created in. " +
+			"If not provided, the job will be created in the default inventory.",
+	}
+	attributes["diff_mode"] = schema.BoolAttribute{
+		Description: "Enable diff mode for the job run. When enabled, any module that supports diff mode will report the changes made.",
+		Optional:    true,
+		Computed:    true,
+		PlanModifiers: []planmodifier.Bool{
+			boolplanmodifier.UseStateForUnknown(),
+		},
+	}
+	attributes["verbosity"] = schema.Int64Attribute{
+		Description: "Verbosity level for the job run. Valid values: 0 (Normal), 1 (Verbose), 2 (More Verbose), 3 (Debug), 4 (Connection Debug), 5 (WinRM Debug).",
+		Optional:    true,
+		Computed:    true,
+		Validators: []validator.Int64{
+			int64validator.Between(0, VerbosityMax),
+		},
+		PlanModifiers: []planmodifier.Int64{
+			int64planmodifier.UseStateForUnknown(),
+		},
+	}
+	attributes["execution_environment"] = schema.Int64Attribute{
+		Description: "ID of the execution environment to use for the job run.",
+		Optional:    true,
+		Computed:    true,
+	}
+	attributes["forks"] = schema.Int64Attribute{
+		Description: "Number of parallel processes to use for the job run.",
+		Optional:    true,
+		Computed:    true,
+		PlanModifiers: []planmodifier.Int64{
+			int64planmodifier.UseStateForUnknown(),
+		},
+	}
+	attributes["job_slice_count"] = schema.Int64Attribute{
+		Description: "Number of slices to divide the job into.",
+		Optional:    true,
+		Computed:    true,
+		PlanModifiers: []planmodifier.Int64{
+			int64planmodifier.UseStateForUnknown(),
+		},
+	}
+	attributes["timeout"] = schema.Int64Attribute{
+		Description: "Timeout in seconds for the job run.",
+		Optional:    true,
+		Computed:    true,
+		PlanModifiers: []planmodifier.Int64{
+			int64planmodifier.UseStateForUnknown(),
+		},
+	}
+	attributes["instance_groups"] = schema.ListAttribute{
+		Description: "List of instance group IDs to use for the job run.",
+		Optional:    true,
+		Computed:    true,
+		ElementType: types.Int64Type,
+		PlanModifiers: []planmodifier.List{
+			listplanmodifier.UseStateForUnknown(),
+		},
+	}
+	attributes["credentials"] = schema.ListAttribute{
+		Description: "List of credential IDs to use for the job run. (Write-only: value is sent to API but not returned in state)",
+		Optional:    true,
+		WriteOnly:   true,
+		ElementType: types.Int64Type,
+	}
+
+	resp.Schema = schema.Schema{
+		Attributes: attributes,
 		MarkdownDescription: "Launches an AAP job.\n\n" +
 			"A job is launched only when the resource is first created or when the " +
 			"resource is changed. The " + "`triggers`" + " argument can be used to " +
@@ -430,30 +342,10 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	data.Credentials = configData.Credentials
 	data.Labels = configData.Labels
 
-	resp.Diagnostics.Append(data.LaunchJobWithResponse(r.client)...)
+	// Launch job and wait for completion if configured
+	resp.Diagnostics.Append(r.launchAndWait(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	// If the job was configured to wait for completion, start polling the job status
-	// and wait for it to complete before marking the resource as created
-	if data.WaitForCompletion.ValueBool() {
-		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
-		var status string
-		retryProgressFunc := func(status string) {
-			tflog.Debug(ctx, "Job status update", map[string]interface{}{
-				"status": status,
-				"url":    data.URL.ValueString(),
-			})
-		}
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, retryProgressFunc, data.URL.ValueString(), &status))
-		if err != nil {
-			resp.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
-		}
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		data.Status = types.StringValue(status)
 	}
 
 	// Save updated data into Terraform state
@@ -524,31 +416,10 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	data.Credentials = configData.Credentials
 	data.Labels = configData.Labels
 
-	// Create new Job from job template
-	resp.Diagnostics.Append(data.LaunchJobWithResponse(r.client)...)
+	// Launch job and wait for completion if configured
+	resp.Diagnostics.Append(r.launchAndWait(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	// If the job was configured to wait for completion, start polling the job status
-	// and wait for it to complete before marking the resource as created
-	if data.WaitForCompletion.ValueBool() {
-		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
-		var status string
-		retryProgressFunc := func(status string) {
-			tflog.Debug(ctx, "Job status update", map[string]interface{}{
-				"status": status,
-				"url":    data.URL.ValueString(),
-			})
-		}
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, retryProgressFunc, data.URL.ValueString(), &status))
-		if err != nil {
-			resp.Diagnostics.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
-		}
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		data.Status = types.StringValue(status)
 	}
 
 	// Save updated data into Terraform state
@@ -644,21 +515,7 @@ func (r *JobResourceModel) ParseHTTPResponse(body []byte) diag.Diagnostics {
 
 // ParseIgnoredFields parses ignored fields from the AAP API response.
 func (r *JobResourceModel) ParseIgnoredFields(ignoredFields map[string]interface{}) (diags diag.Diagnostics) {
-	r.IgnoredFields = types.ListNull(types.StringType)
-	var keysList = []attr.Value{}
-
-	for k := range ignoredFields {
-		key := k
-		if v, ok := keyMapping[k]; ok {
-			key = v
-		}
-		keysList = append(keysList, types.StringValue(key))
-	}
-
-	if len(keysList) > 0 {
-		r.IgnoredFields, _ = types.ListValue(types.StringType, keysList)
-	}
-
+	r.IgnoredFields, diags = ParseIgnoredFieldsToList(ignoredFields)
 	return diags
 }
 
@@ -671,44 +528,14 @@ func (r *JobModel) LaunchJob(client ProviderHTTPClient) (body []byte, diags diag
 		return nil, diags
 	}
 
-	// Create request body from job data
-	requestBody, diagCreateReq := r.CreateRequestBody()
-	diags.Append(diagCreateReq...)
-	if diags.HasError() {
-		return nil, diags
-	}
-
-	requestData := bytes.NewReader(requestBody)
-	var postURL = path.Join(client.getAPIEndpoint(), "job_templates", r.TemplateID.String(), "launch")
-	resp, body, err := client.doRequest(http.MethodPost, postURL, nil, requestData)
-	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
-	if diags.HasError() {
-		return nil, diags
-	}
-
-	return body, diags
+	// Use shared launch helper
+	return LaunchJobTemplate(client, "job_templates", r)
 }
 
 // GetLaunchJob performs a GET request to the Job Template launch endpoint to retrieve
 // the launch configuration.
 func (r *JobModel) GetLaunchJob(client ProviderHTTPClient) (launchConfig JobLaunchAPIModel, diags diag.Diagnostics) {
-	var launchURL = path.Join(client.getAPIEndpoint(), "job_templates", r.TemplateID.String(), "launch")
-
-	getResp, getBody, getErr := client.doRequest(http.MethodGet, launchURL, nil, nil)
-	diags.Append(ValidateResponse(getResp, getBody, getErr, []int{http.StatusOK})...)
-	if diags.HasError() {
-		return launchConfig, diags
-	}
-
-	err := json.Unmarshal(getBody, &launchConfig)
-	if err != nil {
-		diags.AddError(
-			"Error parsing Job Template launch configuration",
-			fmt.Sprintf("Could not parse launch configuration response: %s", err.Error()),
-		)
-		return launchConfig, diags
-	}
-
+	diags = GetLaunchConfiguration(client, "job_templates", r.TemplateID.ValueInt64(), &launchConfig, "Job Template")
 	return launchConfig, diags
 }
 
@@ -721,41 +548,24 @@ func (r *JobModel) CanJobBeLaunched(client ProviderHTTPClient) (diags diag.Diagn
 		return diags
 	}
 
-	validations := []struct {
-		askOnLaunch bool
-		isNull      bool
-		fieldName   string
-	}{
-		{launchConfig.AskVariablesOnLaunch, r.ExtraVars.IsNull(), "extra_vars"},
-		{launchConfig.AskTagsOnLaunch, r.JobTags.IsNull(), "job_tags"},
-		{launchConfig.AskSkipTagsOnLaunch, r.SkipTags.IsNull(), "skip_tags"},
-		{launchConfig.AskDiffModeOnLaunch, r.DiffMode.IsNull(), "diff_mode"},
-		{launchConfig.AskLimitOnLaunch, r.Limit.IsNull(), "limit"},
-		{launchConfig.AskInventoryOnLaunch, r.InventoryID.IsNull(), "inventory_id"},
-		{launchConfig.AskCredentialOnLaunch, r.Credentials.IsNull(), "credentials"},
-		{launchConfig.AskExecutionEnvironmentOnLaunch, r.ExecutionEnvironmentID.IsNull(), "execution_environment"},
-		{launchConfig.AskLabelsOnLaunch, r.Labels.IsNull(), "labels"},
-		{launchConfig.AskForksOnLaunch, r.Forks.IsNull(), "forks"},
-		{launchConfig.AskVerbosityOnLaunch, r.Verbosity.IsNull(), "verbosity"},
-		{launchConfig.AskInstanceGroupsOnLaunch, r.InstanceGroups.IsNull(), "instance_groups"},
-		{launchConfig.AskTimeoutOnLaunch, r.Timeout.IsNull(), "timeout"},
-		{launchConfig.AskJobSliceCountOnLaunch, r.JobSliceCount.IsNull(), "job_slice_count"},
+	validations := []LaunchFieldValidation{
+		{launchConfig.AskVariablesOnLaunch, r.ExtraVars, "extra_vars"},
+		{launchConfig.AskTagsOnLaunch, r.JobTags, "job_tags"},
+		{launchConfig.AskSkipTagsOnLaunch, r.SkipTags, "skip_tags"},
+		{launchConfig.AskDiffModeOnLaunch, r.DiffMode, "diff_mode"},
+		{launchConfig.AskLimitOnLaunch, r.Limit, "limit"},
+		{launchConfig.AskInventoryOnLaunch, r.InventoryID, "inventory_id"},
+		{launchConfig.AskCredentialOnLaunch, r.Credentials, "credentials"},
+		{launchConfig.AskExecutionEnvironmentOnLaunch, r.ExecutionEnvironmentID, "execution_environment"},
+		{launchConfig.AskLabelsOnLaunch, r.Labels, "labels"},
+		{launchConfig.AskForksOnLaunch, r.Forks, "forks"},
+		{launchConfig.AskVerbosityOnLaunch, r.Verbosity, "verbosity"},
+		{launchConfig.AskInstanceGroupsOnLaunch, r.InstanceGroups, "instance_groups"},
+		{launchConfig.AskTimeoutOnLaunch, r.Timeout, "timeout"},
+		{launchConfig.AskJobSliceCountOnLaunch, r.JobSliceCount, "job_slice_count"},
 	}
 
-	for _, v := range validations {
-		if v.askOnLaunch && v.isNull {
-			diags.AddError(
-				"Missing required field",
-				fmt.Sprintf("Job Template requires '%s' to be provided at launch", v.fieldName),
-			)
-		}
-		if !v.askOnLaunch && !v.isNull {
-			diags.AddWarning(
-				"Field will be ignored",
-				fmt.Sprintf("'%s' is provided but the Job Template does not allow it to be specified at launch", v.fieldName),
-			)
-		}
-	}
+	diags.Append(ValidateLaunchFields(validations, "Job Template")...)
 
 	return diags
 }
@@ -768,4 +578,46 @@ func (r *JobResourceModel) LaunchJobWithResponse(client ProviderHTTPClient) diag
 		return diags
 	}
 	return r.ParseHTTPResponse(body)
+}
+
+// launchAndWait launches a job and optionally waits for completion.
+// This is shared logic between Create and Update operations.
+func (r *JobResource) launchAndWait(
+	ctx context.Context,
+	data *JobResourceModel,
+) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	// Launch the job
+	diags.Append(data.LaunchJobWithResponse(r.client)...)
+	if diags.HasError() {
+		return diags
+	}
+
+	// Wait for completion if configured
+	if data.WaitForCompletion.ValueBool() {
+		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
+		var status string
+		retryProgressFunc := func(status string) {
+			tflog.Debug(ctx, "Job status update", map[string]interface{}{
+				"status": status,
+				"url":    data.URL.ValueString(),
+			})
+		}
+		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, retryProgressFunc, data.URL.ValueString(), &status))
+		if err != nil {
+			diags.Append(diag.NewErrorDiagnostic("error when waiting for AAP job to complete", err.Error()))
+		}
+		if diags.HasError() {
+			return diags
+		}
+		data.Status = types.StringValue(status)
+	}
+
+	return diags
+}
+
+// GetTemplateID implements the LaunchableJob interface.
+func (r *JobModel) GetTemplateID() int64 {
+	return r.TemplateID.ValueInt64()
 }

@@ -147,9 +147,15 @@ resource "aap_workflow_job" "workflow_job" {
 
 ### Optional
 
+> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
+
 - `extra_vars` (String) Extra Variables. Must be provided as either a JSON or YAML string.
 - `inventory_id` (Number) Identifier for the inventory the job will be run against.
-- `triggers` (Map of String) Map of arbitrary keys and values that, when changed, will trigger a creation of a new Workflow Job on AAP. Use 'terraform taint' if you want to force the creation of a new workflow job without changing this value.
+- `job_tags` (String) Tags to include in the workflow job run.
+- `labels` (List of Number, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) List of label IDs to apply to the workflow job.
+- `limit` (String) Limit pattern to restrict the workflow job run to specific hosts.
+- `skip_tags` (String) Tags to skip in the workflow job run.
+- `triggers` (Map of String) Map of arbitrary keys and values that, when changed, will trigger a creation of a new workflow job on AAP. Use 'terraform taint' if you want to force the creation of a new workflow job without changing this value.
 - `wait_for_completion` (Boolean) When this is set to `true`, Terraform will wait until this aap_job resource is created, reaches any final status and then, proceeds with the following resource operation
 - `wait_for_completion_timeout_seconds` (Number) Sets the maximum amount of seconds Terraform will wait before timing out the updates, and the job creation will fail. Default value of `120`
 
@@ -158,4 +164,4 @@ resource "aap_workflow_job" "workflow_job" {
 - `ignored_fields` (List of String) The list of properties set by the user but ignored on server side.
 - `job_type` (String) Job type
 - `status` (String) Status of the workflow job
-- `url` (String) URL of the workflow job template
+- `url` (String) URL of the workflow job

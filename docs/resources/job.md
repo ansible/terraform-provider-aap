@@ -206,11 +206,11 @@ resource "aap_job" "job" {
 - `inventory_id` (Number) Identifier for the inventory where job should be created in. If not provided, the job will be created in the default inventory.
 - `job_slice_count` (Number) Number of slices to divide the job into.
 - `job_tags` (String) Tags to include in the job run.
-- `labels` (List of Number, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) List of label IDs to apply to the job. (Write-only: value is sent to API but not returned in state)
+- `labels` (List of Number, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) List of label IDs to apply to the job.
 - `limit` (String) Limit pattern to restrict the job run to specific hosts.
 - `skip_tags` (String) Tags to skip in the job run.
 - `timeout` (Number) Timeout in seconds for the job run.
-- `triggers` (Map of String) Map of arbitrary keys and values that, when changed, will trigger a creation of a new Job on AAP. Use 'terraform taint' if you want to force the creation of a new job without changing this value.
+- `triggers` (Map of String) Map of arbitrary keys and values that, when changed, will trigger a creation of a new job on AAP. Use 'terraform taint' if you want to force the creation of a new job without changing this value.
 - `verbosity` (Number) Verbosity level for the job run. Valid values: 0 (Normal), 1 (Verbose), 2 (More Verbose), 3 (Debug), 4 (Connection Debug), 5 (WinRM Debug).
 - `wait_for_completion` (Boolean) When this is set to `true`, Terraform will wait until this aap_job resource is created, reaches any final status and then, proceeds with the following resource operation
 - `wait_for_completion_timeout_seconds` (Number) Sets the maximum amount of seconds Terraform will wait before timing out the updates, and the job creation will fail. Default value of `120`
@@ -220,4 +220,4 @@ resource "aap_job" "job" {
 - `ignored_fields` (List of String) The list of properties set by the user but ignored on server side.
 - `job_type` (String) Job type
 - `status` (String) Status of the job
-- `url` (String) URL of the job template
+- `url` (String) URL of the job

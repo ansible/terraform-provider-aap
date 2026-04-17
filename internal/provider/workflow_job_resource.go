@@ -1,21 +1,16 @@
 package provider
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path"
 	"time"
 
 	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -24,6 +19,7 @@ import (
 )
 
 // WorkflowJobAPIModel represents the AAP API model for workflow jobs.
+// /api/controller/v2/workflow_jobs/<id>/
 type WorkflowJobAPIModel struct {
 	TemplateID    int64                  `json:"workflow_job_template,omitempty"`
 	Inventory     int64                  `json:"inventory,omitempty"`
@@ -31,15 +27,49 @@ type WorkflowJobAPIModel struct {
 	URL           string                 `json:"url,omitempty"`
 	Status        string                 `json:"status,omitempty"`
 	ExtraVars     string                 `json:"extra_vars,omitempty"`
+	Limit         string                 `json:"limit,omitempty"`
+	JobTags       string                 `json:"job_tags,omitempty"`
+	SkipTags      string                 `json:"skip_tags,omitempty"`
 	IgnoredFields map[string]interface{} `json:"ignored_fields,omitempty"`
 }
 
+// WorkflowJobLaunchAPIModel represents the AAP API model for Workflow Job Template launch endpoint.
+// GET /api/controller/v2/workflow_job_templates/<id>/launch/
+// It helps determine if a workflow_job_template can be launched.
+type WorkflowJobLaunchAPIModel struct {
+	AskVariablesOnLaunch   bool     `json:"ask_variables_on_launch"`
+	AskTagsOnLaunch        bool     `json:"ask_tags_on_launch"`
+	AskSkipTagsOnLaunch    bool     `json:"ask_skip_tags_on_launch"`
+	AskLimitOnLaunch       bool     `json:"ask_limit_on_launch"`
+	AskInventoryOnLaunch   bool     `json:"ask_inventory_on_launch"`
+	AskLabelsOnLaunch      bool     `json:"ask_labels_on_launch"`
+	SurveyEnabled          bool     `json:"survey_enabled"`
+	VariablesNeededToStart []string `json:"variables_needed_to_start"`
+}
+
+// WorkflowJobLaunchRequestModel represents the request body for POST /workflow_job_templates/{id}/launch.
+// This is separate from WorkflowJobAPIModel because the POST request has different field formats.
+// Note: labels is sent as an array of integer IDs [N, M].
+type WorkflowJobLaunchRequestModel struct {
+	Inventory int64   `json:"inventory,omitempty"`
+	ExtraVars string  `json:"extra_vars,omitempty"`
+	Limit     string  `json:"limit,omitempty"`
+	JobTags   string  `json:"job_tags,omitempty"`
+	SkipTags  string  `json:"skip_tags,omitempty"`
+	Labels    []int64 `json:"labels,omitempty"`
+}
+
+// WorkflowJobModel are the attributes that are provided by the user and also used by the action.
 type WorkflowJobModel struct {
 	TemplateID               types.Int64                      `tfsdk:"workflow_job_template_id"`
 	InventoryID              types.Int64                      `tfsdk:"inventory_id"`
 	ExtraVars                customtypes.AAPCustomStringValue `tfsdk:"extra_vars"`
 	WaitForCompletion        types.Bool                       `tfsdk:"wait_for_completion"`
 	WaitForCompletionTimeout types.Int64                      `tfsdk:"wait_for_completion_timeout_seconds"`
+	Limit                    customtypes.AAPCustomStringValue `tfsdk:"limit"`
+	JobTags                  customtypes.AAPCustomStringValue `tfsdk:"job_tags"`
+	SkipTags                 customtypes.AAPCustomStringValue `tfsdk:"skip_tags"`
+	Labels                   types.List                       `tfsdk:"labels"`
 }
 
 // WorkflowJobResourceModel maps the resource schema data.
@@ -95,64 +125,25 @@ func (r *WorkflowJobResource) Configure(_ context.Context, req resource.Configur
 
 // Schema defines the schema for the  workflowjobresource.
 func (r *WorkflowJobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Attributes: map[string]schema.Attribute{
-			"inventory_id": schema.Int64Attribute{
-				Optional: true,
-				Computed: true,
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.UseStateForUnknown(),
-				},
-				Description: "Identifier for the inventory the job will be run against.",
-			},
-			"workflow_job_template_id": schema.Int64Attribute{
-				Required:    true,
-				Description: "ID of the workflow job template.",
-			},
-			"job_type": schema.StringAttribute{
-				Computed:    true,
-				Description: "Job type",
-			},
-			"url": schema.StringAttribute{
-				Computed:    true,
-				Description: "URL of the workflow job template",
-			},
-			"status": schema.StringAttribute{
-				Computed:    true,
-				Description: "Status of the workflow job",
-			},
-			"extra_vars": schema.StringAttribute{
-				Description: "Extra Variables. Must be provided as either a JSON or YAML string.",
-				Optional:    true,
-				CustomType:  customtypes.AAPCustomStringType{},
-			},
-			"triggers": schema.MapAttribute{
-				Optional:    true,
-				ElementType: types.StringType,
-				Description: "Map of arbitrary keys and values that, when changed, will trigger a creation" +
-					" of a new Workflow Job on AAP. Use 'terraform taint' if you want to force the creation of" +
-					" a new workflow job without changing this value.",
-			},
-			"ignored_fields": schema.ListAttribute{
-				ElementType: types.StringType,
-				Computed:    true,
-				Description: "The list of properties set by the user but ignored on server side.",
-			},
-			"wait_for_completion": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
-				Default:  booldefault.StaticBool(false),
-				Description: "When this is set to `true`, Terraform will wait until this aap_job resource is created, reaches " +
-					"any final status and then, proceeds with the following resource operation",
-			},
-			"wait_for_completion_timeout_seconds": schema.Int64Attribute{
-				Optional: true,
-				Computed: true,
-				Default:  int64default.StaticInt64(waitForCompletionTimeoutDefault),
-				Description: "Sets the maximum amount of seconds Terraform will wait before timing out the updates, " +
-					"and the job creation will fail. Default value of `120`",
-			},
+	// Start with common attributes
+	attributes := CommonJobSchemaAttributes("workflow job")
+
+	// Add workflow-specific attributes
+	attributes["inventory_id"] = schema.Int64Attribute{
+		Optional: true,
+		Computed: true,
+		PlanModifiers: []planmodifier.Int64{
+			int64planmodifier.UseStateForUnknown(),
 		},
+		Description: "Identifier for the inventory the job will be run against.",
+	}
+	attributes["workflow_job_template_id"] = schema.Int64Attribute{
+		Required:    true,
+		Description: "ID of the workflow job template.",
+	}
+
+	resp.Schema = schema.Schema{
+		Attributes: attributes,
 		MarkdownDescription: "Launches an AAP workflow job.\n\n" +
 			"A workflow job is launched only when the resource is first created or when the " +
 			"resource is changed. The " + "`triggers`" + " argument can be used to " +
@@ -173,28 +164,19 @@ func (r *WorkflowJobResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(r.client)...)
+	// WriteOnly attributes (labels) must be read from the config,
+	// not the plan, because WriteOnly values are always null in the plan.
+	var configData WorkflowJobResourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &configData)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	data.Labels = configData.Labels
 
-	// If the job was configured to wait for completion, start polling the job status
-	// and wait for it to complete before marking the resource as created
-	if data.WaitForCompletion.ValueBool() {
-		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
-		var status string
-		retryProgressFunc := func(status string) {
-			tflog.Debug(ctx, "Job status update", map[string]interface{}{
-				"status": status,
-				"url":    data.URL.ValueString(),
-			})
-		}
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, retryProgressFunc, data.URL.ValueString(), &status))
-		if err != nil {
-			resp.Diagnostics.AddError("error when waiting for AAP Workflow job to complete", err.Error())
-			return
-		}
-		data.Status = types.StringValue(status)
+	// Launch job and wait for completion if configured
+	resp.Diagnostics.Append(r.launchAndWait(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	// Save updated data into Terraform state
@@ -255,29 +237,19 @@ func (r *WorkflowJobResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 
-	// Create new Workflow Job from workflow job template
-	resp.Diagnostics.Append(data.LaunchWorkflowJobWithResponse(r.client)...)
+	// WriteOnly attributes (labels) must be read from the config,
+	// not the plan, because WriteOnly values are always null in the plan.
+	var configData WorkflowJobResourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &configData)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	data.Labels = configData.Labels
 
-	// If the job was configured to wait for completion, start polling the job status
-	// and wait for it to complete before marking the resource as created
-	if data.WaitForCompletion.ValueBool() {
-		timeout := time.Duration(data.WaitForCompletionTimeout.ValueInt64()) * time.Second
-		var status string
-		retryProgressFunc := func(status string) {
-			tflog.Debug(ctx, "Job status update", map[string]interface{}{
-				"status": status,
-				"url":    data.URL.ValueString(),
-			})
-		}
-		err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, r.client, retryProgressFunc, data.URL.ValueString(), &status))
-		if err != nil {
-			resp.Diagnostics.AddError("error when waiting for AAP Workflow job to complete", err.Error())
-			return
-		}
-		data.Status = types.StringValue(status)
+	// Launch job and wait for completion if configured
+	resp.Diagnostics.Append(r.launchAndWait(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	// Save updated data into Terraform state
@@ -292,22 +264,54 @@ func (r *WorkflowJobResource) Update(ctx context.Context, req resource.UpdateReq
 func (r WorkflowJobResource) Delete(_ context.Context, _ resource.DeleteRequest, _ *resource.DeleteResponse) {
 }
 
-// CreateRequestBody creates a JSON encoded request body from the workflow job resource data
+// launchAndWait launches a workflow job and optionally waits for completion.
+// This is shared logic between Create and Update operations.
+func (r *WorkflowJobResource) launchAndWait(
+	ctx context.Context,
+	data *WorkflowJobResourceModel,
+) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	// Launch the workflow job
+	diags.Append(data.LaunchWorkflowJobWithResponse(r.client)...)
+	if diags.HasError() {
+		return diags
+	}
+
+	// Wait for completion if configured
+	if data.WaitForCompletion.ValueBool() {
+		retryProgressFunc := func(status string) {
+			tflog.Debug(ctx, "Job status update", map[string]interface{}{
+				"status": status,
+				"url":    data.URL.ValueString(),
+			})
+		}
+		status, waitDiags := data.WaitForWorkflowJobCompletion(ctx, r.client, data.URL.ValueString(), retryProgressFunc)
+		diags.Append(waitDiags...)
+		if diags.HasError() {
+			return diags
+		}
+		data.Status = types.StringValue(status)
+	}
+
+	return diags
+}
+
+// CreateRequestBody creates a JSON encoded request body from the workflow job resource data.
+// Null/unknown fields return zero values which are omitted via omitempty JSON tags.
 func (r *WorkflowJobModel) CreateRequestBody() ([]byte, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
-	// Convert workflow job resource data to API data model
-	workflowJob := WorkflowJobAPIModel{
+	req := WorkflowJobLaunchRequestModel{
 		ExtraVars: r.ExtraVars.ValueString(),
+		Limit:     r.Limit.ValueString(),
+		JobTags:   r.JobTags.ValueString(),
+		SkipTags:  r.SkipTags.ValueString(),
+		Inventory: r.InventoryID.ValueInt64(),
+		Labels:    ConvertListToInt64Slice(r.Labels),
 	}
 
-	// Set inventory id if provided
-	if r.InventoryID.ValueInt64() != 0 {
-		workflowJob.Inventory = r.InventoryID.ValueInt64()
-	}
-
-	// Create JSON encoded request body
-	jsonBody, err := json.Marshal(workflowJob)
+	jsonBody, err := json.Marshal(req)
 	if err != nil {
 		diags.AddError(
 			"Error marshaling request body",
@@ -330,56 +334,70 @@ func (r *WorkflowJobResourceModel) ParseHTTPResponse(body []byte) diag.Diagnosti
 		return diags
 	}
 
-	// Map response to the job resource schema and update attribute values
+	// Map response to the job resource schema and update attribute values.
+	// All Optional+Computed fields use UseStateForUnknown() plan modifiers,
+	// so we can safely set values from the API response without causing drift.
 	r.Type = types.StringValue(resultAPIWorkflowJob.Type)
 	r.URL = types.StringValue(resultAPIWorkflowJob.URL)
 	r.Status = types.StringValue(resultAPIWorkflowJob.Status)
 	r.TemplateID = types.Int64Value(resultAPIWorkflowJob.TemplateID)
 	r.InventoryID = types.Int64Value(resultAPIWorkflowJob.Inventory)
+	r.Limit = customtypes.NewAAPCustomStringValue(resultAPIWorkflowJob.Limit)
+	r.JobTags = customtypes.NewAAPCustomStringValue(resultAPIWorkflowJob.JobTags)
+	r.SkipTags = customtypes.NewAAPCustomStringValue(resultAPIWorkflowJob.SkipTags)
+
+	// Labels are WriteOnly and handled separately via API
+
 	diags = r.ParseIgnoredFields(resultAPIWorkflowJob.IgnoredFields)
 	return diags
 }
 
 // ParseIgnoredFields parses ignored fields from the AAP API response.
 func (r *WorkflowJobResourceModel) ParseIgnoredFields(ignoredFields map[string]interface{}) (diags diag.Diagnostics) {
-	r.IgnoredFields = types.ListNull(types.StringType)
-	var keysList = []attr.Value{}
-
-	for k := range ignoredFields {
-		key := k
-		if v, ok := keyMapping[k]; ok {
-			key = v
-		}
-		keysList = append(keysList, types.StringValue(key))
-	}
-
-	if len(keysList) > 0 {
-		r.IgnoredFields, diags = types.ListValue(types.StringType, keysList)
-	}
-
+	r.IgnoredFields, diags = ParseIgnoredFieldsToList(ignoredFields)
 	return diags
 }
 
+// GetLaunchWorkflowJob performs a GET request to the Workflow Job Template launch endpoint to retrieve
+// the launch configuration.
+func (r *WorkflowJobModel) GetLaunchWorkflowJob(client ProviderHTTPClient) (launchConfig WorkflowJobLaunchAPIModel, diags diag.Diagnostics) {
+	diags = GetLaunchConfiguration(client, "workflow_job_templates", r.TemplateID.ValueInt64(), &launchConfig, "Workflow Job Template")
+	return launchConfig, diags
+}
+
+// CanWorkflowJobBeLaunched retrieves the launch configuration and validates that all required
+// fields are provided. It also warns when fields are provided but will be ignored.
+// This determines if a Workflow Job Template can be launched.
+func (r *WorkflowJobModel) CanWorkflowJobBeLaunched(client ProviderHTTPClient) (diags diag.Diagnostics) {
+	launchConfig, diags := r.GetLaunchWorkflowJob(client)
+	if diags.HasError() {
+		return diags
+	}
+
+	validations := []LaunchFieldValidation{
+		{launchConfig.AskVariablesOnLaunch, r.ExtraVars, "extra_vars"},
+		{launchConfig.AskTagsOnLaunch, r.JobTags, "job_tags"},
+		{launchConfig.AskSkipTagsOnLaunch, r.SkipTags, "skip_tags"},
+		{launchConfig.AskLimitOnLaunch, r.Limit, "limit"},
+		{launchConfig.AskInventoryOnLaunch, r.InventoryID, "inventory_id"},
+		{launchConfig.AskLabelsOnLaunch, r.Labels, "labels"},
+	}
+
+	diags.Append(ValidateLaunchFields(validations, "Workflow Job Template")...)
+	return diags
+}
+
+// LaunchWorkflowJob launches a workflow job from the Workflow Job Template.
+// It first checks if the workflow job can be launched, then POSTs to launch the job.
 func (r *WorkflowJobModel) LaunchWorkflowJob(client ProviderHTTPClient) ([]byte, diag.Diagnostics) {
-	// Create new Workflow Job from workflow job template
-	var diags diag.Diagnostics
-
-	// Create request body from workflow job data
-	requestBody, diagCreateReq := r.CreateRequestBody()
-	diags.Append(diagCreateReq...)
+	// First, check if the workflow job can be launched
+	diags := r.CanWorkflowJobBeLaunched(client)
 	if diags.HasError() {
 		return nil, diags
 	}
 
-	requestData := bytes.NewReader(requestBody)
-	var postURL = path.Join(client.getAPIEndpoint(), "workflow_job_templates", r.TemplateID.String(), "launch")
-	resp, body, err := client.doRequest(http.MethodPost, postURL, nil, requestData)
-	diags.Append(ValidateResponse(resp, body, err, []int{http.StatusCreated})...)
-	if diags.HasError() {
-		return nil, diags
-	}
-
-	return body, diags
+	// Use shared launch helper
+	return LaunchJobTemplate(client, "workflow_job_templates", r)
 }
 
 func (r *WorkflowJobResourceModel) LaunchWorkflowJobWithResponse(client ProviderHTTPClient) diag.Diagnostics {
@@ -388,4 +406,26 @@ func (r *WorkflowJobResourceModel) LaunchWorkflowJobWithResponse(client Provider
 		return diags
 	}
 	return r.ParseHTTPResponse(body)
+}
+
+// WaitForWorkflowJobCompletion waits for a workflow job to reach a final state.
+// It returns the final status and any diagnostics.
+func (r *WorkflowJobModel) WaitForWorkflowJobCompletion(
+	ctx context.Context,
+	client ProviderHTTPClient,
+	jobURL string,
+	retryProgressFunc RetryProgressFunc,
+) (status string, diags diag.Diagnostics) {
+	timeout := time.Duration(r.WaitForCompletionTimeout.ValueInt64()) * time.Second
+	err := retry.RetryContext(ctx, timeout, retryUntilAAPJobReachesAnyFinalState(ctx, client, retryProgressFunc, jobURL, &status))
+	if err != nil {
+		diags.AddError("error when waiting for AAP Workflow job to complete", err.Error())
+		return status, diags
+	}
+	return status, diags
+}
+
+// GetTemplateID implements the LaunchableJob interface.
+func (r *WorkflowJobModel) GetTemplateID() int64 {
+	return r.TemplateID.ValueInt64()
 }
