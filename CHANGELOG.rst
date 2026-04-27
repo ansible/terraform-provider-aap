@@ -4,6 +4,22 @@ Terraform Provider for AAP Release Notes
 
 .. contents:: Topics
 
+v1.5.0
+======
+
+Major Changes
+-------------
+
+- New Action 'aap_workflow_job_launch' enabling action-based AAP workflow job launch.
+
+Minor Changes
+-------------
+
+- Add progress response to aap_job_launch action.
+- Add prompt on launch fields to aap_job resource and aap_job_launch action (credentials, diff_mode, execution_environment, forks, instance_groups, job_slice_count, job_tags, labels, limit, skip_tags, timeout, verbosity).
+- Add prompt on launch fields to aap_workflow_job resource and aap_workflow_job_launch action (job_tags, labels, limit, skip_tags).
+- Add wait_for_completion and wait_for_completion_timeout_seconds to aap_workflow_job resource.
+
 v1.4.0
 ======
 
@@ -18,7 +34,7 @@ Major Changes
 Minor Changes
 -------------
 
-- In addition to the AAP_HOST environment variable, the provider now reads AAP_HOSTNAME to be consistent with other Ansible content. to be consistent with other Ansible content.
+- In addition to the AAP_HOST environment variable, the provider now reads AAP_HOSTNAME to be consistent with other Ansible content.
 
 v1.3.0
 ======
