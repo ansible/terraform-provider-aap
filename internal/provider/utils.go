@@ -134,19 +134,83 @@ type LaunchFieldValidation struct {
 	FieldName   string
 }
 
-// ValidateLaunchFields validates that required fields are provided and warns about ignored fields.
-// Used by both Job and WorkflowJob launch validation.
-func ValidateLaunchFields(validations []LaunchFieldValidation, templateType string) diag.Diagnostics {
+// LaunchRequirements contains fields from AAP's /launch/ endpoint that indicate what's required.
+type LaunchRequirements struct {
+	VariablesNeededToStart  []string
+	InventoryNeededToStart  bool
+	CredentialNeededToStart bool
+}
+
+// extractExtraVarsString extracts the string value from extra_vars attr.Value.
+func extractExtraVarsString(extraVarsValue attr.Value) string {
+	if extraVarsValue.IsNull() || extraVarsValue.IsUnknown() {
+		return ""
+	}
+
+	// Handle types.String and customtypes.AAPCustomStringValue via ValueString() interface
+	if stringer, ok := extraVarsValue.(interface{ ValueString() string }); ok {
+		return stringer.ValueString()
+	}
+	return ""
+}
+
+// validateSurveyVariables validates that required survey variables are provided in extra_vars.
+func validateSurveyVariables(requirements LaunchRequirements, extraVarsValue attr.Value, templateType string) diag.Diagnostics {
 	var diags diag.Diagnostics
 
+	if len(requirements.VariablesNeededToStart) == 0 {
+		return diags
+	}
+
+	extraVarsStr := extractExtraVarsString(extraVarsValue)
+	var extraVarsMap map[string]interface{}
+
+	if extraVarsStr != "" {
+		if err := json.Unmarshal([]byte(extraVarsStr), &extraVarsMap); err != nil {
+			diags.AddWarning(
+				"Unable to validate required survey variables",
+				fmt.Sprintf("Could not parse extra_vars as JSON: %s. Survey variable validation will be performed by AAP.", err.Error()),
+			)
+			return diags
+		}
+	}
+
+	for _, varName := range requirements.VariablesNeededToStart {
+		if _, exists := extraVarsMap[varName]; !exists {
+			diags.AddError(
+				"Missing required field",
+				fmt.Sprintf("%s requires survey variable '%s' to be provided in extra_vars", templateType, varName),
+			)
+		}
+	}
+
+	return diags
+}
+
+// ValidateLaunchFields validates that required fields are provided and warns about ignored fields.
+// Used by both Job and WorkflowJob launch validation.
+func ValidateLaunchFields(
+	requirements LaunchRequirements,
+	validations []LaunchFieldValidation,
+	templateType string,
+	extraVarsValue attr.Value,
+) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	// Validate template fields using explicit boolean flags
 	for _, v := range validations {
 		isNullOrUnknown := v.Value.IsNull() || v.Value.IsUnknown()
-		if v.AskOnLaunch && isNullOrUnknown {
+
+		isRequired := (v.FieldName == "inventory_id" && requirements.InventoryNeededToStart) ||
+			(v.FieldName == "credentials" && requirements.CredentialNeededToStart)
+
+		if isRequired && isNullOrUnknown {
 			diags.AddError(
 				"Missing required field",
 				fmt.Sprintf("%s requires '%s' to be provided at launch", templateType, v.FieldName),
 			)
 		}
+
 		if !v.AskOnLaunch && !isNullOrUnknown {
 			diags.AddWarning(
 				"Field will be ignored",
@@ -154,6 +218,9 @@ func ValidateLaunchFields(validations []LaunchFieldValidation, templateType stri
 			)
 		}
 	}
+
+	// Validate survey variables
+	diags.Append(validateSurveyVariables(requirements, extraVarsValue, templateType)...)
 
 	return diags
 }

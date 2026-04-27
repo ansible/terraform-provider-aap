@@ -6,8 +6,10 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/ansible/terraform-provider-aap/internal/provider/customtypes"
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
@@ -421,6 +423,152 @@ func TestConvertListToInt64Slice(t *testing.T) {
 					t.Errorf("At index %d: expected %d, but got %d", i, expected, result[i])
 				}
 			}
+		})
+	}
+}
+
+func TestExtractExtraVarsString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    attr.Value
+		expected string
+	}{
+		{
+			name:     "null value",
+			input:    types.StringNull(),
+			expected: "",
+		},
+		{
+			name:     "unknown value",
+			input:    types.StringUnknown(),
+			expected: "",
+		},
+		{
+			name:     "types.String with value",
+			input:    types.StringValue(`{"key": "value"}`),
+			expected: `{"key": "value"}`,
+		},
+		{
+			name:     "customtypes.AAPCustomStringValue with value",
+			input:    customtypes.NewAAPCustomStringValue(`{"survey_var": "test"}`),
+			expected: `{"survey_var": "test"}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := extractExtraVarsString(test.input)
+			if result != test.expected {
+				t.Errorf("Expected %q, but got %q", test.expected, result)
+			}
+		})
+	}
+}
+
+// assertDiagnosticCount checks that the number of errors and warnings match expectations.
+func assertDiagnosticCount(t *testing.T, diags diag.Diagnostics, expectErrors, expectWarnings int) {
+	t.Helper()
+	if len(diags.Errors()) != expectErrors {
+		t.Errorf("Expected %d errors, but got %d: %v", expectErrors, len(diags.Errors()), diags.Errors())
+	}
+	if len(diags.Warnings()) != expectWarnings {
+		t.Errorf("Expected %d warnings, but got %d: %v", expectWarnings, len(diags.Warnings()), diags.Warnings())
+	}
+}
+
+// assertDiagnosticContains checks that diagnostics contain expected text.
+func assertDiagnosticContains(t *testing.T, diags diag.Diagnostics, errorContains, warningContains string) {
+	t.Helper()
+	if errorContains != "" {
+		assertDiagnosticListContains(t, diags.Errors(), errorContains, "error")
+	}
+	if warningContains != "" {
+		assertDiagnosticListContains(t, diags.Warnings(), warningContains, "warning")
+	}
+}
+
+// assertDiagnosticListContains checks if any diagnostic in the list contains the expected text.
+func assertDiagnosticListContains(t *testing.T, diagList []diag.Diagnostic, expectedText, diagType string) {
+	t.Helper()
+	for _, d := range diagList {
+		if regexp.MustCompile(expectedText).MatchString(d.Detail()) {
+			return
+		}
+	}
+	t.Errorf("Expected %s to contain %q, but got: %v", diagType, expectedText, diagList)
+}
+
+func TestValidateSurveyVariables(t *testing.T) {
+	tests := []struct {
+		name            string
+		requirements    LaunchRequirements
+		extraVarsValue  attr.Value
+		templateType    string
+		expectErrors    int
+		expectWarnings  int
+		errorContains   string
+		warningContains string
+	}{
+		{
+			name: "no variables needed",
+			requirements: LaunchRequirements{
+				VariablesNeededToStart: []string{},
+			},
+			extraVarsValue: types.StringValue(`{}`),
+			templateType:   "Job Template",
+			expectErrors:   0,
+			expectWarnings: 0,
+		},
+		{
+			name: "all required variables provided",
+			requirements: LaunchRequirements{
+				VariablesNeededToStart: []string{"survey_var1", "survey_var2"},
+			},
+			extraVarsValue: types.StringValue(`{"survey_var1": "value1", "survey_var2": "value2"}`),
+			templateType:   "Job Template",
+			expectErrors:   0,
+			expectWarnings: 0,
+		},
+		{
+			name: "missing required variable",
+			requirements: LaunchRequirements{
+				VariablesNeededToStart: []string{"survey_var1", "survey_var2"},
+			},
+			extraVarsValue: types.StringValue(`{"survey_var1": "value1"}`),
+			templateType:   "Job Template",
+			expectErrors:   1,
+			expectWarnings: 0,
+			errorContains:  "survey_var2",
+		},
+		{
+			name: "invalid JSON in extra_vars",
+			requirements: LaunchRequirements{
+				VariablesNeededToStart: []string{"survey_var1"},
+			},
+			extraVarsValue:  types.StringValue(`{invalid json`),
+			templateType:    "Job Template",
+			expectErrors:    0,
+			expectWarnings:  1,
+			warningContains: "Could not parse extra_vars as JSON",
+		},
+		{
+			name: "null extra_vars with required variables",
+			requirements: LaunchRequirements{
+				VariablesNeededToStart: []string{"survey_var1"},
+			},
+			extraVarsValue: types.StringNull(),
+			templateType:   "Job Template",
+			expectErrors:   1,
+			expectWarnings: 0,
+			errorContains:  "survey_var1",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			diags := validateSurveyVariables(test.requirements, test.extraVarsValue, test.templateType)
+			assertDiagnosticCount(t, diags, test.expectErrors, test.expectWarnings)
+			assertDiagnosticContains(t, diags, test.errorContains, test.warningContains)
 		})
 	}
 }

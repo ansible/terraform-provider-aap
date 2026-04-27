@@ -622,12 +622,12 @@ func TestAccAAPJobAction_AllFieldsOnPrompt(t *testing.T) {
 	})
 }
 
-// TestAccAAPJobAction_AllFieldsOnPrompt_MissingRequired tests that a job action with all
-// fields on prompt fails when required fields are not provided.
+// TestAccAAPJobAction_AllFieldsOnPrompt_MissingRequired tests that a job action with
+// required survey fields fails when required fields are not provided.
 func TestAccAAPJobAction_AllFieldsOnPrompt_MissingRequired(t *testing.T) {
-	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID")
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_WITH_SURVEY_ID")
 	if jobTemplateID == "" {
-		t.Skip("AAP_TEST_JOB_TEMPLATE_ALL_FIELDS_PROMPT_ID environment variable not set")
+		t.Skip("AAP_TEST_JOB_TEMPLATE_WITH_SURVEY_ID environment variable not set")
 	}
 	randNum, _ := rand.Int(rand.Reader, big.NewInt(50000000))
 	inventoryName := fmt.Sprintf("%s-%d", "tf-acc", randNum.Int64())

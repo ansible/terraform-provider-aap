@@ -56,21 +56,25 @@ type JobAPIModel struct {
 // GET /api/controller/v2/job_templates/<id>/launch/
 // It helps determine if a job_template can be launched.
 type JobLaunchAPIModel struct {
-	AskVariablesOnLaunch            bool `json:"ask_variables_on_launch"`
-	AskTagsOnLaunch                 bool `json:"ask_tags_on_launch"`
-	AskSkipTagsOnLaunch             bool `json:"ask_skip_tags_on_launch"`
-	AskJobTypeOnLaunch              bool `json:"ask_job_type_on_launch"`
-	AskLimitOnLaunch                bool `json:"ask_limit_on_launch"`
-	AskInventoryOnLaunch            bool `json:"ask_inventory_on_launch"`
-	AskCredentialOnLaunch           bool `json:"ask_credential_on_launch"`
-	AskExecutionEnvironmentOnLaunch bool `json:"ask_execution_environment_on_launch"`
-	AskLabelsOnLaunch               bool `json:"ask_labels_on_launch"`
-	AskForksOnLaunch                bool `json:"ask_forks_on_launch"`
-	AskDiffModeOnLaunch             bool `json:"ask_diff_mode_on_launch"`
-	AskVerbosityOnLaunch            bool `json:"ask_verbosity_on_launch"`
-	AskInstanceGroupsOnLaunch       bool `json:"ask_instance_groups_on_launch"`
-	AskTimeoutOnLaunch              bool `json:"ask_timeout_on_launch"`
-	AskJobSliceCountOnLaunch        bool `json:"ask_job_slice_count_on_launch"`
+	AskVariablesOnLaunch            bool     `json:"ask_variables_on_launch"`
+	AskTagsOnLaunch                 bool     `json:"ask_tags_on_launch"`
+	AskSkipTagsOnLaunch             bool     `json:"ask_skip_tags_on_launch"`
+	AskJobTypeOnLaunch              bool     `json:"ask_job_type_on_launch"`
+	AskLimitOnLaunch                bool     `json:"ask_limit_on_launch"`
+	AskInventoryOnLaunch            bool     `json:"ask_inventory_on_launch"`
+	AskCredentialOnLaunch           bool     `json:"ask_credential_on_launch"`
+	AskExecutionEnvironmentOnLaunch bool     `json:"ask_execution_environment_on_launch"`
+	AskLabelsOnLaunch               bool     `json:"ask_labels_on_launch"`
+	AskForksOnLaunch                bool     `json:"ask_forks_on_launch"`
+	AskDiffModeOnLaunch             bool     `json:"ask_diff_mode_on_launch"`
+	AskVerbosityOnLaunch            bool     `json:"ask_verbosity_on_launch"`
+	AskInstanceGroupsOnLaunch       bool     `json:"ask_instance_groups_on_launch"`
+	AskTimeoutOnLaunch              bool     `json:"ask_timeout_on_launch"`
+	AskJobSliceCountOnLaunch        bool     `json:"ask_job_slice_count_on_launch"`
+	SurveyEnabled                   bool     `json:"survey_enabled"`
+	VariablesNeededToStart          []string `json:"variables_needed_to_start"`
+	InventoryNeededToStart          bool     `json:"inventory_needed_to_start"`
+	CredentialNeededToStart         bool     `json:"credential_needed_to_start"`
 }
 
 // JobLaunchRequestModel represents the request body for POST /job_templates/{id}/launch.
@@ -565,7 +569,13 @@ func (r *JobModel) CanJobBeLaunched(client ProviderHTTPClient) (diags diag.Diagn
 		{launchConfig.AskJobSliceCountOnLaunch, r.JobSliceCount, "job_slice_count"},
 	}
 
-	diags.Append(ValidateLaunchFields(validations, "Job Template")...)
+	requirements := LaunchRequirements{
+		VariablesNeededToStart:  launchConfig.VariablesNeededToStart,
+		InventoryNeededToStart:  launchConfig.InventoryNeededToStart,
+		CredentialNeededToStart: launchConfig.CredentialNeededToStart,
+	}
+
+	diags.Append(ValidateLaunchFields(requirements, validations, "Job Template", r.ExtraVars)...)
 
 	return diags
 }

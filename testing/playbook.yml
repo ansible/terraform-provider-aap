@@ -64,7 +64,29 @@
         ask_instance_groups_on_launch: true
         ask_timeout_on_launch: true
         ask_job_slice_count_on_launch: true
+        survey_enabled: false
       register: job_template_all_fields_on_prompt
+    # Create a separate template with a survey for testing MissingRequired validation
+    - name: Create Job Template with survey for required field validation
+      ansible.controller.job_template:
+        name: "Test Job Template - hello_world.yml with Survey"
+        organization: "Default"
+        project: "Demo Project"
+        playbook: "hello_world.yml"
+        ask_inventory_on_launch: true
+        survey_enabled: true
+        survey_spec:
+          name: ""
+          description: ""
+          spec:
+            - question_name: "Inventory"
+              question_description: "Required inventory"
+              required: true
+              type: "integer"
+              variable: "inventory"
+              min: 1
+              max: 999999
+      register: job_template_with_survey
     # Create a label for tests that need to provide labels at launch
     - name: Create test label
       ansible.controller.label:
@@ -104,7 +126,27 @@
         ask_limit_on_launch: true
         ask_inventory_on_launch: true
         ask_labels_on_launch: true
+        survey_enabled: false
       register: workflow_job_template_all_fields_on_prompt
+    # Create a separate workflow template with a survey for testing MissingRequired validation
+    - name: Create Workflow Job Template with survey for required field validation
+      ansible.controller.workflow_job_template:
+        name: "Demo Workflow Job Template with Survey"
+        organization: "Default"
+        ask_inventory_on_launch: true
+        survey_enabled: true
+        survey_spec:
+          name: ""
+          description: ""
+          spec:
+            - question_name: "Inventory"
+              question_description: "Required inventory"
+              required: true
+              type: "integer"
+              variable: "inventory"
+              min: 1
+              max: 999999
+      register: workflow_job_template_with_survey
     # The tests for resource.aap_inventory create an inventory that is in a non-default
     # organization. So we need an organization that is not 'Default'
     - name: Create non-default organization

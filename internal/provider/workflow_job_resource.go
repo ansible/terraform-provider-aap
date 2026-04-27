@@ -37,14 +37,16 @@ type WorkflowJobAPIModel struct {
 // GET /api/controller/v2/workflow_job_templates/<id>/launch/
 // It helps determine if a workflow_job_template can be launched.
 type WorkflowJobLaunchAPIModel struct {
-	AskVariablesOnLaunch   bool     `json:"ask_variables_on_launch"`
-	AskTagsOnLaunch        bool     `json:"ask_tags_on_launch"`
-	AskSkipTagsOnLaunch    bool     `json:"ask_skip_tags_on_launch"`
-	AskLimitOnLaunch       bool     `json:"ask_limit_on_launch"`
-	AskInventoryOnLaunch   bool     `json:"ask_inventory_on_launch"`
-	AskLabelsOnLaunch      bool     `json:"ask_labels_on_launch"`
-	SurveyEnabled          bool     `json:"survey_enabled"`
-	VariablesNeededToStart []string `json:"variables_needed_to_start"`
+	AskVariablesOnLaunch    bool     `json:"ask_variables_on_launch"`
+	AskTagsOnLaunch         bool     `json:"ask_tags_on_launch"`
+	AskSkipTagsOnLaunch     bool     `json:"ask_skip_tags_on_launch"`
+	AskLimitOnLaunch        bool     `json:"ask_limit_on_launch"`
+	AskInventoryOnLaunch    bool     `json:"ask_inventory_on_launch"`
+	AskLabelsOnLaunch       bool     `json:"ask_labels_on_launch"`
+	SurveyEnabled           bool     `json:"survey_enabled"`
+	VariablesNeededToStart  []string `json:"variables_needed_to_start"`
+	InventoryNeededToStart  bool     `json:"inventory_needed_to_start"`
+	CredentialNeededToStart bool     `json:"credential_needed_to_start"`
 }
 
 // WorkflowJobLaunchRequestModel represents the request body for POST /workflow_job_templates/{id}/launch.
@@ -383,7 +385,13 @@ func (r *WorkflowJobModel) CanWorkflowJobBeLaunched(client ProviderHTTPClient) (
 		{launchConfig.AskLabelsOnLaunch, r.Labels, "labels"},
 	}
 
-	diags.Append(ValidateLaunchFields(validations, "Workflow Job Template")...)
+	requirements := LaunchRequirements{
+		VariablesNeededToStart:  launchConfig.VariablesNeededToStart,
+		InventoryNeededToStart:  launchConfig.InventoryNeededToStart,
+		CredentialNeededToStart: launchConfig.CredentialNeededToStart,
+	}
+
+	diags.Append(ValidateLaunchFields(requirements, validations, "Workflow Job Template", r.ExtraVars)...)
 	return diags
 }
 
