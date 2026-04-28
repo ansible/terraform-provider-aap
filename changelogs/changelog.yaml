@@ -87,3 +87,23 @@ releases:
     - 20250930-datasource-eda-eventstream.yml
     - 20251119-action-job-launch.yml
     release_date: '2025-11-19'
+  1.5.0:
+    changes:
+      major_changes:
+      - New Action 'aap_workflow_job_launch' enabling action-based AAP workflow job
+        launch.
+      minor_changes:
+      - Add progress response to aap_job_launch action.
+      - Add prompt on launch fields to aap_job resource and aap_job_launch action
+        (credentials, diff_mode, execution_environment, forks, instance_groups, job_slice_count,
+        job_tags, labels, limit, skip_tags, timeout, verbosity).
+      - Add prompt on launch fields to aap_workflow_job resource and aap_workflow_job_launch
+        action (job_tags, labels, limit, skip_tags).
+      - Add wait_for_completion and wait_for_completion_timeout_seconds to aap_workflow_job
+        resource.
+    fragments:
+    - 20251118-action-workflow-job-launch.yml
+    - 20251217-utils-convert-list-to-int64-slice.yml
+    - 20251218-prompt-on-launch-support-jobs.yml
+    - 20260122-prompt-on-launch-support-workflow-jobs.yml
+    release_date: '2026-04-27'
