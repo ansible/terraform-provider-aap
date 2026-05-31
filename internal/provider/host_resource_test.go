@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"reflect"
 	"regexp"
@@ -14,11 +15,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
+	"go.uber.org/mock/gomock"
 )
 
 const hostVariable = "{\"foo\":\"bar\"}"
@@ -114,6 +118,58 @@ func TestHostResourceSchema(t *testing.T) {
 
 	if diagnostics.HasError() {
 		t.Fatalf("Schema validation diagnostics: %+v", diagnostics)
+	}
+}
+
+func TestHostResourceReadRemovesStateOnNotFound(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	schemaResponse := &fwresource.SchemaResponse{}
+	NewHostResource().Schema(ctx, fwresource.SchemaRequest{}, schemaResponse)
+	if schemaResponse.Diagnostics.HasError() {
+		t.Fatalf("Schema method diagnostics: %+v", schemaResponse.Diagnostics)
+	}
+
+	state := HostResourceModel{
+		InventoryID: types.Int64Value(1),
+		Name:        types.StringValue("host1"),
+		URL:         types.StringValue("/api/v2/hosts/1/"),
+		ID:          types.Int64Value(1),
+		Enabled:     types.BoolValue(true),
+		Description: types.StringNull(),
+		Variables:   customtypes.NewAAPCustomStringNull(),
+		Groups:      types.SetNull(types.Int64Type),
+	}
+	rawState := tftypes.NewValue(schemaResponse.Schema.Type().TerraformType(ctx), nil)
+	tfState := tfsdk.State{
+		Schema: schemaResponse.Schema,
+		Raw:    rawState,
+	}
+	diags := tfState.Set(ctx, state)
+	if diags.HasError() {
+		t.Fatalf("failed to build state: %+v", diags)
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockClient := NewMockProviderHTTPClient(ctrl)
+	mockClient.EXPECT().
+		GetWithStatus("/api/v2/hosts/1/", nil).
+		Return([]byte(`{"detail": "Not found."}`), diag.Diagnostics{}, http.StatusNotFound)
+
+	resource := &HostResource{client: mockClient}
+	readResponse := &fwresource.ReadResponse{State: tfState}
+	resource.Read(ctx, fwresource.ReadRequest{State: tfState}, readResponse)
+
+	if readResponse.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics: %+v", readResponse.Diagnostics)
+	}
+	if len(readResponse.Diagnostics.Warnings()) != 1 {
+		t.Fatalf("expected one warning, got %+v", readResponse.Diagnostics)
+	}
+	if !readResponse.State.Raw.IsNull() {
+		t.Fatalf("expected host state to be removed, got %s", readResponse.State.Raw.String())
 	}
 }
 
