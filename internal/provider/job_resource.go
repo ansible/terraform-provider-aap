@@ -491,7 +491,21 @@ func (r *JobResourceModel) ParseHTTPResponse(body []byte) diag.Diagnostics {
 	r.URL = types.StringValue(resultAPIJob.URL)
 	r.Status = types.StringValue(resultAPIJob.Status)
 	r.TemplateID = types.Int64Value(resultAPIJob.TemplateID)
-	r.InventoryID = types.Int64Value(resultAPIJob.Inventory)
+
+	// Preserve a user-specified inventory_id. AAP may override the requested
+	// inventory at launch (for example when the launching user lacks access to
+	// it, or when the job template does not prompt for inventory on launch), so
+	// the launch response can report a different inventory than was configured.
+	// Terraform requires the applied value of a configured attribute to match
+	// its config value, so overwriting it here caused "Provider produced
+	// inconsistent result after apply" (AAP-66920). Only adopt the API's
+	// inventory when the value was left unset, i.e. computed by AAP. When the
+	// requested inventory is ignored, the ignored_fields attribute still
+	// reports it.
+	if r.InventoryID.IsNull() || r.InventoryID.IsUnknown() {
+		r.InventoryID = types.Int64Value(resultAPIJob.Inventory)
+	}
+
 	r.Limit = customtypes.NewAAPCustomStringValue(resultAPIJob.Limit)
 	r.JobTags = customtypes.NewAAPCustomStringValue(resultAPIJob.JobTags)
 	r.SkipTags = customtypes.NewAAPCustomStringValue(resultAPIJob.SkipTags)
