@@ -288,8 +288,8 @@ func TestJobResourceParseHTTPResponse(t *testing.T) {
 	}
 }
 
-// TestJobResourceParseHTTPResponsePreservesConfiguredInventory verifies the
-// AAP-66920 fix: when inventory_id is set by the user, ParseHTTPResponse must not
+// TestJobResourceParseHTTPResponsePreservesConfiguredInventory verifies that
+// when inventory_id is set by the user, ParseHTTPResponse must not
 // overwrite it with a different inventory returned by AAP (which happens when the
 // requested inventory is ignored/overridden at launch), since Terraform requires
 // the applied value to match the configured value. When inventory_id is unset
@@ -486,11 +486,10 @@ func TestAccAAPJob_UpdateWithNewInventoryIdPromptOnLaunch(t *testing.T) {
 	})
 }
 
-// TestAccAAPJob_InventoryIdIgnoredIsConsistent is the acceptance-level regression
-// test for AAP-66920. It sets inventory_id (from a dynamically created inventory,
-// matching the ticket) on a job template that does NOT prompt for inventory on
-// launch, so AAP ignores the requested inventory and runs the job on the
-// template's default. Before the fix this produced "Provider produced
+// TestAccAAPJob_InventoryIdIgnoredIsConsistent sets inventory_id (from a
+// dynamically created inventory) on a job template that does NOT prompt for
+// inventory on launch, so AAP ignores the requested inventory and runs the
+// job on the template's default. Before the fix this produced "Provider produced
 // inconsistent result after apply". The provider must now preserve the configured
 // inventory_id, report the ignored field, and produce a stable plan.
 func TestAccAAPJob_InventoryIdIgnoredIsConsistent(t *testing.T) {
@@ -809,10 +808,7 @@ resource "aap_job" "test" {
 
 // testAccCheckJobInventoryMatches fetches the launched job from AAP and compares
 // the inventory it actually ran on against the inventory_id stored in state.
-// When shouldMatch is true, AAP is expected to have honored the requested
-// inventory; when false, AAP is expected to have ignored/overridden it (in which
-// case the AAP-66920 fix must still preserve the configured inventory_id in
-// state, so the two legitimately differ).
+// inventory; when false, AAP is expected to have ignored/overridden it.
 func testAccCheckJobInventoryMatches(shouldMatch bool) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[resourceNameJob]
