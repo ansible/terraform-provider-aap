@@ -69,6 +69,13 @@ ansible-galaxy collection install -r testing/requirements.yml
 export AAP_VALIDATE_CERTS=false
 # For AAP 2.4, set CONTROLLER_OPTIONAL_API_URLPATTERN_PREFIX
 export CONTROLLER_OPTIONAL_API_URLPATTERN_PREFIX="/api/"
+# The ansible.controller modules authenticate via OAuth token, not Basic auth.
+# Create a token and export it so the playbook modules can use it:
+export CONTROLLER_HOST="$AAP_HOSTNAME"
+export CONTROLLER_OAUTH_TOKEN=$(curl -sk -u "$AAP_USERNAME:$AAP_PASSWORD" \
+  -X POST "$AAP_HOSTNAME/api/v2/tokens/" \
+  -H "Content-Type: application/json" -d '{"scope":"write"}' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
 ansible-playbook testing/playbook.yml
 ```
 
