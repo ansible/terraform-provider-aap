@@ -288,6 +288,52 @@ func TestJobResourceParseHTTPResponse(t *testing.T) {
 	}
 }
 
+// TestJobResourceParseHTTPResponsePreservesConfiguredInventory verifies that
+// when inventory_id is set by the user, ParseHTTPResponse must not
+// overwrite it with a different inventory returned by AAP (which happens when the
+// requested inventory is ignored/overridden at launch), since Terraform requires
+// the applied value to match the configured value. When inventory_id is unset
+// (null/unknown), the API value is adopted (Computed behavior).
+func TestJobResourceParseHTTPResponsePreservesConfiguredInventory(t *testing.T) {
+	// AAP ran the job on inventory 1 even though 2 was requested.
+	input := []byte(`{"inventory":1,"job_template":1,"job_type":"run","url":"/api/v2/jobs/14/","status":"pending","ignored_fields":{"inventory":2}}`)
+
+	testTable := []struct {
+		name        string
+		initial     types.Int64
+		expectedInv types.Int64
+	}{
+		{
+			name:        "configured inventory is preserved",
+			initial:     basetypes.NewInt64Value(2),
+			expectedInv: basetypes.NewInt64Value(2),
+		},
+		{
+			name:        "unset inventory adopts API value",
+			initial:     basetypes.NewInt64Null(),
+			expectedInv: basetypes.NewInt64Value(1),
+		},
+		{
+			name:        "unknown inventory adopts API value",
+			initial:     basetypes.NewInt64Unknown(),
+			expectedInv: basetypes.NewInt64Value(1),
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			resource := JobResourceModel{JobModel: JobModel{InventoryID: test.initial}}
+			diags := resource.ParseHTTPResponse(input)
+			if diags.HasError() {
+				t.Fatalf("Unexpected error diagnostics: %s", diags)
+			}
+			if !resource.InventoryID.Equal(test.expectedInv) {
+				t.Errorf("Expected inventory_id (%s), actual was (%s)", test.expectedInv, resource.InventoryID)
+			}
+		})
+	}
+}
+
 // Acceptance tests
 
 func getJobResourceFromStateFile(s *terraform.State) (map[string]interface{}, error) {
@@ -433,7 +479,162 @@ func TestAccAAPJob_UpdateWithNewInventoryIdPromptOnLaunch(t *testing.T) {
 					checkBasicJobAttributes(t, resourceNameJob, reJobStatus),
 					testAccCheckJobUpdate(&jobURLBefore, true),
 					// Wait for the job to finish so the inventory can be deleted
-					testAccCheckJobPause(ctx, resourceNameJob),
+					testAccCheckJobPause(ctx),
+				),
+			},
+		},
+	})
+}
+
+// TestAccAAPJob_InventoryIdIgnoredIsConsistent sets inventory_id (from a
+// dynamically created inventory) on a job template that does NOT prompt for
+// inventory on launch, so AAP ignores the requested inventory and runs the
+// job on the template's default. Before the fix this produced "Provider produced
+// inconsistent result after apply". The provider must now preserve the configured
+// inventory_id, report the ignored field, and produce a stable plan.
+func TestAccAAPJob_InventoryIdIgnoredIsConsistent(t *testing.T) {
+	var jobURLBefore string
+
+	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	// AAP_TEST_JOB_TEMPLATE_ID is not configured to prompt for inventory on launch.
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Apply must succeed (no inconsistent-result error). The framework
+			// also runs a plan afterwards and fails on any non-empty plan, which
+			// verifies idempotency of the Read path.
+			{
+				Config: testAccUpdateJobWithInventoryID(inventoryName, jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicJobAttributes(t, resourceNameJob, reJobStatus),
+					// State keeps the configured inventory_id...
+					resource.TestCheckResourceAttrPair(resourceNameJob, "inventory_id", "aap_inventory.test", "id"),
+					// ...even though AAP ignored it and ran on a different inventory.
+					testAccCheckJobInventoryMatches(false),
+					// AAP reports the ignored field back to the user.
+					resource.TestCheckResourceAttr(resourceNameJob, "ignored_fields.#", "1"),
+					resource.TestCheckResourceAttr(resourceNameJob, "ignored_fields.0", "inventory"),
+					testAccCheckJobUpdate(&jobURLBefore, false),
+				),
+			},
+			// Re-applying the identical config must not relaunch (same job URL) or drift.
+			{
+				Config: testAccUpdateJobWithInventoryID(inventoryName, jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrPair(resourceNameJob, "inventory_id", "aap_inventory.test", "id"),
+					testAccCheckJobUpdate(&jobURLBefore, false),
+				),
+			},
+		},
+	})
+}
+
+// TestAccAAPJob_InventoryIdHonored covers the path where the job template prompts
+// for inventory on launch, so AAP honors the requested inventory. inventory_id is
+// set and must match both the configuration and the inventory AAP actually used.
+func TestAccAAPJob_InventoryIdHonored(t *testing.T) {
+	inventoryName := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_INVENTORY_PROMPT_ID")
+	if jobTemplateID == "" {
+		t.Skip("AAP_TEST_JOB_TEMPLATE_INVENTORY_PROMPT_ID must be set to run this test")
+	}
+	ctx := t.Context()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccUpdateJobWithInventoryID(inventoryName, jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicJobAttributes(t, resourceNameJob, reJobStatus),
+					resource.TestCheckResourceAttrPair(resourceNameJob, "inventory_id", "aap_inventory.test", "id"),
+					// Prompt-on-launch: AAP honors the requested inventory.
+					testAccCheckJobInventoryMatches(true),
+				),
+			},
+			// Wait for the job to reach a final state so the inventory it uses can
+			// be deleted at teardown.
+			{
+				Config: testAccUpdateJobWithInventoryID(inventoryName, jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrPair(resourceNameJob, "inventory_id", "aap_inventory.test", "id"),
+					testAccCheckJobPause(ctx),
+				),
+			},
+		},
+	})
+}
+
+// TestAccAAPJob_InventoryIdComputedWhenUnset covers the Computed path (issue #123):
+// when inventory_id is not set, the provider adopts the inventory AAP assigns and
+// must not drift on subsequent plans.
+func TestAccAAPJob_InventoryIdComputedWhenUnset(t *testing.T) {
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_ID")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBasicJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicJobAttributes(t, resourceNameJob, reJobStatus),
+					// inventory_id is computed from AAP (the template's default).
+					resource.TestCheckResourceAttrSet(resourceNameJob, "inventory_id"),
+				),
+			},
+			// Re-apply: an unset inventory_id must not drift or relaunch.
+			{
+				Config: testAccBasicJob(jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet(resourceNameJob, "inventory_id"),
+				),
+			},
+		},
+	})
+}
+
+// TestAccAAPJob_InventoryIdChangedRelaunches covers the update path: changing
+// inventory_id on a prompt-on-launch template relaunches the job on the new
+// inventory, and the planned/applied inventory_id must stay consistent across the
+// change.
+func TestAccAAPJob_InventoryIdChangedRelaunches(t *testing.T) {
+	var jobURLBefore string
+
+	jobTemplateID := os.Getenv("AAP_TEST_JOB_TEMPLATE_INVENTORY_PROMPT_ID")
+	if jobTemplateID == "" {
+		t.Skip("AAP_TEST_JOB_TEMPLATE_INVENTORY_PROMPT_ID must be set to run this test")
+	}
+
+	inventoryNameA := acctest.RandomWithPrefix("tf-acc-test")
+	inventoryNameB := acctest.RandomWithPrefix("tf-acc-test")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccJobResourcePreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccJobWithManagedInventoryWaitForCompletion(inventoryNameA, inventoryNameB, "aap_inventory.a.id", jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicJobAttributes(t, resourceNameJob, reJobStatusFinal),
+					resource.TestCheckResourceAttrPair(resourceNameJob, "inventory_id", "aap_inventory.a", "id"),
+					testAccCheckJobInventoryMatches(true),
+					testAccCheckJobUpdate(&jobURLBefore, false),
+				),
+			},
+			// Point the job at a different existing inventory: a new job must be
+			// launched on the new inventory, and inventory_id must stay consistent.
+			{
+				Config: testAccJobWithManagedInventoryWaitForCompletion(inventoryNameA, inventoryNameB, "aap_inventory.b.id", jobTemplateID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					checkBasicJobAttributes(t, resourceNameJob, reJobStatusFinal),
+					resource.TestCheckResourceAttrPair(resourceNameJob, "inventory_id", "aap_inventory.b", "id"),
+					testAccCheckJobInventoryMatches(true),
+					testAccCheckJobUpdate(&jobURLBefore, true),
 				),
 			},
 		},
@@ -505,12 +706,12 @@ func TestAccAAPJob_WaitForCompletion(t *testing.T) {
 // testAccCheckJobPause is designed to force the acceptance test framework to wait
 // until a job is finished. This is needed when the associated inventory also must be
 // deleted.
-func testAccCheckJobPause(ctx context.Context, name string) resource.TestCheckFunc {
+func testAccCheckJobPause(ctx context.Context) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		var jobAPIModel JobAPIModel
-		job, ok := s.RootModule().Resources[name]
+		job, ok := s.RootModule().Resources[resourceNameJob]
 		if !ok {
-			return fmt.Errorf("job (%s) not found in terraform state", name)
+			return fmt.Errorf("job (%s) not found in terraform state", resourceNameJob)
 		}
 
 		timeout := 240 * time.Second
@@ -579,6 +780,66 @@ resource "aap_job" "test" {
 `, jobTemplateID)
 }
 
+// testAccJobWithManagedInventoryWaitForCompletion creates two distinct
+// aap_inventory resources and points the job at one of them (selected by
+// inventoryRef, e.g. "aap_inventory.a.id"). This lets a test switch the job
+// between two guaranteed-valid inventories across steps — changing inventory_id
+// to a different existing inventory forces the job to relaunch — without
+// depending on specific inventory ids already existing in the target AAP
+// instance.
+func testAccJobWithManagedInventoryWaitForCompletion(inventoryNameA, inventoryNameB, inventoryRef, jobTemplateID string) string {
+	return fmt.Sprintf(`
+resource "aap_inventory" "a" {
+	name = "%s"
+}
+
+resource "aap_inventory" "b" {
+	name = "%s"
+}
+
+resource "aap_job" "test" {
+	job_template_id                     = %s
+	inventory_id                        = %s
+	wait_for_completion                 = true
+	wait_for_completion_timeout_seconds = 300
+}
+`, inventoryNameA, inventoryNameB, jobTemplateID, inventoryRef)
+}
+
+// testAccCheckJobInventoryMatches fetches the launched job from AAP and compares
+// the inventory it actually ran on against the inventory_id stored in state.
+// inventory; when false, AAP is expected to have ignored/overridden it.
+func testAccCheckJobInventoryMatches(shouldMatch bool) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceNameJob]
+		if !ok {
+			return fmt.Errorf("job (%s) not found in terraform state", resourceNameJob)
+		}
+		stateInventory := rs.Primary.Attributes["inventory_id"]
+
+		body, err := testGetResource(rs.Primary.Attributes["url"])
+		if err != nil {
+			return err
+		}
+		var job JobAPIModel
+		if err := json.Unmarshal(body, &job); err != nil {
+			return err
+		}
+		actualInventory := fmt.Sprintf("%d", job.Inventory)
+
+		if shouldMatch && stateInventory != actualInventory {
+			return fmt.Errorf("expected AAP job to run on the configured inventory (%s), but it ran on (%s)", stateInventory, actualInventory)
+		}
+		if !shouldMatch && stateInventory == actualInventory {
+			return fmt.Errorf(
+				"expected AAP to override the requested inventory (%s) but the job ran on it; test cannot verify inventory_id preservation",
+				stateInventory,
+			)
+		}
+		return nil
+	}
+}
+
 func TestAccAAPJob_disappears(t *testing.T) {
 	var jobURL string
 
@@ -603,7 +864,7 @@ func TestAccAAPJob_disappears(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					checkBasicJobAttributes(t, resourceNameJob, reJobStatus),
 					// Wait for the job to finish so the inventory can be deleted
-					testAccCheckJobPause(ctx, resourceNameJob),
+					testAccCheckJobPause(ctx),
 				),
 			},
 			// Confirm the job is finished (fewer options in status), then delete directly via API, outside of terraform.
@@ -855,7 +1116,7 @@ func TestAccAAPJob_AllFieldsOnPrompt(t *testing.T) {
 				Config: testAccJobAllFieldsOnPrompt(inventoryName, jobTemplateID, credentialID, labelID),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckJobExists,
-					testAccCheckJobPause(ctx, resourceNameJob),
+					testAccCheckJobPause(ctx),
 				),
 			},
 		},
