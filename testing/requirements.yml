@@ -1,8 +1,11 @@
 collections:
   # https://console.redhat.com/ansible/automation-hub/repo/published/ansible/controller/docs/
   - name: ansible.controller
+    version: "4.8.6"
   # https://console.redhat.com/ansible/automation-hub/repo/published/ansible/platform/docs/
   - name: ansible.platform
+    version: "2.7.20260812"
   # https://console.redhat.com/ansible/automation-hub/repo/published/ansible/eda/
   - name: ansible.eda
+    version: "2.13.0"
 

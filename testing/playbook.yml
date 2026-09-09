@@ -234,6 +234,10 @@
       # Attempt to create platform.token first (2.5+), with fallback to controller.token
       - name: Create a platform token for token authentication
         ansible.platform.token:
+          aap_hostname: "{{ lookup('env', 'AAP_HOSTNAME') }}"
+          aap_username: "{{ lookup('env', 'AAP_USERNAME') }}"
+          aap_password: "{{ lookup('env', 'AAP_PASSWORD') }}"
+          aap_validate_certs: "{{ lookup('env', 'AAP_VALIDATE_CERTS') | default('true') | bool }}"
           description: "Testing terraform-provider-aap"
           scope: write
         register: platform_token
@@ -242,16 +246,27 @@
           token_type: platform
           token: "{{ platform_token.ansible_facts.aap_token.token }}"
       rescue:
-      # Creating a platform token failed, fall back to controller.token for 2.4 compatibility
+      # Creating a platform token failed, fall back to REST API for 2.4 compatibility
+      # The old ansible.controller.token is not used as recent versions of the collection
+      # do not have it
       - name: Create a token for token authentication
-        ansible.controller.token:
-          description: "Testing terraform-provider-aap"
-          scope: write
+        ansible.builtin.uri:
+          url: "{{ lookup('env', 'AAP_HOSTNAME') }}/api/v2/tokens/"
+          method: POST
+          user: "{{ lookup('env', 'AAP_USERNAME') }}"
+          password: "{{ lookup('env', 'AAP_PASSWORD') }}"
+          force_basic_auth: true
+          validate_certs: "{{ lookup('env', 'AAP_VALIDATE_CERTS') | default('true') | bool }}"
+          body_format: json
+          body:
+            description: "Testing terraform-provider-aap"
+            scope: write
+          status_code: 201
         register: controller_token
-      - name: Store platform token
+      - name: Store controller token
         ansible.builtin.set_fact:
           token_type: controller
-          token: "{{ controller_token.ansible_facts.controller_token.token }}"
+          token: "{{ controller_token.json.token }}"
     # The provider acceptance tests are configured to read the IDs of all of these
     # test resources from the environment, so we write a local .env file that exports
     # all of them
