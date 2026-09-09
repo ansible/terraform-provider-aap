@@ -1,0 +1,3 @@
+---
+bugfixes:
+  - resource/aap_job - Preserve the configured inventory_id instead of failing the apply when AAP launches the job on a different inventory than the one requested (https://github.com/ansible/terraform-provider-aap/issues/31).
