@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"reflect"
 	"regexp"
@@ -14,11 +15,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
+	"go.uber.org/mock/gomock"
 )
 
 const hostVariable = "{\"foo\":\"bar\"}"
@@ -114,6 +117,55 @@ func TestHostResourceSchema(t *testing.T) {
 
 	if diagnostics.HasError() {
 		t.Fatalf("Schema validation diagnostics: %+v", diagnostics)
+	}
+}
+
+func TestHostResourceReadRemovesStateOnNotFound(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	schemaResponse := &fwresource.SchemaResponse{}
+	NewHostResource().Schema(ctx, fwresource.SchemaRequest{}, schemaResponse)
+	if schemaResponse.Diagnostics.HasError() {
+		t.Fatalf("Schema method diagnostics: %+v", schemaResponse.Diagnostics)
+	}
+
+	state := tfsdk.State{Schema: schemaResponse.Schema}
+	stateDiags := state.Set(ctx, &HostResourceModel{
+		InventoryID: types.Int64Value(1),
+		Name:        types.StringValue("host1"),
+		URL:         types.StringValue("/api/v2/hosts/1/"),
+		ID:          types.Int64Value(1),
+		Enabled:     types.BoolValue(true),
+		Description: types.StringNull(),
+		Variables:   customtypes.NewAAPCustomStringNull(),
+		Groups:      types.SetNull(types.Int64Type),
+	})
+	if stateDiags.HasError() {
+		t.Fatalf("State setup diagnostics: %+v", stateDiags)
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := NewMockProviderHTTPClient(ctrl)
+	mockClient.EXPECT().
+		GetWithStatus("/api/v2/hosts/1/", nil).
+		Return([]byte(`{"detail": "Not found."}`), diag.Diagnostics{}, http.StatusNotFound)
+
+	resource := &HostResource{client: mockClient}
+	request := fwresource.ReadRequest{State: state}
+	response := &fwresource.ReadResponse{State: state}
+	resource.Read(ctx, request, response)
+
+	if response.Diagnostics.HasError() {
+		t.Fatalf("Read method diagnostics: %+v", response.Diagnostics.Errors())
+	}
+	if warnings := response.Diagnostics.Warnings(); len(warnings) != 1 {
+		t.Fatalf("Expected exactly one warning diagnostic, got %d: %+v", len(warnings), warnings)
+	}
+	if !response.State.Raw.IsNull() {
+		t.Fatal("Expected state to be removed")
 	}
 }
 

@@ -226,7 +226,15 @@ func (r *HostResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	}
 
 	// Get latest host data from AAP
-	readResponseBody, diags := r.client.Get(data.URL.ValueString())
+	readResponseBody, diags, status := r.client.GetWithStatus(data.URL.ValueString(), nil)
+	if status == http.StatusNotFound {
+		resp.Diagnostics.AddWarning(
+			"Host not found",
+			"The host was not found. It may have been deleted. The host will be recreated.",
+		)
+		resp.State.RemoveResource(ctx)
+		return
+	}
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
