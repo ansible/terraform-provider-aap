@@ -22,6 +22,10 @@ builds:
   goarch:
     - amd64
     - arm64
+    - s390x
+  ignore:
+    - goos: darwin
+      goarch: s390x
   binary: '{{ .ProjectName }}_v{{ .Version }}'
 archives:
 - formats: ["zip"]
