@@ -19,9 +19,14 @@ builds:
   goos:
     - linux
     - darwin
+    - windows
   goarch:
     - amd64
     - arm64
+  ignore:
+    # Windows ARM64 is not published; only windows/amd64 is built.
+    - goos: windows
+      goarch: arm64
   binary: '{{ .ProjectName }}_v{{ .Version }}'
 archives:
 - formats: ["zip"]

@@ -109,3 +109,13 @@ The provider also supports basic authentication with a username and password. If
 
 - Linux AMD64 and ARM64
 - macOS AMD64 and ARM64
+
+## Unsupported Platforms
+
+- Windows AMD64
+
+The Windows AMD64 build is published so Terraform configurations can be written and validated on
+Windows workstations. It is unsupported by Red Hat:
+
+- Not for production use.
+- Any bug report must be reproduced on Linux before it will be accepted.
