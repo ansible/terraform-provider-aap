@@ -132,6 +132,12 @@ To release a new version of the provider:
 1. Linux AMD64 and ARM64
 2. Darwin AMD64 and ARM64
 
+## Unsupported Platforms
+
+Windows AMD64 builds are published for writing and validating Terraform configurations on Windows
+workstations. They are unsupported by Red Hat: not for production use, and any bug report must be
+reproduced on Linux before it will be accepted.
+
 ## Licensing
 
 GNU General Public License v3.0. See [LICENSE](/LICENSE) for full text.
