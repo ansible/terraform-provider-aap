@@ -107,3 +107,17 @@ releases:
     - 20251218-prompt-on-launch-support-jobs.yml
     - 20260122-prompt-on-launch-support-workflow-jobs.yml
     release_date: '2026-04-27'
+  1.5.1:
+    changes:
+      bugfixes:
+      - resource/aap_job - Preserve the configured inventory_id instead of failing
+        the apply when AAP launches the job on a different inventory than the one
+        requested (https://github.com/ansible/terraform-provider-aap/issues/31).
+      minor_changes:
+      - Add a Windows AMD64 build to the release artifacts. The Windows build is unsupported
+        by Red Hat and is not for production use; bug reports must be reproduced on
+        Linux before they are accepted.
+    fragments:
+    - 20260831-fix-aap-job-inventory-id-inconsistent.yml
+    - 20261118-add-windows-amd64-build.yml
+    release_date: '2026-11-24'
