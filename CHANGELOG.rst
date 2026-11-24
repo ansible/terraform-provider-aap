@@ -4,6 +4,19 @@ Terraform Provider for AAP Release Notes
 
 .. contents:: Topics
 
+v1.5.1
+======
+
+Minor Changes
+-------------
+
+- Add a Windows AMD64 build to the release artifacts. The Windows build is unsupported by Red Hat and is not for production use; bug reports must be reproduced on Linux before they are accepted.
+
+Bugfixes
+--------
+
+- resource/aap_job - Preserve the configured inventory_id instead of failing the apply when AAP launches the job on a different inventory than the one requested (https://github.com/ansible/terraform-provider-aap/issues/31).
+
 v1.5.0
 ======
 
