@@ -163,6 +163,8 @@ func TestCreateRequest(t *testing.T) {
 			expectAuth: "Bearer env-token",
 		},
 		{
+			// Covers the TFC case where TFC_WORKLOAD_IDENTITY_AUDIENCE is unset,
+			// so TFC never injects TFC_WORKLOAD_IDENTITY_TOKEN.
 			name:          "bearer fails without token",
 			context:       t.Context(),
 			authType:      "bearer",
