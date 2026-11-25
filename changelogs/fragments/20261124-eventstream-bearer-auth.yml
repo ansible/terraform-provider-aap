@@ -1,0 +1,3 @@
+minor_changes:
+  - "aap_eda_eventstream_post - add bearer token auth via ``event_stream_config.auth_type`` and ``token`` (https://github.com/ansible/terraform-provider-aap/issues/201)."
+  - "aap_eda_eventstream_post - accept HTTP 202 responses."
