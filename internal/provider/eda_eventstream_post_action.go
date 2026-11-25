@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework/action"
@@ -68,13 +69,22 @@ func (a *EDAEventStreamPostAction) Schema(_ context.Context, _ action.SchemaRequ
 						Description: "Disable TLS verification (insecure)",
 						Optional:    true,
 					},
+					"auth_type": schema.StringAttribute{
+						Description: "Authentication type: either basic (default) or bearer",
+						Optional:    true,
+					},
 					"username": schema.StringAttribute{
-						Description: "Username to use when performing the POST to the Event Stream URL",
-						Required:    true,
+						Description: "Username to use when performing the POST to the Event Stream URL (Used when auth_type is basic)",
+						Optional:    true,
 					},
 					"password": schema.StringAttribute{
-						Description: "Password to use when performing the POST to the Event Stream URL",
-						Required:    true,
+						Description: "Password to use when performing the POST to the Event Stream URL (Used when auth_type is basic)",
+						Optional:    true,
+					},
+					"token": schema.StringAttribute{
+						Description: "Token to use when performing the POST to the Event Stream URL " +
+							"(Used when auth_type is bearer, defaults to TFC_WORKLOAD_IDENTITY_TOKEN env var)",
+						Optional: true,
 					},
 				},
 			},
@@ -84,8 +94,10 @@ func (a *EDAEventStreamPostAction) Schema(_ context.Context, _ action.SchemaRequ
 
 type EventStreamConfigModel struct {
 	Url                types.String `tfsdk:"url"`
+	AuthType           types.String `tfsdk:"auth_type"`
 	Username           types.String `tfsdk:"username"`
 	Password           types.String `tfsdk:"password"`
+	Token              types.String `tfsdk:"token"`
 	InsecureSkipVerify types.Bool   `tfsdk:"insecure_skip_verify"`
 }
 
@@ -142,7 +154,7 @@ func (m *EventStreamActionModel) CreateEventPayloadWithMarshaler(marshaler JSONM
 	return jsonPayload, nil
 }
 
-// Create an http POST request to the configured Event Stream URL using basic auth
+// Create an http POST request to the configured Event Stream URL using basic or bearer auth
 func (m *EventStreamActionModel) CreateRequest(ctx context.Context, body io.Reader) (*http.Request, diag.Diagnostics) {
 	url := m.EventStreamConfig.Url.ValueString()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
@@ -158,8 +170,28 @@ func (m *EventStreamActionModel) CreateRequest(ctx context.Context, body io.Read
 	const EDAEventStreamPostActionContentType = "application/json"
 	req.Header.Set("Content-Type", EDAEventStreamPostActionContentType)
 
-	// Only Basic auth supported at this time
-	req.SetBasicAuth(m.EventStreamConfig.Username.ValueString(), m.EventStreamConfig.Password.ValueString())
+	var diags diag.Diagnostics
+	switch authType := m.EventStreamConfig.AuthType.ValueString(); authType {
+	case "", "basic":
+		if m.EventStreamConfig.Username.ValueString() == "" || m.EventStreamConfig.Password.ValueString() == "" {
+			diags.AddError("Missing credentials", "username and password are required when auth_type is basic")
+			return nil, diags
+		}
+		req.SetBasicAuth(m.EventStreamConfig.Username.ValueString(), m.EventStreamConfig.Password.ValueString())
+	case "bearer":
+		token := m.EventStreamConfig.Token.ValueString()
+		if token == "" {
+			token = os.Getenv("TFC_WORKLOAD_IDENTITY_TOKEN")
+		}
+		if token == "" {
+			diags.AddError("Missing token", "token or TFC_WORKLOAD_IDENTITY_TOKEN env var is required when auth_type is bearer")
+			return nil, diags
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+	default:
+		diags.AddError("Invalid auth_type", fmt.Sprintf("auth_type must be basic or bearer, got %q", authType))
+		return nil, diags
+	}
 	return req, nil
 }
 
@@ -206,6 +238,7 @@ func (a *EDAEventStreamPostAction) ExecuteRequest(client HttpClient, req *http.R
 	validStatusCodes := []int{
 		http.StatusCreated,
 		http.StatusOK,
+		http.StatusAccepted,
 	}
 	if !slices.Contains(validStatusCodes, hresp.StatusCode) {
 		var diags diag.Diagnostics

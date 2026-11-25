@@ -118,8 +118,11 @@ func TestCreateRequest(t *testing.T) {
 	testTable := []struct {
 		name          string
 		context       context.Context
+		authType      string
 		username      string
 		password      string
+		token         string
+		envToken      string
 		url           string
 		body          string
 		expectAuth    string
@@ -136,6 +139,46 @@ func TestCreateRequest(t *testing.T) {
 			expectFailure: false,
 		},
 		{
+			name:          "basic fails without username and password",
+			context:       t.Context(),
+			authType:      "basic",
+			url:           "https://test.example.org",
+			expectFailure: true,
+		},
+		{
+			name:       "bearer uses token",
+			context:    t.Context(),
+			authType:   "bearer",
+			token:      "token",
+			envToken:   "env-token",
+			url:        "https://test.example.org",
+			expectAuth: "Bearer token",
+		},
+		{
+			name:       "bearer falls back to TFC_WORKLOAD_IDENTITY_TOKEN",
+			context:    t.Context(),
+			authType:   "bearer",
+			envToken:   "env-token",
+			url:        "https://test.example.org",
+			expectAuth: "Bearer env-token",
+		},
+		{
+			// Covers the TFC case where TFC_WORKLOAD_IDENTITY_AUDIENCE is unset,
+			// so TFC never injects TFC_WORKLOAD_IDENTITY_TOKEN.
+			name:          "bearer fails without token",
+			context:       t.Context(),
+			authType:      "bearer",
+			url:           "https://test.example.org",
+			expectFailure: true,
+		},
+		{
+			name:          "invalid auth_type fails",
+			context:       t.Context(),
+			authType:      "digest",
+			url:           "https://test.example.org",
+			expectFailure: true,
+		},
+		{
 			name:          "empty context fails",
 			context:       nil,
 			expectFailure: true,
@@ -144,10 +187,13 @@ func TestCreateRequest(t *testing.T) {
 
 	for _, tc := range testTable {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("TFC_WORKLOAD_IDENTITY_TOKEN", tc.envToken)
 			model := EventStreamActionModel{
 				EventStreamConfig: EventStreamConfigModel{
+					AuthType: types.StringValue(tc.authType),
 					Username: types.StringValue(tc.username),
 					Password: types.StringValue(tc.password),
+					Token:    types.StringValue(tc.token),
 					Url:      types.StringValue(tc.url),
 				},
 			}
@@ -280,6 +326,11 @@ func TestExecuteRequest(t *testing.T) {
 		{
 			name:          "succeed when response status is http 201 created",
 			client:        &mockClient{StatusCode: http.StatusCreated},
+			expectFailure: false,
+		},
+		{
+			name:          "succeed when response status is http 202 accepted",
+			client:        &mockClient{StatusCode: http.StatusAccepted},
 			expectFailure: false,
 		},
 		{
