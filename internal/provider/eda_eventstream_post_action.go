@@ -82,8 +82,9 @@ func (a *EDAEventStreamPostAction) Schema(_ context.Context, _ action.SchemaRequ
 						Optional:    true,
 					},
 					"token": schema.StringAttribute{
-						Description: "Token to use when performing the POST to the Event Stream URL (Used when auth_type is bearer, defaults to TFC_WORKLOAD_IDENTITY_TOKEN env var)",
-						Optional:    true,
+						Description: "Token to use when performing the POST to the Event Stream URL " +
+							"(Used when auth_type is bearer, defaults to TFC_WORKLOAD_IDENTITY_TOKEN env var)",
+						Optional: true,
 					},
 				},
 			},
